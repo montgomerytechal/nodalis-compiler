@@ -1,0 +1,33 @@
+{
+  "name": "imperium-compiler",
+  "version": "1.0.0",
+  "description": "Compiles IEC-61131-3/10 languages into code that can be used as a PLC on multiple platforms.",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "test": "jest",
+    "build": "echo 'No build step yet.'",
+    "start": "node src/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://montgomerytech.visualstudio.com/imperium-compiler/_git/imperium-compiler"
+  },
+  "keywords": [
+    "PLC",
+    "IEC-61131",
+    "Logic",
+    "Controller",
+    "Ladder",
+    "Logic",
+    "Structured",
+    "Text"
+  ],
+  "author": "Nathan Skipper",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "eslint": "^9.28.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.5.3"
+  }
+}
