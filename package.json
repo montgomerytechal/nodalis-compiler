@@ -5,6 +5,8 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
+    "test_st_core": "node test/st/testRunner.js",
+    "test_st_compiler_code": "node test/st/testGenericCPP.js",
     "test": "jest",
     "build": "echo 'No build step yet.'",
     "start": "node src/index.js"
@@ -18,10 +20,8 @@
     "IEC-61131",
     "Logic",
     "Controller",
-    "Ladder",
-    "Logic",
-    "Structured",
-    "Text"
+    "Ladder Logic",
+    "Structured Text"
   ],
   "author": "Nathan Skipper",
   "license": "Apache-2.0",

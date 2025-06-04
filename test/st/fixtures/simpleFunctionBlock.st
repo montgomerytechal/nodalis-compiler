@@ -1,0 +1,12 @@
+FUNCTION_BLOCK Timer
+VAR_INPUT
+  Start : BOOL;
+END_VAR
+VAR_OUTPUT
+  Done : BOOL;
+END_VAR
+VAR
+  Counter : INT;
+END_VAR
+Counter := Counter + 1;
+END_FUNCTION_BLOCK

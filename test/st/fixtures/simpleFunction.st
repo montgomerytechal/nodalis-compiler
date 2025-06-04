@@ -1,0 +1,7 @@
+FUNCTION Add : INT
+VAR_INPUT
+  A : INT;
+  B : INT;
+END_VAR
+Add := A + B;
+END_FUNCTION
