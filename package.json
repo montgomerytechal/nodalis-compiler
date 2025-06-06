@@ -2,14 +2,14 @@
   "name": "imperium-compiler",
   "version": "1.0.0",
   "description": "Compiles IEC-61131-3/10 languages into code that can be used as a PLC on multiple platforms.",
-  "main": "src/index.js",
+  "main": "src/imperium.js",
   "type": "module",
   "scripts": {
     "test_st_core": "node test/st/testRunner.js",
     "test_st_compiler_code": "node test/st/testGenericCPP.js",
     "test": "jest",
     "build": "echo 'No build step yet.'",
-    "start": "node src/index.js"
+    "start": "node src/imperium.js"
   },
   "repository": {
     "type": "git",
@@ -29,5 +29,8 @@
     "eslint": "^9.28.0",
     "jest": "^29.7.0",
     "prettier": "^3.5.3"
+  },
+  "dependencies": {
+    "xmldom": "^0.6.0"
   }
 }

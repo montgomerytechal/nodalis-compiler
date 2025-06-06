@@ -1,4 +1,18 @@
-// --- transpiler.js ---
+/* eslint-disable curly */
+/* eslint-disable eqeqeq */
+// Copyright [2025] Nathan Skipper
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 import { convertExpression } from './expressionConverter.js';
 
@@ -47,53 +61,62 @@ export function transpile(ast) {
   return lines.join('\n');
 }
 
-function transpileStatements(statements) {
-  return statements?.flatMap(stmt => {
+function mapStatement(stmt){
+  try{
     switch (stmt.type) {
-      case 'ASSIGN':
-        let left = stmt.left;
-        let right = convertExpression(stmt.right.join(" "));
-        if(/^%[IQM]/i.test(left)){
-            return `writeAddress("${left}", ${right})`;
+        case 'ASSIGN': {
+          let left = stmt.left;
+          let right = convertExpression(stmt.right.join(" "));
+          if (/^%[IQM]/i.test(left)) {
+            return [`writeAddress("${left}", ${right});`];
+          } else {
+            return [`${left} = ${right};`];
+          }
         }
-        else{
-            return `${left} = ${right};`;
-        }
 
-      case 'IF':
-        return [
-          `if (${convertExpression(stmt.condition)}) {`,
-          ...transpileStatements(stmt.thenBranch)?.map(s => `  ${s}`),
-          `} else {`,
-          ...transpileStatements(stmt.elseBranch)?.map(s => `  ${s}`),
-          `}`
-        ];
+        case 'IF':
+          return [
+            `if (${convertExpression(stmt.condition)}) {`,
+            ...transpileStatements(stmt.thenBranch)?.map(s => `  ${s}`),
+            `} else {`,
+            ...transpileStatements(stmt.elseBranch)?.map(s => `  ${s}`),
+            `}`
+          ];
 
-      case 'WHILE':
-        return [
-          `while (${convertExpression(stmt.condition)}) {`,
-          ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
-          `}`
-        ];
+        case 'WHILE':
+          return [
+            `while (${convertExpression(stmt.condition)}) {`,
+            ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
+            `}`
+          ];
 
-      case 'FOR':
-        return [
-          `for (int ${stmt.variable} = ${stmt.start}; ${stmt.variable} <= ${stmt.end}; ${stmt.variable} += ${stmt.step}) {`,
-          ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
-          `}`
-        ];
+        case 'FOR':
+          return [
+            `for (int ${stmt.variable} = ${stmt.start}; ${stmt.variable} <= ${stmt.end}; ${stmt.variable} += ${stmt.step}) {`,
+            ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
+            `}`
+          ];
 
-      default:
-        return [`// unsupported: ${stmt.type}`];
-    }
-  });
+        default:
+          return [`// unsupported: ${stmt.type}`];
+      }
+  }
+  catch(e){
+    console.error(e + "\n" + JSON.stringify(stmt));
+  }
+  return "// uncompilable statement " + JSON.stringify(stmt);
 }
+
+function transpileStatements(statements) {
+  return statements?.flatMap(mapStatement);
+}
+
 
 function declareVars(varSections) {
   return varSections.map(v => `${mapType(v.type)} ${v.name};`);
 }
 
-function mapType(type) {
+export function mapType(type) {
   const types = {
     'BOOL': 'bool',
     'BYTE': 'uint8_t',
