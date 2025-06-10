@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1749502683680" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1749586005178" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -90,8 +90,8 @@
                 </ConnectionPointIn>
 
                 </LdObject>
-<LdObject xsi:type="Contact"  operand="SW0001.0" edge="none" negated="false" latch="none">
-                    <RelPosition x="14.609196541036248" y="36.43429525737012"/>
+<LdObject xsi:type="Contact"  operand="SW0001_0.0" edge="none" negated="false" latch="none">
+                    <RelPosition x="14.609196541036235" y="36.43429525737012"/>
                     <ConnectionPointIn>
                     
                     <Connection refConnectionPointOutId="1"/>
@@ -350,13 +350,7 @@
                     <Configuration name="Main">
                     <Resource name="PLC1" resourceTypeName="Main">
                     <GlobalVars>
-        <Variable name="SW0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="LD0001" orderWithinParamSet="">
+        <Variable name="LD0001" orderWithinParamSet="">
                     <Type>
                     <TypeName>LWORD</TypeName>
                 </Type>
@@ -392,6 +386,12 @@
                 </Type>
                     undefined
                 </Variable>
+<Variable name="SW0001_0" orderWithinParamSet="">
+                    <Type>
+                    <TypeName>DWORD</TypeName>
+                </Type>
+                    <Address location="M" size="D" address="0"></Address>
+                </Variable>
 
         </GlobalVars>
                     <Task xsi:type="StandardTask" name="T100" interval="100" priority="1"/>
@@ -403,4 +403,8 @@
                 </Configuration>
 
                 </Instances>
+                    <MappingTable>
+                    <Map ModuleID="192.168.9.100" ModulePort="552" Protocol="MODBUS-TCP" RemoteAddress="1001" RemoteSize="1" InternalAddress="%MD0.0" PollTime="500" ProtocolProperties="{}"></Map>
+
+                </MappingTable>
                 </Project>

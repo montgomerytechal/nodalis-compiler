@@ -204,13 +204,14 @@ export class Project extends Serializable {
      * @param {Types?} types Can be undefined, but if provided, sets the Types property.
      * @param {Instances?} instances Not used currently.
      */
-    constructor(fileHeader, contentHeader, types, instances) {
+    constructor(fileHeader, contentHeader, types, instances, mappingTable) {
         super();
         this.TypeMap = {
             "FileHeader": FileHeader,
             "ContentHeader": ContentHeader,
             "Types": Types,
-            "Instances": Instances
+            "Instances": Instances,
+            "MappingTable": MappingTable
          };
          /**@type {FileHeader} */
         this.FileHeader = new FileHeader();
@@ -220,12 +221,13 @@ export class Project extends Serializable {
         this.Types = new Types();
         /**@type {Instances} */
         this.Instances = new Instances();
-
+        this.MappingTable = new MappingTable();
         if(isValid(fileHeader)) {this.FileHeader = fileHeader;}
         if(isValid(contentHeader)) {this.ContentHeader = contentHeader;}
         if(isValid(types)) {this.Types = types;}
 
-        //if(isValid(instances)) this.Instances = instances;
+        if(isValid(instances)) this.Instances = instances;
+        if(isValid(mappingTable)) this.MappingTable = mappingTable;
     }
 
     /**
@@ -245,8 +247,10 @@ export class Project extends Serializable {
         );
         proj.Types = Types.fromXML(xmlDoc.getElementsByTagName("Types")[0], proj);
         proj.Instances = Instances.fromXML(xmlDoc.getElementsByTagName("Instances")[0], proj);
+        proj.MappingTable = Instances.fromXML(xmlDoc.getElementsByTagName("MappingTable")[0], proj);
         if(!isValid(proj.Types)) proj.Types = new Types(null, proj);
         if(!isValid(proj.Instances)) proj.Instances = new Instances(null, proj);
+        if(!isValid(proj.MappingTable)) proj.MappingTable = new MappingTable();
         return proj;
     }
 
@@ -264,6 +268,7 @@ export class Project extends Serializable {
                     ${this.ContentHeader.toXML()}
                     ${this.Types.toXML()}
                     ${this.Instances.toXML()}
+                    ${this.MappingTable.toXML()}
                 </Project>`;
     }
 
@@ -948,7 +953,7 @@ export class Resource extends Serializable{
              * @param {Variable} v 
              */
             (v) => {
-                vars += `${v.Name} ${isValid(v.Address) ? "%" + v.Address.Location + v.Address.Size + (v.Address.Address.length > 0 ? "." + v.Address.Address : "") : ""} : ${v.Type.TypeName};\n`;
+                vars += `${v.Name} ${isValid(v.Address) ?  " AT %" + v.Address.Location + v.Address.Size + v.Address.Address : ""} : ${v.Type.TypeName};\n`;
             }
 
         );
@@ -4060,5 +4065,127 @@ export class Address extends Serializable{
      */
     toXML() {
         return `<Address location="${this.Location}" size="${this.Size}" address="${this.Address}"></Address>`;
+    }
+}
+
+/**
+ * Represents a Mapping Table for I/O to a PLC (not IEC standard).
+ */
+export class MappingTable extends Serializable{
+    /**
+     * Constructs a new MappingTable object.
+     * @param {Map[]?} maps An array of Map objects.
+     */
+    constructor(maps) {
+        super();
+        this.TypeMap = {
+            "Maps": []
+        };
+        this.Maps = [];
+        if(isValid(maps)) this.Maps = maps;
+    }
+
+    /**
+     * Creates a new MappingTable object based on an xml element.
+     * @param {Element} xml The xml element from which to create the object.
+     * @returns Returns a new MappingTable object, or null if the xml is invalid.
+     */
+    static fromXML(xml) {
+        if(!isValid(xml)) return null;
+        var maps = [];
+        forEachElem(xml.getElementsByTagName("Map"), (v) => {
+            maps.push(Map.fromXML(v));
+        });
+        
+        return new MappingTable(maps);
+    }
+
+    /**
+     * 
+     * @returns Returns an xml string representing the variable.
+     */
+    toXML() {
+        var maps = "";
+        forEachElem(this.Maps, (m) => {
+            maps += m.toXML() + "\n";
+        });
+        return `<MappingTable>
+                    ${maps}
+                </MappingTable>`;
+    }
+}
+
+export const ModuleProtocols = Object.freeze([
+    "MODBUS-TCP",
+    "MODBUS-RTU",
+    "OPCUA",
+    "BACNET-IP",
+    "MTI"
+]);
+
+/**
+ * Represents a Map of remote I/O to internal memory on the PLC (not IEC standard.)
+ */
+export class Map extends Serializable{
+
+    /**
+     * Constructs a new Map object.
+     * @param {string?} moduleID The ID of the remote module. This can be the IP address or a unique ID used by the specific protocol.
+     * @param {string?} modulePort the port to the remtoe module.
+     * @param {string?} protocol Identifies the protocol for the remote module. Protocols are defined by the "ModuleProtocols" constant.
+     * @param {string?} remoteAddress The address within the module to map.
+     * @param {string?} remoteSize The size of the address, in bits.
+     * @param {string?} internalAddress The address reference to internal PLC memory. This should be the standard address reference format, without the %.
+     * @param {string?} pollTime The time in milliseconds that this module should be polled.
+     * @param {string?} protocolProperties This is a JSON string defining additional properties that should be defined for the protocol. For example, in BACNET/IP you must identify the object, property, and value type.
+     */
+    constructor(moduleID, modulePort, protocol, remoteAddress, remoteSize, internalAddress, pollTime, protocolProperties) {
+        super();
+        this.TypeMap = {
+            "ModuleID": "",
+            "ModulePort": "",
+            "Protocol": "",
+            "RemoteAddress": "",
+            "RemoteSize": "",
+            "InternalAddress": "",
+            "PollTime": "",
+            "ProtocolProperties": ""
+        };
+        this.ModuleID = "";
+        this.ModulePort = "";
+        this.Protocol = "";
+        this.RemoteAddress = "";
+        this.RemoteSize = "";
+        this.InternalAddress = "";
+        this.PollTime = "";
+        this.ProtocolProperties = "";
+
+        if(isValid(moduleID)) this.ModuleID = moduleID;
+        if(isValid(modulePort)) this.ModulePort = modulePort;
+        if(isValid(protocol)) this.Protocol = protocol;
+        if(isValid(remoteAddress)) this.RemoteAddress = remoteAddress;
+        if(isValid(remoteSize)) this.RemoteSize = remoteSize;
+        if(isValid(internalAddress)) this.InternalAddress = internalAddress;
+        if(isValid(pollTime)) this.PollTime = pollTime;
+        if(isValid(protocolProperties)) this.ProtocolProperties = protocolProperties;
+    }
+
+    /**
+     * Creates a new Map object based on an xml element.
+     * @param {Element} xml The element to create the object from.
+     * @returns {Map} Returns a new Map object, or null if the xml is invalid.
+     */
+    static fromXML(xml) {
+        if(!isValid(xml)) return null;
+        return new Map(xml.getAttribute("ModuleID"), xml.getAttribute("ModulePort"), xml.getAttribute("Protocol"), xml.getAttribute("RemoteAddress"), xml.getAttribute("RemoteSize"), xml.getAttribute("InternalAddress"), xml.getAttribute("PollTime"), xml.getAttribute("ProtocolProperties"));
+    }
+
+
+    /**
+     * 
+     * @returns Returns an xml string representing the object.
+     */
+    toXML() {
+        return `<Map ModuleID="${this.ModuleID}" ModulePort="${this.ModulePort}" Protocol="${this.Protocol}" RemoteAddress="${this.RemoteAddress}" RemoteSize="${this.RemoteSize}" InternalAddress="${this.InternalAddress}" PollTime="${this.PollTime}" ProtocolProperties="${escapeXmlAttr(this.ProtocolProperties)}"></Map>`;
     }
 }

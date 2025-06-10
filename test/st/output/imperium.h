@@ -2,7 +2,7 @@
 #include <cstdint>
 #include <string>
 #include <chrono>
-
+#include <type_traits> // for std::is_same
 extern uint64_t PROGRAM_COUNT;
 extern std::chrono::steady_clock::time_point PROGRAM_START;
 
@@ -44,7 +44,68 @@ class TP{
 
 void gatherInputs();
 void handleOutputs();
-uint64_t readAddress(std::string address);
-void writeAddress(std::string address, uint64_t value);
-bool getBit(uint64_t var, int bit);
-void setBit(uint64_t* var, int bit, bool value);
+uint32_t readDWord(std::string address);
+uint16_t readWord(std::string address);
+uint8_t readByte(std::string address);
+bool readBit(std::string address);
+void writeDWord(std::string address, uint32_t value);
+void writeWord(std::string address, uint16_t value);
+void writeByte(std::string address, uint8_t value);
+void writeBit(std::string address, bool value);
+bool getBit(void* var, int bit);
+void setBit(void* var, int bit, bool value);
+
+template<typename T>
+class RefVar {
+private:
+    std::string address;
+    T cache;
+
+public:
+    RefVar(const std::string& addr) : address(addr) {
+        cache = read();
+    }
+
+    RefVar<T>& operator=(T value) {
+        cache = value;
+        write(value);
+        return *this;
+    }
+
+    operator T() const {
+        return read();
+    }
+
+    T* operator&(){
+        return &cache;
+    }
+
+private:
+    T read() const {
+        if constexpr (std::is_same_v<T, bool>) {
+            return readBit(address);
+        } else if constexpr (std::is_same_v<T, uint8_t>) {
+            return readByte(address);
+        } else if constexpr (std::is_same_v<T, uint16_t>) {
+            return readWord(address);
+        } else if constexpr (std::is_same_v<T, uint32_t>) {
+            return readDWord(address);
+        } else {
+            static_assert(!std::is_same_v<T, T>, "Unsupported type for RefVar");
+        }
+    }
+
+    void write(T value) const {
+        if constexpr (std::is_same_v<T, bool>) {
+            writeBit(address, value);
+        } else if constexpr (std::is_same_v<T, uint8_t>) {
+            writeByte(address, value);
+        } else if constexpr (std::is_same_v<T, uint16_t>) {
+            writeWord(address, value);
+        } else if constexpr (std::is_same_v<T, uint32_t>) {
+            writeDWord(address, value);
+        } else {
+            static_assert(!std::is_same_v<T, T>, "Unsupported type for RefVar");
+        }
+    }
+};

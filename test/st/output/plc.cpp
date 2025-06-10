@@ -18,13 +18,13 @@ void PLC_PROG() { //PROGRAM:PLC_PROG
 static Timer T1;
 uint64_t IN;
 T1();
-IN = readAddress("%I0001.0");
+IN = readBit("%I0001.0");
 if (T1.Start == true && ! T1.Done) {
-  writeAddress("%Q0001.0", 1);
+  writeBit("%Q0001.0", 1);
 }
 else if (T1.Done == true) {
   T1.Start = false;
-  writeAddress("%Q0001.0", 0);
+  writeBit("%Q0001.0", 0);
 }
 }
 

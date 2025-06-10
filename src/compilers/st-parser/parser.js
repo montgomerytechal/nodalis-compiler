@@ -62,6 +62,17 @@ export function parseStructuredText(code) {
 
     while (peek() && peek().value.toUpperCase() !== 'END_VAR') {
       const name = consume().value;
+      let address = null;
+      let token = peek();
+      if (peek()?.value.toUpperCase?.() === 'AT') {
+        consume(); // skip 'AT'
+        const addrToken = consume();
+        if (addrToken?.type === 'ADDRESS' || addrToken?.type === 'IDENTIFIER') {
+          address = addrToken.value;
+        } else {
+          throw new Error(`Expected address after AT, got '${addrToken?.value}'`);
+        }
+      }
       expect(':');
       const type = consume().value;
       let initialValue = null;
@@ -70,7 +81,7 @@ export function parseStructuredText(code) {
         consume(); // consume ':='
         initialValue = consume().value;
       }
-      variables.push({ name, type, initialValue, sectionType: 'VAR_GLOBAL' });
+      variables.push({ name, type, address, initialValue, sectionType: 'VAR_GLOBAL' });
       if (peek()?.value === ';') consume();
     }
 

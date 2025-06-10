@@ -15,6 +15,7 @@
 // limitations under the License.
 
 import { convertExpression } from './expressionConverter.js';
+import { getWriteAddressExpression } from './expressionConverter.js';
 
 export function transpile(ast) {
   const lines = [];
@@ -72,7 +73,7 @@ function mapStatement(stmt){
           const left = stmt.left;
           const rightExpr = convertExpression(stmt.right);
           if (isIOAddress(left)) {
-            return `writeAddress("${left}", ${rightExpr});`;
+            return getWriteAddressExpression(left, rightExpr) + ";";
           } else if (isBitSelector(left)) {
             const [varName, bitIndex] = left.split('.');
             return `setBit(&${varName}, ${bitIndex}, ${rightExpr});`;
@@ -139,16 +140,23 @@ function transpileStatements(statements) {
 
 function declareVars(varSections) {
   return varSections.map(v => {
-    const cleanedType = v.type.trim().toUpperCase();
+    var cleanedType = v.type.trim().toUpperCase();
     const isFunctionBlockType = !mapType(cleanedType) || mapType(cleanedType) === 'auto';
     let init = "";
-    if (v.initialValue !== undefined && v.initialValue !== null) {
+    cleanedType = mapType(cleanedType);
+    if(v.address){
+      cleanedType = "RefVar<" + cleanedType + ">";
+      var addr = v.address;
+      if(!addr.startsWith("%")) addr = "%" + addr;
+      init = `("${addr}")`
+    }
+    else if (v.initialValue !== undefined && v.initialValue !== null) {
       init = ` = ${v.initialValue}`;
     }
     if (v.sectionType==='VAR' && isFunctionBlockType) {
       return `static ${v.type} ${v.name};`; // assume Function Block type
     }
-    return `${mapType(cleanedType)} ${v.name}${init};`;
+    return `${cleanedType} ${v.name}${init};`;
   });
 }
 

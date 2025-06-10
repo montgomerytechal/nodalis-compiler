@@ -5,13 +5,13 @@
 #include <cstdint>
 #include <limits>
 // Global variable declarations
-uint64_t SW0001;
 uint64_t LD0001;
 uint64_t IL0001;
 uint64_t BI0001;
 uint64_t CI0001;
 uint64_t BO0001;
 uint64_t CO0001;
+RefVar<uint32_t> SW0001_0("%MD0");
 
 class PLS {//FUNCTION_BLOCK:PLS
 public:
@@ -32,10 +32,10 @@ void PLC_LD() { //PROGRAM:PLC_LD
 static TP TP00010;
 int16_t Time;
 TP00010();
-TP00010.IN = ! getBit(IL0001, 0) && ( ( getBit(SW0001, 0) ) );
+TP00010.IN = ! getBit(&IL0001, 0) && ( ( getBit(&SW0001_0, 0) ) );
 TP00010.PT = 1000;
 Time = ( TP00010.ET );
-writeAddress("%Q0.0", ! ( ( ( Time > 2000 ) ) || TP00010.Q ));
+writeBit("%Q0.0", ! ( ( ( Time > 2000 ) ) || TP00010.Q ));
 }
 
 

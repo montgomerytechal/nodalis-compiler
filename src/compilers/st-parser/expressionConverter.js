@@ -33,15 +33,68 @@ export function convertExpression(expr) {
   // Replace %I/Q/M references with readAddress(...) before anything else
   const parts = results.split(/\s+/);
   results = parts.map(e => {
-    return /^%[IQM]\d+(\.\d+)?$/i.test(e) ? `readAddress("${e}")` : e;
+    return /^%[IQM]\d+(\.\d+)?$/i.test(e) ? `${getReadAddressExpression(e)}` : e;
   }).join(' ');
 
   // Now replace var.bit (but NOT %I0001.0) with getBit(...)
-  if(results.indexOf("readAddress") === -1){
+  if(results.indexOf("read") === -1){
     results = results.replace(/\b(?!%)(([A-Za-z_]\w*)\.(\d+))\b/g, (_, full, base, bit) => {
-        return `getBit(${base}, ${bit})`;
+        return `getBit(&${base}, ${bit})`;
     });
   }
   return results;
+}
+
+/**
+ * 
+ * @param {string} addr 
+ * @returns 
+ */
+export function getReadAddressExpression(addr){
+  var result = `readDWord("${addr}")`;
+  try{
+    if(addr.indexOf(".")){
+      result = `readBit("${addr}")`;
+    }
+    else{
+      var width = addr.substring(2, 3).toUpperCase();
+      switch(width){
+        case "X":
+          result = `readByte("${addr}")`;
+        break;
+        case "W":
+          `readWord("${addr}")`;
+        break;
+      }
+    }
+  }
+  catch(e){
+    console.error(e);
+  }
+  return result;
+}
+
+export function getWriteAddressExpression(addr, value){
+  var result = `writeDWord("${addr}", ${value})`;
+  try{
+    if(addr.indexOf(".") > -1){
+      result = `writeBit("${addr}", ${value})`;
+    }
+    else{
+      var width = addr.substring(2, 3).toUpperCase();
+      switch(width){
+        case "X":
+          result = `writeByte("${addr}", ${value})`;
+        break;
+        case "W":
+          `writeWord("${addr}", ${value})`;
+        break;
+      }
+    }
+  }
+  catch(e){
+    console.error(e);
+  }
+  return result;
 }
 
