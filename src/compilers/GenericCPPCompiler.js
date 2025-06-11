@@ -21,7 +21,7 @@ import path from "path";
 import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Compiler.js';
 import * as iec from "./iec-parser/parser.js";
 import { parseStructuredText } from './st-parser/parser.js';
-import { transpile } from './st-parser/transpiler.js';
+import { transpile } from './st-parser/cpptranspiler.js';
 
 export class GenericCPPCompiler extends Compiler {
     constructor(options) {
@@ -140,7 +140,6 @@ export class GenericCPPCompiler extends Compiler {
         
         const cppCode = 
 `#include "imperium.h"
-#include "modbus.h"
 #include <chrono>
 #include <thread>
 #include <cstdint>
@@ -171,7 +170,8 @@ int main() {
             'imperium.h',
             'imperium.cpp',
             'modbus.h',
-            'modbus.cpp'
+            'modbus.cpp',
+            "json.hpp"
         ];
 
         const coreDir = path.resolve('./src/compilers/support/generic');

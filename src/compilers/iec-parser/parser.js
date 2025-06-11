@@ -149,7 +149,7 @@ export class Serializable{
             }
             
         }
-        return JSON.stringify(obj,null,4);
+        return JSON.stringify(obj);
     }
 
     /**
@@ -247,7 +247,7 @@ export class Project extends Serializable {
         );
         proj.Types = Types.fromXML(xmlDoc.getElementsByTagName("Types")[0], proj);
         proj.Instances = Instances.fromXML(xmlDoc.getElementsByTagName("Instances")[0], proj);
-        proj.MappingTable = Instances.fromXML(xmlDoc.getElementsByTagName("MappingTable")[0], proj);
+        proj.MappingTable = MappingTable.fromXML(xmlDoc.getElementsByTagName("MappingTable")[0], proj);
         if(!isValid(proj.Types)) proj.Types = new Types(null, proj);
         if(!isValid(proj.Instances)) proj.Instances = new Instances(null, proj);
         if(!isValid(proj.MappingTable)) proj.MappingTable = new MappingTable();
@@ -285,6 +285,21 @@ export class Project extends Serializable {
             console.error(e);
         }
         return programs;
+    }
+
+    getAllFunctionBlocks(){
+        var fbs = [];
+        try{
+            forEachElem(this.Types.GlobalNamespace.NamespaceDecl.FunctionBlocks,
+                (p) => {
+                    fbs.push(p);
+                }
+            );
+        }
+        catch(e){
+            console.error(e);
+        }
+        return fbs;
     }
 
     /**
@@ -944,9 +959,25 @@ export class Resource extends Serializable{
         var tasks = "";
         var progs = "";
         var vars = "";
-        
+        var included = "";
+        var map = this.Parent.Parent.Parent.MappingTable.toST(this.Name);
+        var programs = this.Parent.Parent.Parent.getAllPrograms();
+        var fbs = this.Parent.Parent.Parent.getAllFunctionBlocks();
+        forEachElem(fbs, fb => included += fb.toST() + "\n");
         forEachElem(this.Tasks, t => tasks += t.toST());
-        forEachElem(this.ProgramInstances, p => progs += p.toST());
+        forEachElem(this.ProgramInstances, 
+            /**
+             * 
+             * @param {ProgramInstance} p 
+             */
+            p => {
+                progs += p.toST();
+                
+                var incProg = programs.find(pr => pr.Name === p.TypeName);
+                if(isValid(incProg)){
+                    included += incProg.toST() + "\n";
+                }
+            });
         forEachElem(this.GlobalVars.Variables, 
             /**
              * 
@@ -958,12 +989,14 @@ export class Resource extends Serializable{
 
         );
         var res = 
-`${tasks}
+`
+${map}
+${tasks}
 ${progs}
 VAR_GLOBAL
     ${vars}
 END_VAR
-${this.Parent.Parent.Parent.Types.GlobalNamespace.toST()}`;
+${included}`;
         return res;
     }
 }
@@ -4113,6 +4146,22 @@ export class MappingTable extends Serializable{
                     ${maps}
                 </MappingTable>`;
     }
+
+    /**
+     * Creates structured text references for the mapping table.
+     * @param {string?} resource If the resource name is provided, it filters the table by this resource.
+     */
+    toST(resource){
+        var res = "";
+        var maps = "";
+        if(isValid(resource)) res = resource;
+        forEachElem(this.Maps, m => {
+            if(res === "" || m.Resource === res){
+                maps += m.toST() + "\n";
+            }
+        });
+        return maps;
+    }
 }
 
 export const ModuleProtocols = Object.freeze([
@@ -4136,10 +4185,11 @@ export class Map extends Serializable{
      * @param {string?} remoteAddress The address within the module to map.
      * @param {string?} remoteSize The size of the address, in bits.
      * @param {string?} internalAddress The address reference to internal PLC memory. This should be the standard address reference format, without the %.
+     * @param {string?} resource The resource name assocated with this map.
      * @param {string?} pollTime The time in milliseconds that this module should be polled.
      * @param {string?} protocolProperties This is a JSON string defining additional properties that should be defined for the protocol. For example, in BACNET/IP you must identify the object, property, and value type.
      */
-    constructor(moduleID, modulePort, protocol, remoteAddress, remoteSize, internalAddress, pollTime, protocolProperties) {
+    constructor(moduleID, modulePort, protocol, remoteAddress, remoteSize, internalAddress, resource, pollTime, protocolProperties) {
         super();
         this.TypeMap = {
             "ModuleID": "",
@@ -4148,6 +4198,7 @@ export class Map extends Serializable{
             "RemoteAddress": "",
             "RemoteSize": "",
             "InternalAddress": "",
+            "Resource": "",
             "PollTime": "",
             "ProtocolProperties": ""
         };
@@ -4159,6 +4210,7 @@ export class Map extends Serializable{
         this.InternalAddress = "";
         this.PollTime = "";
         this.ProtocolProperties = "";
+        this.Resource = "";
 
         if(isValid(moduleID)) this.ModuleID = moduleID;
         if(isValid(modulePort)) this.ModulePort = modulePort;
@@ -4168,6 +4220,7 @@ export class Map extends Serializable{
         if(isValid(internalAddress)) this.InternalAddress = internalAddress;
         if(isValid(pollTime)) this.PollTime = pollTime;
         if(isValid(protocolProperties)) this.ProtocolProperties = protocolProperties;
+        if(isValid(resource)) this.Resource = resource;
     }
 
     /**
@@ -4177,7 +4230,7 @@ export class Map extends Serializable{
      */
     static fromXML(xml) {
         if(!isValid(xml)) return null;
-        return new Map(xml.getAttribute("ModuleID"), xml.getAttribute("ModulePort"), xml.getAttribute("Protocol"), xml.getAttribute("RemoteAddress"), xml.getAttribute("RemoteSize"), xml.getAttribute("InternalAddress"), xml.getAttribute("PollTime"), xml.getAttribute("ProtocolProperties"));
+        return new Map(xml.getAttribute("ModuleID"), xml.getAttribute("ModulePort"), xml.getAttribute("Protocol"), xml.getAttribute("RemoteAddress"), xml.getAttribute("RemoteSize"), xml.getAttribute("InternalAddress"), xml.getAttribute("Resource"), xml.getAttribute("PollTime"), xml.getAttribute("ProtocolProperties"));
     }
 
 
@@ -4186,6 +4239,10 @@ export class Map extends Serializable{
      * @returns Returns an xml string representing the object.
      */
     toXML() {
-        return `<Map ModuleID="${this.ModuleID}" ModulePort="${this.ModulePort}" Protocol="${this.Protocol}" RemoteAddress="${this.RemoteAddress}" RemoteSize="${this.RemoteSize}" InternalAddress="${this.InternalAddress}" PollTime="${this.PollTime}" ProtocolProperties="${escapeXmlAttr(this.ProtocolProperties)}"></Map>`;
+        return `<Map ModuleID="${this.ModuleID}" ModulePort="${this.ModulePort}" Protocol="${this.Protocol}" RemoteAddress="${this.RemoteAddress}" RemoteSize="${this.RemoteSize}" InternalAddress="${this.InternalAddress}" Resource="${this.Resource}" PollTime="${this.PollTime}" ProtocolProperties="${escapeXmlAttr(this.ProtocolProperties)}"></Map>`;
+    }
+
+    toST(){
+        return "//Map=" + this.toJSON();
     }
 }

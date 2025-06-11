@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parseStructuredText } from '../../src/compilers/st-parser/parser.js';
-import { transpile } from '../../src/compilers/st-parser/transpiler.js';
+import { transpile } from '../../src/compilers/st-parser/cpptranspiler.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

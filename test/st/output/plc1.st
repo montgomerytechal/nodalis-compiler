@@ -1,3 +1,6 @@
+
+//Map={"ModuleID":"192.168.9.100","ModulePort":"552","Protocol":"MODBUS-TCP","RemoteAddress":"1001","RemoteSize":"1","InternalAddress":"%IX0.0","Resource":"PLC1","PollTime":"500","ProtocolProperties":"{}"}
+
 //Task={"Name":"T100", "Interval":"100", "Priority":"1"}
 
 //Instance={"TypeName":"PLC_LD", "Name":"MainThread", "AssociatedTaskName":"T100"}
@@ -32,8 +35,7 @@ Timer.PT := PT;
 Q := (Timer.Q);
 
 END_FUNCTION_BLOCK
-
-        PROGRAM PLC_LD
+PROGRAM PLC_LD
     VAR
         TP00010  : TP;
 Time  : INT;
