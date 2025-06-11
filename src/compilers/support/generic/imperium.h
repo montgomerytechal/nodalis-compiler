@@ -20,7 +20,7 @@ extern std::chrono::steady_clock::time_point PROGRAM_START;
  * %M - Virtual memory used for program interface. This takes up the other 14 columns in a row. A reference to %MX[a], where a is a numerical byte address would be used to calculate
  *  r = floor((a*14*8)/64). If a is 0, this would yield row 0. If 14, it 
  */
-extern uint64_t[][] MEMORY;
+extern uint64_t MEMORY[64][16];
 
 uint64_t elapsed();
 
@@ -88,12 +88,12 @@ public:
         return *this;
     }
 
-    operator T() const {
-        return read();
+    RefVar<T>& operator&(){
+        return *this;
     }
 
-    T* operator&(){
-        return &cache;
+    operator T() const {
+        return read();
     }
 
 private:
@@ -125,3 +125,14 @@ private:
         }
     }
 };
+template<typename T>
+bool getBit(RefVar<T>& var, int bit){
+    T ref = var;
+    return getBit(&ref, bit);
+}
+template<typename T>
+void setBit(RefVar<T>& var, int bit, bool value){
+    T ref = var;
+    setBit(&ref, bit, value);
+    var = ref;
+}

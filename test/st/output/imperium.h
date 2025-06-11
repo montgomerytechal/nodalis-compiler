@@ -6,6 +6,22 @@
 extern uint64_t PROGRAM_COUNT;
 extern std::chrono::steady_clock::time_point PROGRAM_START;
 
+/**
+ * Defines the total memory block for this PLC. This memory is a grid of 64x16 "sheets" or pages of memory.
+ * The first column is the row of 64, the second column is 16 registers for that sheet.
+ * Addresses are reserved based on MTI's standard registers, AI (physical inputs), AO (physical outputs),
+ * SW (switch inputs from HMIs), LD (LED outputs to HMIs), BI, BO, CI, BO (all free memory locations for logical operations)
+ * PROTECT, BREACH, TROUBLE, STAT1, STAT2, MISC1, MISC2, MISC3.
+ * Standard IEC address references break down in the following ways:
+ * %I - corresponds to the AI register MEMORY[x][0]. If requesting %IX0, the sheet row would be calculated by r = floor((0*8)/64) - which would yield 0.
+ *  To reference each individual byte, we would get uint8_t* bytes = &MEMORY[r][0]; We then can reference the byte within this row by getting b = 0 % 8;
+ *  We can then get the value of that byte by referencing bytes[b];
+ * %Q - Same as %I, except uint8_t* bytes = &MEMORY[r][1];
+ * %M - Virtual memory used for program interface. This takes up the other 14 columns in a row. A reference to %MX[a], where a is a numerical byte address would be used to calculate
+ *  r = floor((a*14*8)/64). If a is 0, this would yield row 0. If 14, it 
+ */
+extern uint64_t MEMORY[64][16];
+
 uint64_t elapsed();
 
 class TP{
@@ -72,12 +88,12 @@ public:
         return *this;
     }
 
-    operator T() const {
-        return read();
+    RefVar<T>& operator&(){
+        return *this;
     }
 
-    T* operator&(){
-        return &cache;
+    operator T() const {
+        return read();
     }
 
 private:
@@ -109,3 +125,14 @@ private:
         }
     }
 };
+template<typename T>
+bool getBit(RefVar<T>& var, int bit){
+    T ref = var;
+    return getBit(&ref, bit);
+}
+template<typename T>
+void setBit(RefVar<T>& var, int bit, bool value){
+    T ref = var;
+    setBit(&ref, bit, value);
+    var = ref;
+}

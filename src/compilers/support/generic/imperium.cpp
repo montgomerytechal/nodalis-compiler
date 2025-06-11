@@ -3,7 +3,6 @@
 #include <map>
 
 uint64_t PROGRAM_COUNT = 0;
-uint64_t[][] MEMORY = new uint64_t[64][16];
 
 std::chrono::steady_clock::time_point PROGRAM_START = std::chrono::steady_clock::now();
 uint64_t elapsed() {
