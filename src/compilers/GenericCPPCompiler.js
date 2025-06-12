@@ -21,7 +21,7 @@ import path from "path";
 import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Compiler.js';
 import * as iec from "./iec-parser/parser.js";
 import { parseStructuredText } from './st-parser/parser.js';
-import { transpile } from './st-parser/cpptranspiler.js';
+import { transpile } from './st-parser/gcctranspiler.js';
 
 export class GenericCPPCompiler extends Compiler {
     constructor(options) {
@@ -89,6 +89,7 @@ export class GenericCPPCompiler extends Compiler {
         let tasks = [];
         let programs = [];
         let taskCode = "";
+        let mapCode = "";
 
         const lines = sourceCode.split("\n");
         lines.forEach((line) => {
@@ -103,6 +104,10 @@ export class GenericCPPCompiler extends Compiler {
                 if(task){
                     task.Instances.push(instance);
                 }
+            }
+            else if(line.trim().startsWith("//Map=")){
+                mapCode += `mapIO("${line.substring(line.indexOf("=") + 1).trim()}");\n`;
+
             }
             else if(line.trim().startsWith("PROGRAM")){
                 var pname = line.trim().substring(line.trim().indexOf(" ") + 1).trim();
@@ -147,16 +152,21 @@ export class GenericCPPCompiler extends Compiler {
 ${transpiledCode}
 
 int main() {
+  ${mapCode}
   while (true) {
-    gatherInputs();
-    ${taskCode}
-    handleOutputs();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    PROGRAM_COUNT++;
-    if(PROGRAM_COUNT >= std::numeric_limits<uint64_t>::max()){
-        PROGRAM_COUNT = 0;
+    try{
+        superviseIO();
+        ${taskCode}
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        PROGRAM_COUNT++;
+        if(PROGRAM_COUNT >= std::numeric_limits<uint64_t>::max()){
+            PROGRAM_COUNT = 0;
+        }
     }
-   }
+    catch(const std::exception& e){
+        std::cout << "Caught exception: " << e.what() << std::endl;
+    }
+  }
   return 0;
 }`;
 

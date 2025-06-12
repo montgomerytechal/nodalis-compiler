@@ -29,16 +29,21 @@ else if (T1.Done == true) {
 
 
 int main() {
+  
   while (true) {
-    gatherInputs();
-    PLC_PROG();
+    try{
+        superviseIO();
+        PLC_PROG();
 
-    handleOutputs();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    PROGRAM_COUNT++;
-    if(PROGRAM_COUNT >= std::numeric_limits<uint64_t>::max()){
-        PROGRAM_COUNT = 0;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        PROGRAM_COUNT++;
+        if(PROGRAM_COUNT >= std::numeric_limits<uint64_t>::max()){
+            PROGRAM_COUNT = 0;
+        }
     }
-   }
+    catch(const std::exception& e){
+        std::cout << "Caught exception: " << e.what() << std::endl;
+    }
+  }
   return 0;
 }

@@ -15,7 +15,7 @@
 // limitations under the License.
 
 import { tokenize } from './tokenizer.js';
-import {mapType} from "./cpptranspiler.js";
+import {mapType} from "./gcctranspiler.js";
 
 export function parseStructuredText(code) {
   const tokens = tokenize(code);

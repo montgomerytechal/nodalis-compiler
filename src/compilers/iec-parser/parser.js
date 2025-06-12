@@ -4243,6 +4243,6 @@ export class Map extends Serializable{
     }
 
     toST(){
-        return "//Map=" + this.toJSON();
+        return "//Map=" + this.toJSON().replaceAll("\\", "\\\\").replaceAll(`"`, `\\"`);
     }
 }

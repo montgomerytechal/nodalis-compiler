@@ -19,6 +19,7 @@
  * @version 1.0.2
  * @copyright Apache 2.0
  */
+#pragma once
 #ifndef MODBUS_H
 #define MODBUS_H
 
@@ -26,6 +27,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include "imperium.h"
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -86,9 +88,9 @@ private:
 };
 
 // Client implementation
-class ModbusClient {
+class ModbusClient : public IOClient{
 public:
-    ModbusClient(uint8_t deviceAddress);
+    ModbusClient(const std::string& ip = "", uint16_t port = 502, uint8_t unitId = 1);
     ~ModbusClient();
 
     bool connectTCP(const std::string& ip, uint16_t port);
@@ -100,10 +102,22 @@ public:
 
     bool sendRequest(const ModbusRequest& request, ModbusResponse& response);
 
+protected:
+    std::string ip;
+    uint16_t port;
+    bool readBit(const std::string& remote, int& result) override;
+    bool writeBit(const std::string& remote, int value) override;
+    bool readByte(const std::string& remote, uint8_t& result) override;
+    bool writeByte(const std::string& remote, uint8_t value) override;
+    bool readWord(const std::string& remote, uint16_t& result) override;
+    bool writeWord(const std::string& remote, uint16_t value) override;
+    bool readDWord(const std::string& remote, uint32_t& result) override;
+    bool writeDWord(const std::string& remote, uint32_t value) override;
+    void connect() override;   
+
 private:
     int sockfd;
     uint8_t deviceAddress;
-    bool connected;
 
     bool sendRaw(const std::vector<uint8_t>& requestPDU, std::vector<uint8_t>& responsePDU);
 };

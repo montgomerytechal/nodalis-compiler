@@ -112,16 +112,34 @@ ModbusResponse ModbusServer::handleRequest(const ModbusRequest& request) {
 
 // ========== Client Implementation ==========
 
-ModbusClient::ModbusClient(uint8_t deviceAddress)
-    : deviceAddress(deviceAddress), connected(false), sockfd(-1) {
+ModbusClient::ModbusClient(const std::string& ip, uint16_t port, uint8_t unitId)
+    : IOClient("MODBUS-TCP"), deviceAddress(unitId), sockfd(-1), ip(ip), port(port) {
 #ifdef _WIN32
     WSADATA wsa;
     WSAStartup(MAKEWORD(2,2), &wsa);
 #endif
+        if(ip != "") connectTCP(ip, port);
 }
 
 ModbusClient::~ModbusClient() {
     disconnect();
+}
+
+void ModbusClient::connect(){
+    if(connected){
+        disconnect();
+    }
+    if(ip == "" || port == 0){
+        if(mappings.size() > 0){
+            IOMap& map = mappings[0];
+            ip = map.moduleID;
+            port = std::atoi(map.modulePort.c_str());
+        }
+    }
+    if(ip != "" && port > 0){
+        moduleID = ip;
+        connectTCP(ip, port);
+    }
 }
 
 bool ModbusClient::connectTCP(const std::string& ip, uint16_t port) {
@@ -134,7 +152,7 @@ bool ModbusClient::connectTCP(const std::string& ip, uint16_t port) {
     serverAddr.sin_port = htons(port);
     inet_pton(AF_INET, ip.c_str(), &serverAddr.sin_addr);
 
-    if (connect(sockfd, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+    if (::connect(sockfd, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         disconnect();
         return false;
     }
@@ -211,4 +229,82 @@ bool ModbusClient::sendRaw(const std::vector<uint8_t>& pdu, std::vector<uint8_t>
 
     response.assign(buf + 7, buf + len);
     return true;
+}
+
+bool ModbusClient::readBit(const std::string& remote, int& result) {
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    ModbusRequest req = createReadRequest(READ_COILS, addr, 1);
+    ModbusResponse res;
+    if (!sendRequest(req, res)) return false;
+
+    result = (res.data[0] & 0x01) ? 1 : 0;
+    return true;
+}
+
+bool ModbusClient::writeBit(const std::string& remote, int value) {
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    ModbusRequest req = createWriteSingleCoil(addr, value != 0);
+    ModbusResponse res;
+    return sendRequest(req, res);
+}
+
+bool ModbusClient::readByte(const std::string& remote, uint8_t& result) {
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    ModbusRequest req = createReadRequest(READ_HOLDING_REGISTERS, addr, 1);
+    ModbusResponse res;
+    if (!sendRequest(req, res)) return false;
+
+    // Read only low byte
+    result = res.data.size() >= 2 ? res.data[1] : 0;
+    return true;
+}
+
+bool ModbusClient::writeByte(const std::string& remote, uint8_t value) {
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    // Store value in lower byte; high byte = 0
+    std::vector<uint8_t> data = { 0x00, value };
+    ModbusRequest req = { deviceAddress, WRITE_SINGLE_REGISTER, addr, 1, data };
+    ModbusResponse res;
+    return sendRequest(req, res);
+}
+
+bool ModbusClient::readWord(const std::string& remote, uint16_t& result) {
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    ModbusRequest req = createReadRequest(READ_HOLDING_REGISTERS, addr, 1);
+    ModbusResponse res;
+    if (!sendRequest(req, res)) return false;
+
+    result = (res.data[0] << 8) | res.data[1];
+    return true;
+}
+
+bool ModbusClient::writeWord(const std::string& remote, uint16_t value) {
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    ModbusRequest req = createWriteSingleRegister(addr, value);
+    ModbusResponse res;
+    return sendRequest(req, res);
+}
+
+bool ModbusClient::readDWord(const std::string& remote, uint32_t& result) {
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    ModbusRequest req = createReadRequest(READ_HOLDING_REGISTERS, addr, 2);
+    ModbusResponse res;
+    if (!sendRequest(req, res)) return false;
+
+    result = (res.data[0] << 24) | (res.data[1] << 16) | (res.data[2] << 8) | res.data[3];
+    return true;
+}
+
+bool ModbusClient::writeDWord(const std::string& remote, uint32_t value) {
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    std::vector<uint8_t> data = {
+        static_cast<uint8_t>(value >> 24),
+        static_cast<uint8_t>((value >> 16) & 0xFF),
+        static_cast<uint8_t>((value >> 8) & 0xFF),
+        static_cast<uint8_t>(value & 0xFF)
+    };
+
+    ModbusRequest req = { deviceAddress, WRITE_MULTIPLE_REGISTERS, addr, 2, data };
+    ModbusResponse res;
+    return sendRequest(req, res);
 }

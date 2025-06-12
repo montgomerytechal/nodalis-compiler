@@ -7,69 +7,17 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1749693927708" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1749760881690" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
                     <NamespaceDecl name="Prog">
         <Program name="PLC_LD">
                     <ExternalVars>
-                    <Variable name="SW0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="LD0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="IL0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="BI0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="CI0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="BO0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="CO0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
+                    
                 </ExternalVars>
                     <Vars accessSpecifier="private">
-                    <Variable name="TP00010" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>TP</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="Time" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>INT</TypeName>
-                </Type>
-                    undefined
-                </Variable>
+                    
                 </Vars>
                     <MainBody>
                     <BodyContent xsi:type="LD">
@@ -90,8 +38,8 @@
                 </ConnectionPointIn>
 
                 </LdObject>
-<LdObject xsi:type="Contact"  operand="SW0001_0.0" edge="none" negated="false" latch="none">
-                    <RelPosition x="14.609196541036235" y="36.43429525737012"/>
+<LdObject xsi:type="Contact"  operand="SW1" edge="none" negated="false" latch="none">
+                    <RelPosition x="197.40448004555907" y="2.194695326009334"/>
                     <ConnectionPointIn>
                     
                     <Connection refConnectionPointOutId="1"/>
@@ -102,102 +50,14 @@
                 </ConnectionPointOut>
 
                 </LdObject>
-<FbdObject xsi:type="Block" identifier="TP00010" typeName="TP" instanceName="TP00010">
-                    <RelPosition x="242.47376627856514" y="6.782541007968074"/>
-                    <InputVariables>
-                    <InputVariable parameterName="IN" negated="false">
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="6"/>
-
-                </ConnectionPointIn>
-                </InputVariable>
-<InputVariable parameterName="PT" negated="false">
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="5"/>
-
-                </ConnectionPointIn>
-                </InputVariable>
-                </InputVariables>
-                    <OutputVariables>
-                    <OutputVariable parameterName="Q">
-                    <ConnectionPointOut connectionPointOutId="3">
-                    
-                </ConnectionPointOut>
-                </OutputVariable>
-<OutputVariable parameterName="ET">
-                    <ConnectionPointOut connectionPointOutId="4">
-                    
-                </ConnectionPointOut>
-                </OutputVariable>
-                </OutputVariables>
-                    
-                    
-                </FbdObject>
-<FbdObject xsi:type="DataSource" identifier="1000" typeName="" instanceName="1000">
-                    <RelPosition x="135.61766659529255" y="104.36322035607326"/>
-                    <InputVariables>
-                    
-                </InputVariables>
-                    <OutputVariables>
-                    
-                </OutputVariables>
-                    
-                    <ConnectionPointOut connectionPointOutId="5">
-                    
-                </ConnectionPointOut>
-
-                </FbdObject>
-<LdObject xsi:type="Contact"  operand="IL0001.0" edge="none" negated="true" latch="none">
-                    <RelPosition x="164.9120823131466" y="5.82603280637446"/>
+<LdObject xsi:type="Coil"  operand="%QX0.0" edge="none" negated="true" latch="none">
+                    <RelPosition x="727.5162970406329" y="2.0000000000000036"/>
                     <ConnectionPointIn>
                     
                     <Connection refConnectionPointOutId="2"/>
 
                 </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="6">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-<LdObject xsi:type="Coil"  operand="%QX0.0" edge="none" negated="true" latch="none">
-                    <RelPosition x="727.5162970406329" y="2.0000000000000036"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="3"/>
-<Connection refConnectionPointOutId="8"/>
-
-                </ConnectionPointIn>
 <ConnectionPointOut connectionPointOutId="7">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-<FbdObject xsi:type="DataSink" identifier="Time" typeName="" instanceName="Time">
-                    <RelPosition x="383.95650820159364" y="68.955574111553"/>
-                    <InputVariables>
-                    
-                </InputVariables>
-                    <OutputVariables>
-                    
-                </OutputVariables>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="4"/>
-
-                </ConnectionPointIn>
-
-                    
-                </FbdObject>
-<LdObject xsi:type="CompareContact"  operand1="Time" operand2="2000" edge="none" negated="false" latch="none" compareOperator=">">
-                    <RelPosition x="177.21559081195068" y="125.38955800557625"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="1"/>
-
-                </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="8">
                     
                 </ConnectionPointOut>
 
@@ -350,47 +210,11 @@
                     <Configuration name="Main">
                     <Resource name="PLC1" resourceTypeName="Main">
                     <GlobalVars>
-        <Variable name="LD0001" orderWithinParamSet="">
+        <Variable name="SW1" orderWithinParamSet="">
                     <Type>
-                    <TypeName>LWORD</TypeName>
+                    <TypeName>BOOL</TypeName>
                 </Type>
-                    undefined
-                </Variable>
-<Variable name="IL0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="BI0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="CI0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="BO0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="CO0001" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>LWORD</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="SW0001_0" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>DWORD</TypeName>
-                </Type>
-                    <Address location="M" size="D" address="0"></Address>
+                    <Address location="I" size="X" address="0.0"></Address>
                 </Variable>
 
         </GlobalVars>
@@ -404,7 +228,8 @@
 
                 </Instances>
                     <MappingTable>
-                    <Map ModuleID="192.168.9.100" ModulePort="552" Protocol="MODBUS-TCP" RemoteAddress="1001" RemoteSize="1" InternalAddress="%IX0.0" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
+                    <Map ModuleID="192.168.9.17" ModulePort="502" Protocol="MODBUS-TCP" RemoteAddress="0001" RemoteSize="1" InternalAddress="%IX0.0" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
+<Map ModuleID="192.168.9.17" ModulePort="502" Protocol="MODBUS-TCP" RemoteAddress="0017" RemoteSize="1" InternalAddress="%QX0.0" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
 
                 </MappingTable>
                 </Project>

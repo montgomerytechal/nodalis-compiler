@@ -1,18 +1,13 @@
 
-//Map={"ModuleID":"192.168.9.100","ModulePort":"552","Protocol":"MODBUS-TCP","RemoteAddress":"1001","RemoteSize":"1","InternalAddress":"%IX0.0","Resource":"PLC1","PollTime":"500","ProtocolProperties":"{}"}
+//Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"0001\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%IX0.0\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
+//Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"0017\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%QX0.0\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
 
 //Task={"Name":"T100", "Interval":"100", "Priority":"1"}
 
 //Instance={"TypeName":"PLC_LD", "Name":"MainThread", "AssociatedTaskName":"T100"}
 
 VAR_GLOBAL
-    LD0001  : LWORD;
-IL0001  : LWORD;
-BI0001  : LWORD;
-CI0001  : LWORD;
-BO0001  : LWORD;
-CO0001  : LWORD;
-SW0001_0  AT %MD0 : DWORD;
+    SW1  AT %IX0.0 : BOOL;
 
 END_VAR
 FUNCTION_BLOCK PLS
@@ -37,13 +32,8 @@ Q := (Timer.Q);
 END_FUNCTION_BLOCK
 PROGRAM PLC_LD
     VAR
-        TP00010  : TP;
-Time  : INT;
-
+        
     END_VAR
-    TP00010.IN := NOT IL0001.0 AND ((SW0001_0.0));
-TP00010.PT := 1000;
-Time := (TP00010.ET);
-%QX0.0 := NOT (((Time > 2000)) OR TP00010.Q);
+    %QX0.0 := NOT ((SW1));
 
 END_PROGRAM

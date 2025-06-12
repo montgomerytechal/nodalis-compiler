@@ -20,6 +20,7 @@
  * @copyright Apache 2.0
  */
 #pragma once
+#include <iostream>
 #include <cstdint>
 #include <string>
 #include <cctype>
@@ -29,6 +30,8 @@
 #include <vector>
 #include <regex>
 #include <stdexcept>
+#define JSON_USE_IMPLICIT_CONVERSIONS 1
+#define JSON_USE_WIDE_STRING 1
 #include "json.hpp"
 using json = nlohmann::json;
 
@@ -341,16 +344,74 @@ void setBit(RefVar<T>& var, int bit, bool value){
 }
 
 /**
- * Gathers the inputs for the PLC.
+ * Handles the aquisition of IO inputs and the application of IO outputs.
  */
-void gatherInputs();
-/**
- * Assigns the outputs for the PLC.
- */
-void handleOutputs();
+void superviseIO();
+
+// Identifies direction of I/O mapping
+enum class IOType {
+    Input,
+    Output
+};
+
+// Describes a mapping between a remote I/O address and a local IEC address
+class IOMap {
+public:
+    IOType direction;
+    std::string moduleID;
+    std::string modulePort;
+    std::string protocol;
+    json additionalProperties;
+    std::string remoteAddress;  // e.g. "40001"
+    std::string localAddress;   // e.g. "%MW1"
+    int bit = -1;               // Optional bit index
+    int width = 16;             // 8, 16, or 32
+    int interval = 500;
+    uint64_t lastPoll = 0;
+    IOMap(std::string mapJson);
+    IOMap();
+};
+
+// Abstract base class for a remote I/O client
+class IOClient {
+public:
+    bool connected;
+    IOClient(const std::string& protocol);
+    virtual ~IOClient() = default;
+
+    void addMapping(const IOMap& map);
+    bool hasMapping(std::string localAddress);
+
+    void poll(); // Reads and writes mapped I/O
+
+    const std::string& getProtocol() const;
+    const std::string& getModuleID() const;
+protected:
+    std::string protocol;
+    std::string moduleID;
+    std::vector<IOMap> mappings;
+    uint64_t lastAttempt = 0;
+
+    // Must be implemented by derived classes
+    virtual bool readBit(const std::string& remote, int& result) = 0;
+    virtual bool writeBit(const std::string& remote, int value) = 0;
+    virtual bool readByte(const std::string& remote, uint8_t& result) = 0;
+    virtual bool writeByte(const std::string& remote, uint8_t value) = 0;
+    virtual bool readWord(const std::string& remote, uint16_t& result) = 0;
+    virtual bool writeWord(const std::string& remote, uint16_t value) = 0;
+    virtual bool readDWord(const std::string& remote, uint32_t& result) = 0;
+    virtual bool writeDWord(const std::string& remote, uint32_t value) = 0;
+    virtual void connect() = 0;
+};
+
+extern std::vector<std::unique_ptr<IOClient>> Clients;
+
+IOClient* findClient(IOMap map);
+std::unique_ptr<IOClient> createClient(IOMap& map);
 
 
-void mapModule(std::string map);
+void mapIO(std::string map);
+
 
 
 #pragma region "Standard Function Blocks"
