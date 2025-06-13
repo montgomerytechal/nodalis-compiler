@@ -439,8 +439,11 @@ class TP{
                 startTime = elapsed();
             }
             ET = elapsed() - startTime;
-            if(PT <= ET){
+            if(PT >= ET){
                 Q = true;
+            }
+            else{
+                lastIN = false;
             }
         }
     }

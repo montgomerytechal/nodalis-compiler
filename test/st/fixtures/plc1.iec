@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1749841084911" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1749850812225" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -17,7 +17,12 @@
                     
                 </ExternalVars>
                     <Vars accessSpecifier="private">
-                    
+                    <Variable name="PLS1" orderWithinParamSet="">
+                    <Type>
+                    <TypeName>TP</TypeName>
+                </Type>
+                    undefined
+                </Variable>
                 </Vars>
                     <MainBody>
                     <BodyContent xsi:type="LD">
@@ -39,7 +44,7 @@
 
                 </LdObject>
 <LdObject xsi:type="Contact"  operand="SW1" edge="none" negated="false" latch="none">
-                    <RelPosition x="74.80462222681565" y="2.194695326009334"/>
+                    <RelPosition x="112.35773182895328" y="2.194695326009334"/>
                     <ConnectionPointIn>
                     
                     <Connection refConnectionPointOutId="1"/>
@@ -50,14 +55,147 @@
                 </ConnectionPointOut>
 
                 </LdObject>
-<LdObject xsi:type="Coil"  operand="%QX0.0" edge="none" negated="true" latch="none">
-                    <RelPosition x="726.4117938170407" y="2.000000000000007"/>
+<LdObject xsi:type="Coil"  operand="%QX0.0" edge="none" negated="false" latch="none">
+                    <RelPosition x="704.3217293451951" y="2.000000000000007"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="11"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="7">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<FbdObject xsi:type="DataSource" identifier="1000" typeName="" instanceName="1000">
+                    <RelPosition x="116.41114897163733" y="71.73238055548745"/>
+                    <InputVariables>
+                    
+                </InputVariables>
+                    <OutputVariables>
+                    
+                </OutputVariables>
+                    
+                    <ConnectionPointOut connectionPointOutId="10">
+                    
+                </ConnectionPointOut>
+
+                </FbdObject>
+<FbdObject xsi:type="Block" identifier="PLS1" typeName="TP" instanceName="PLS1">
+                    <RelPosition x="213.01615473242958" y="4.4037017731939"/>
+                    <InputVariables>
+                    <InputVariable parameterName="IN" negated="false">
                     <ConnectionPointIn>
                     
                     <Connection refConnectionPointOutId="2"/>
 
                 </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="7">
+                </InputVariable>
+<InputVariable parameterName="PT" negated="false">
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="10"/>
+
+                </ConnectionPointIn>
+                </InputVariable>
+                </InputVariables>
+                    <OutputVariables>
+                    <OutputVariable parameterName="Q">
+                    <ConnectionPointOut connectionPointOutId="11">
+                    
+                </ConnectionPointOut>
+                </OutputVariable>
+<OutputVariable parameterName="ET">
+                    <ConnectionPointOut connectionPointOutId="12">
+                    
+                </ConnectionPointOut>
+                </OutputVariable>
+                </OutputVariables>
+                    
+                    
+                </FbdObject>
+
+                </Rung>
+<Rung evaluationOrder="2">
+                    <LdObject xsi:type="LeftPowerRail" >
+                    <RelPosition x="2" y="131"/>
+                    <ConnectionPointOut connectionPointOutId="1">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<LdObject xsi:type="RightPowerRail" >
+                    <RelPosition x="800" y="131"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="3"/>
+
+                </ConnectionPointIn>
+
+                </LdObject>
+<LdObject xsi:type="Contact"  operand="SW1" edge="none" negated="true">
+                    <RelPosition x="50" y="131"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="1"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="2">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<LdObject xsi:type="Coil"  operand="%QX0.1" edge="none" negated="false" latch="none">
+                    <RelPosition x="676.2055967712884" y="131"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="2"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="3">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+
+                </Rung>
+<Rung evaluationOrder="3">
+                    <LdObject xsi:type="LeftPowerRail" >
+                    <RelPosition x="2" y="185"/>
+                    <ConnectionPointOut connectionPointOutId="1">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<LdObject xsi:type="RightPowerRail" >
+                    <RelPosition x="800" y="185"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="3"/>
+
+                </ConnectionPointIn>
+
+                </LdObject>
+<LdObject xsi:type="CompareContact"  operand1="PLS1.ET" operand2="500" compareOperator=">=">
+                    <RelPosition x="50" y="185"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="1"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="2">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<LdObject xsi:type="Coil"  operand="%QX0.2" edge="none" negated="false" latch="none">
+                    <RelPosition x="597.2338676993741" y="185"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="2"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="3">
                     
                 </ConnectionPointOut>
 
@@ -230,6 +368,7 @@
                     <MappingTable>
                     <Map ModuleID="192.168.9.17" ModulePort="5502" Protocol="MODBUS-TCP" RemoteAddress="0" RemoteSize="1" InternalAddress="%IX0.0" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
 <Map ModuleID="192.168.9.17" ModulePort="5502" Protocol="MODBUS-TCP" RemoteAddress="16" RemoteSize="1" InternalAddress="%QX0.0" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
+<Map ModuleID="192.168.9.17" ModulePort="5502" Protocol="MODBUS-TCP" RemoteAddress="17" RemoteSize="1" InternalAddress="%QX0.1" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
 
                 </MappingTable>
                 </Project>

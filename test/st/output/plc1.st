@@ -1,6 +1,7 @@
 
 //Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"0\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%IX0.0\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
 //Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"16\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%QX0.0\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
+//Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"17\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%QX0.1\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
 
 //Task={"Name":"T100", "Interval":"100", "Priority":"1"}
 
@@ -32,8 +33,13 @@ Q := (Timer.Q);
 END_FUNCTION_BLOCK
 PROGRAM PLC_LD
     VAR
-        
+        PLS1  : TP;
+
     END_VAR
-    %QX0.0 := NOT ((SW1));
+    PLS1.IN := SW1;
+PLS1.PT := 1000;
+%QX0.0 := (PLS1.Q);
+%QX0.1 := ((NOT SW1));
+%QX0.2 := (((PLS1.ET >= 500)));
 
 END_PROGRAM

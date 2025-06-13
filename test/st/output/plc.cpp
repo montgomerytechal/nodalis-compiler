@@ -18,10 +18,10 @@ static Timer T1;
 uint64_t IN;
 T1();
 IN = readBit("%I0001.0");
-if (T1.Start == true && ! T1.Done) {
+if (T1.Start = true && ! T1.Done) {
   writeBit("%Q0001.0", 1);
 }
-else if (T1.Done == true) {
+else if (T1.Done = true) {
   T1.Start = false;
   writeBit("%Q0001.0", 0);
 }

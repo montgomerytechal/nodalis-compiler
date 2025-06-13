@@ -28,7 +28,7 @@ export function convertExpression(expr) {
     .replace(/:=/g, '=')
     .replace(/\bTRUE\b/gi, 'true')
     .replace(/\bFALSE\b/gi, 'false')
-    .replace(/(?<![=!<>])=(?![=])/g, '==');
+    .replace(/\b(?<![><!])=(?!=)/g, '==');
 
   // Replace %I/Q/M references with readAddress(...) before anything else
   const parts = results.split(/\s+/);
