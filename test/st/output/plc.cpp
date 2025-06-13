@@ -30,6 +30,7 @@ else if (T1.Done == true) {
 
 int main() {
   
+  std::cout << "ImperiumPLC is running!\n";
   while (true) {
     try{
         superviseIO();
@@ -42,7 +43,7 @@ int main() {
         }
     }
     catch(const std::exception& e){
-        std::cout << "Caught exception: " << e.what() << std::endl;
+        std::cout << "Caught exception: " << e.what() << "\n";
     }
   }
   return 0;

@@ -22,9 +22,12 @@
 #include "modbus.h"
 #include <cstring>
 #include <iostream>
-
 #ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
     #pragma comment(lib, "ws2_32.lib")
+#else
+    #include <errno.h>
 #endif
 
 // ========== Server Implementation ==========
@@ -143,6 +146,7 @@ void ModbusClient::connect(){
 }
 
 bool ModbusClient::connectTCP(const std::string& ip, uint16_t port) {
+    std::cout << "Modbus-TCP attempting to connect to " << ip.c_str() << ":" << port << "\n";
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) return false;
 
@@ -151,12 +155,20 @@ bool ModbusClient::connectTCP(const std::string& ip, uint16_t port) {
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_port = htons(port);
     inet_pton(AF_INET, ip.c_str(), &serverAddr.sin_addr);
-
-    if (::connect(sockfd, (sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+    
+    int err = ::connect(sockfd, (sockaddr*)&serverAddr, sizeof(serverAddr));
+    if (err < 0) {
         disconnect();
+        #ifdef _WIN32
+            int wsaErr = WSAGetLastError();
+            std::cerr << "Connect failed: WSA Error " << wsaErr << "\n";
+        #else
+            std::cerr << "Connect failed: " << strerror(errno)
+                    << " (errno = " << errno << ")\n";
+        #endif
         return false;
     }
-
+    std::cout << "Modbus-TCP connected to " << ip.c_str() << ":" << port << "\n";
     connected = true;
     return true;
 }
@@ -178,7 +190,7 @@ ModbusRequest ModbusClient::createReadRequest(uint8_t function, uint16_t startAd
 
 ModbusRequest ModbusClient::createWriteSingleCoil(uint16_t address, bool value) {
     std::vector<uint8_t> data = value ? std::vector<uint8_t>{0xFF, 0x00} : std::vector<uint8_t>{0x00, 0x00};
-    return { deviceAddress, WRITE_SINGLE_COIL, address, 1, data };
+    return { deviceAddress, WRITE_SINGLE_COIL, address, 0, data };
 }
 
 ModbusRequest ModbusClient::createWriteSingleRegister(uint16_t address, uint16_t value) {
@@ -187,23 +199,49 @@ ModbusRequest ModbusClient::createWriteSingleRegister(uint16_t address, uint16_t
 }
 
 bool ModbusClient::sendRequest(const ModbusRequest& req, ModbusResponse& resp) {
-    std::vector<uint8_t> pdu = {
-        req.function,
-        static_cast<uint8_t>(req.startAddress >> 8),
-        static_cast<uint8_t>(req.startAddress & 0xFF),
-        static_cast<uint8_t>(req.quantity >> 8),
-        static_cast<uint8_t>(req.quantity & 0xFF)
-    };
-    pdu.insert(pdu.end(), req.data.begin(), req.data.end());
+    std::vector<uint8_t> pdu;
+
+    // Handle function-specific encoding
+    if (req.function == WRITE_SINGLE_COIL) {
+        // Function 0x05: Write Single Coil
+        pdu = {
+            req.function,
+            static_cast<uint8_t>(req.startAddress >> 8),
+            static_cast<uint8_t>(req.startAddress & 0xFF)
+        };
+        if (req.data.size() == 2) {
+            pdu.push_back(req.data[0]);  // Hi byte (0xFF or 0x00)
+            pdu.push_back(req.data[1]);  // Lo byte (always 0x00)
+        } else {
+            std::cerr << "Invalid data size for Write Single Coil (expected 2 bytes).\n";
+            return false;
+        }
+    } else {
+        // Default encoding for most function codes
+        pdu = {
+            req.function,
+            static_cast<uint8_t>(req.startAddress >> 8),
+            static_cast<uint8_t>(req.startAddress & 0xFF),
+            static_cast<uint8_t>(req.quantity >> 8),
+            static_cast<uint8_t>(req.quantity & 0xFF)
+        };
+        pdu.insert(pdu.end(), req.data.begin(), req.data.end());
+    }
 
     std::vector<uint8_t> response;
     if (!sendRaw(pdu, response)) return false;
 
     if (response.size() < 2) return false;
+
     resp.address = req.address;
     resp.function = response[0];
     resp.data.assign(response.begin() + 1, response.end());
     resp.exceptionCode = (resp.function & 0x80) ? resp.data[0] : 0;
+
+    if (resp.exceptionCode > 0) {
+        std::cerr << "MODBUS exception code: " << static_cast<int>(resp.exceptionCode) << "\n";
+        return false;
+    }
 
     return true;
 }
@@ -212,20 +250,51 @@ bool ModbusClient::sendRaw(const std::vector<uint8_t>& pdu, std::vector<uint8_t>
     if (!connected) return false;
 
     // MBAP header (7 bytes): Transaction ID, Protocol ID, Length, Unit ID
-    uint8_t mbap[7] = {0x00, 0x01, 0x00, 0x00,
-                       static_cast<uint8_t>((pdu.size() + 1) >> 8),
-                       static_cast<uint8_t>((pdu.size() + 1) & 0xFF),
-                       deviceAddress};
+    uint8_t mbap[7] = {
+        0x00, 0x01, 0x00, 0x00,
+        static_cast<uint8_t>((pdu.size() + 1) >> 8),
+        static_cast<uint8_t>((pdu.size() + 1) & 0xFF),
+        deviceAddress
+    };
 
     std::vector<uint8_t> packet(mbap, mbap + 7);
     packet.insert(packet.end(), pdu.begin(), pdu.end());
 
-    if (send(sockfd, reinterpret_cast<const char*>(packet.data()), packet.size(), 0) < 0)
+    // Send the packet
+    ssize_t bytesSent = send(sockfd, reinterpret_cast<const char*>(packet.data()), packet.size(), 0);
+    if (bytesSent < 0) {
+#ifdef _WIN32
+        int err = WSAGetLastError();
+        std::cerr << "Send failed: WSA error " << err << "\n";
+#else
+        std::cerr << "Send failed: " << strerror(errno) << " (errno = " << errno << ")\n";
+#endif
+        disconnect();
+        connected = false;
         return false;
+    }
 
+    // Receive response
     uint8_t buf[260] = {0};
-    int len = recv(sockfd, reinterpret_cast<char*>(buf), sizeof(buf), 0);
-    if (len < 9) return false;
+    ssize_t len = recv(sockfd, reinterpret_cast<char*>(buf), sizeof(buf), 0);
+    if (len < 0) {
+#ifdef _WIN32
+        int err = WSAGetLastError();
+        std::cerr << "Receive failed: WSA error " << err << "\n";
+#else
+        std::cerr << "Receive failed: " << strerror(errno) << " (errno = " << errno << ")\n";
+#endif
+        disconnect();
+        connected = false;
+        return false;
+    }
+
+    if (len < 9) {
+        std::cerr << "Incomplete MODBUS response (len = " << len << ")\n";
+        disconnect();
+        connected = false;
+        return false;
+    }
 
     response.assign(buf + 7, buf + len);
     return true;
@@ -233,11 +302,11 @@ bool ModbusClient::sendRaw(const std::vector<uint8_t>& pdu, std::vector<uint8_t>
 
 bool ModbusClient::readBit(const std::string& remote, int& result) {
     uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
-    ModbusRequest req = createReadRequest(READ_COILS, addr, 1);
+    ModbusRequest req = createReadRequest(READ_DISCRETE_INPUTS, addr, 1);
     ModbusResponse res;
     if (!sendRequest(req, res)) return false;
 
-    result = (res.data[0] & 0x01) ? 1 : 0;
+    result = (res.data[1] & 0x01) ? 1 : 0;
     return true;
 }
 

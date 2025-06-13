@@ -90,7 +90,10 @@ export class GenericCPPCompiler extends Compiler {
         let programs = [];
         let taskCode = "";
         let mapCode = "";
-
+        let plcname = "ImperiumPLC";
+        if(typeof resourceName !== "undefined" && resourceName !== null){
+            plcname = resourceName;
+        }
         const lines = sourceCode.split("\n");
         lines.forEach((line) => {
             if(line.trim().startsWith("//Task=")){
@@ -153,6 +156,7 @@ ${transpiledCode}
 
 int main() {
   ${mapCode}
+  std::cout << "${plcname} is running!\\n";
   while (true) {
     try{
         superviseIO();
@@ -164,7 +168,7 @@ int main() {
         }
     }
     catch(const std::exception& e){
-        std::cout << "Caught exception: " << e.what() << std::endl;
+        std::cout << "Caught exception: " << e.what() << "\\n";
     }
   }
   return 0;

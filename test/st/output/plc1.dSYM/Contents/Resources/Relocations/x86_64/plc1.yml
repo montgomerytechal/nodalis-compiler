@@ -1,5 +1,5 @@
 ---
 triple:          'x86_64-apple-darwin'
-binary-path:     '/Users/nathanskipper/Projects/imperium-compiler/test/st/output/plc1'
+binary-path:     plc1
 relocations:     []
 ...

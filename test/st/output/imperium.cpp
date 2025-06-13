@@ -264,6 +264,7 @@ void IOClient::addMapping(const IOMap& map) {
         if(mappings.size() == 0){
             moduleID = map.moduleID;
         }
+        std::cout << "Adding map for " << map.moduleID.c_str() << ":" << map.modulePort.c_str() << "->" << map.localAddress.c_str() << "\n";
         mappings.push_back(map);
     }
 }
@@ -321,7 +322,7 @@ void IOClient::poll() {
                             case 1: {
                                 int bit = 0;
                                 if (readBit(map.remoteAddress, bit)) {
-                                    ::writeBit(map.localAddress, bit);
+                                    ::writeBit(map.localAddress, bit > 0);
                                 }
                                 break;
                             }
@@ -397,7 +398,7 @@ void mapIO(std::string map){
         }
     }
     catch(const std::exception& e){
-        std::cout << "Caught exception: " << e.what() << std::endl;
+        std::cout << "Caught exception: " << e.what() << "\n";
     }
     
 
@@ -410,6 +411,6 @@ void superviseIO(){
         }
     }
     catch(const std::exception& e){
-        std::cout << "Caught exception: " << e.what() << std::endl;
+        std::cout << "Caught exception: " << e.what() << "\n";
     }
 }
