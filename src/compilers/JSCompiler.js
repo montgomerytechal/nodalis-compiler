@@ -21,12 +21,12 @@ import path from "path";
 import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Compiler.js';
 import * as iec from "./iec-parser/parser.js";
 import { parseStructuredText } from './st-parser/parser.js';
-import { transpile } from './st-parser/gcctranspiler.js';
+import { transpile } from './st-parser/jstranspiler.js';
 
-export class GenericCPPCompiler extends Compiler {
+export class JSCompiler extends Compiler {
     constructor(options) {
         super(options);
-        this.name = 'GenericCPPCompiler';
+        this.name = 'JSCompiler';
     }
 
     get supportedLanguages() {
@@ -34,15 +34,15 @@ export class GenericCPPCompiler extends Compiler {
     }
 
     get supportedOutputTypes() {
-        return [OutputType.EXECUTABLE, OutputType.SOURCE_CODE];
+        return [OutputType.SOURCE_CODE];
     }
 
     get supportedTargetDevices() {
-        return ['generic'];
+        return ["jint", "nodejs"];
     }
 
     get supportedProtocols() {
-        return [CommunicationProtocol.MODBUS];
+        return [CommunicationProtocol.MODBUS, CommunicationProtocol.OPC_UA, CommunicationProtocol.BACNET];
     }
 
     get compilerVersion() {
@@ -53,7 +53,7 @@ export class GenericCPPCompiler extends Compiler {
         const { sourcePath, outputPath, target, outputType, resourceName } = this.options;
         var sourceCode = fs.readFileSync(sourcePath, 'utf-8');
         const filename = path.basename(sourcePath, path.extname(sourcePath));
-        const cppFile = path.join(outputPath, `${filename}.cpp`);
+        const jsFile = path.join(outputPath, `${filename}.js`);
         const stFile = path.join(outputPath, `${filename}.st`);
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             if(typeof resourceName === "undefined" || resourceName === null || resourceName.length === 0){
@@ -134,109 +134,59 @@ export class GenericCPPCompiler extends Compiler {
                 });
                 taskCode += 
 `
-    if(PROGRAM_COUNT % ${t.Interval} == 0){
+    setInterval(${t.Interval}, () => {
         ${progCode}
-    }
+    });
 `;
             });
         }
         else{
+            taskCode = "setInterval(100, () => {\n";
             programs.forEach((p) => {
                 taskCode += p + "();\n";
             });
+            taskCode += "});"
         }
         
-        const cppCode = 
-`#include "imperium.h"
-#include <chrono>
-#include <thread>
-#include <cstdint>
-#include <limits>
+        const jsCode = 
+`import {
+        readBit, writeBit, readByte, writeByte, readWord, writeWord, readDWord, writeDWord,
+        getBit, setBit, IOClient, RefVar, superviseIO, mapIO
+} from "./imperium.js";
 ${transpiledCode}
 
-int main() {
-  ${mapCode}
-  std::cout << "${plcname} is running!\\n";
-  while (true) {
-    try{
-        superviseIO();
-        ${taskCode}
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        PROGRAM_COUNT++;
-        if(PROGRAM_COUNT >= std::numeric_limits<uint64_t>::max()){
-            PROGRAM_COUNT = 0;
-        }
-    }
-    catch(const std::exception& e){
-        std::cout << "Caught exception: " << e.what() << "\\n";
-    }
-  }
-  return 0;
-}`;
+export function setup(){
+    ${mapCode}
+}
 
+export function run() {
+  setup();
+  console.log("${plcname} is running!");
+  setInterval(1, superviseIO);
+  ${taskCode}
+}`;
+        if(target === "nodejs"){
+            jsCode += "\nsetup();\nrun();\n";
+        }
         fs.mkdirSync(outputPath, { recursive: true });
-        fs.writeFileSync(cppFile, cppCode);
+        fs.writeFileSync(jsFile, jsCode);
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             fs.writeFileSync(stFile, sourceCode);
         }
         // Copy core headers and cpp support files
         const coreFiles = [
-            'imperium.h',
-            'imperium.cpp',
-            'modbus.h',
-            'modbus.cpp',
-            "json.hpp"
+            'imperium.js'
         ];
 
-        const coreDir = path.resolve('./src/compilers/support/generic');
+        let coreDir = path.resolve('./src/compilers/support/nodejs');
+        if(target === "jint"){
+            coreDir = path.resolve('./src/compilers/support/jint');
+        }
         for (const file of coreFiles) {
             fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
         }
 
-       if (outputType === 'executable') {
-        let compiler = null;
-        const isWindows = os.platform() === 'win32';
-
-        // Step 1: Detect compiler
-        try {
-            execSync('clang++ --version', { stdio: 'ignore' });
-            compiler = 'clang++';
-        } catch {
-            try {
-            execSync('g++ --version', { stdio: 'ignore' });
-            compiler = 'g++';
-            } catch {
-            try {
-                execSync('cl.exe /?', { stdio: 'ignore' });
-                compiler = 'cl.exe';
-            } catch {
-                throw new Error('No C++ compiler found (clang++, g++, or cl.exe)');
-            }
-            }
-        }
-
-        // Step 2: Determine output file name
-        let exeFile = path.join(outputPath, filename);
-        if (isWindows && !exeFile.endsWith('.exe')) {
-            exeFile += '.exe';
-        }
-
-        // Step 3: Build compile command
-        let compileCmd;
-
-        if (compiler === 'cl.exe') {
-            // cl.exe syntax
-            compileCmd = `"cl.exe" /EHsc /std:c++17 /Fe:"${exeFile}" "${cppFile}" "${path.join(outputPath, 'imperium.cpp')}" "${path.join(outputPath, 'modbus.cpp')}"`;
-        } else {
-            // g++ or clang++ syntax
-            compileCmd = `${compiler} -std=c++17 -o "${exeFile}" "${cppFile}" "${path.join(outputPath, 'imperium.cpp')}" "${path.join(outputPath, 'modbus.cpp')}"`;
-        }
-
-        // Step 4: Execute compile command
-        execSync(compileCmd, { stdio: 'inherit' });
-        }
     }
 
 }
 
-export default GenericCPPCompiler;

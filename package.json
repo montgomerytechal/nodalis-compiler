@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "test_st_core": "node test/st/testRunner.js",
-    "test_st_compiler_code": "node test/st/testGenericCPP.js",
+    "test_cpp_compiler": "node test/st/testGenericCPP.js",
+    "test_js_compiler": "node test/st/testJS.js",
     "test": "jest",
     "build": "echo 'No build step yet.'",
     "start": "node src/imperium.js"

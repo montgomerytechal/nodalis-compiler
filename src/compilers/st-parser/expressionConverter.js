@@ -15,10 +15,24 @@
 // limitations under the License.
 
 
-export function convertExpression(expr) {
-  if (Array.isArray(expr)) expr = expr.join(" ");
+export function convertExpression(expr, isjsfb = false, jsfbVars = []) {
+  if (Array.isArray(expr)) {
+    if (!isjsfb) {
+      expr = expr.join(" ");
+    } else {
+      let jsexpr = "";
+      expr.forEach((e) => {
+        let ev = e.split(".")[0];
+        if (jsfbVars.includes(ev)) {
+          ev = "this." + e;
+        }
+        jsexpr += (jsexpr ? " " : "") + ev;
+      });
+      expr = jsexpr;//.replace(/([^\s])/g, ' $1 ').replace(/\s+/g, ' ').trim();  // ✨ ensure spacing
+    }
+  }
 
-  var results = expr
+  let results = expr
     .replace(/\bAND\b/gi, '&&')
     .replace(/\bOR\b/gi, '||')
     .replace(/\bNOT\b/gi, '!')
@@ -28,22 +42,34 @@ export function convertExpression(expr) {
     .replace(/:=/g, '=')
     .replace(/\bTRUE\b/gi, 'true')
     .replace(/\bFALSE\b/gi, 'false')
-    .replace(/\b(?<![><!])=(?!=)/g, '==');
+    .replace(/\b(?<![><!])=(?!=)/g, '==');  // ✅ fix assignment/comparison
 
-  // Replace %I/Q/M references with readAddress(...) before anything else
+    const tokens = results.split(/\s+/);
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i] === '=' &&
+        tokens[i - 1] !== '<' &&
+        tokens[i - 1] !== '>' &&
+        tokens[i - 1] !== '!' &&
+        tokens[i + 1] !== '='
+    ) {
+      tokens[i] = '==';
+    }
+  }
+  results = tokens.join(' ');
+
+  // Replace %I/Q/M references
   const parts = results.split(/\s+/);
-  results = parts.map(e => {
-    return /^%[IQM]\d+(\.\d+)?$/i.test(e) ? `${getReadAddressExpression(e)}` : e;
-  }).join(' ');
+  results = parts.map(e => /^%[IQM]\d+(\.\d+)?$/i.test(e) ? getReadAddressExpression(e) : e).join(' ');
 
-  // Now replace var.bit (but NOT %I0001.0) with getBit(...)
-  if(results.indexOf("read") === -1){
+  if (results.indexOf("read") === -1) {
     results = results.replace(/\b(?!%)(([A-Za-z_]\w*)\.(\d+))\b/g, (_, full, base, bit) => {
-        return `getBit(&${base}, ${bit})`;
+      return `getBit(&${base}, ${bit})`;
     });
   }
+
   return results;
 }
+
 
 /**
  * 

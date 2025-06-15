@@ -1,8 +1,8 @@
 #include "imperium.h"
-#include "modbus.h"
 #include <chrono>
 #include <thread>
 #include <cstdint>
+#include <limits>
 class Timer {//FUNCTION_BLOCK:Timer
 public:
 bool Start;
@@ -17,29 +17,34 @@ void PLC_PROG() { //PROGRAM:PLC_PROG
 static Timer T1;
 uint64_t IN;
 T1();
-IN = readAddress("%I0001.0");
-if (T1.Start == true && ! T1.Done) {
-  writeAddress("%Q0001.0", 1);
+IN = readBit("%I0001.0");
+if (T1.Start = true && ! T1.Done) {
+  writeBit("%Q0001.0", 1);
 }
-else if (T1.Done == true) {
+else if (T1.Done = true) {
   T1.Start = false;
-  writeAddress("%Q0001.0", 0);
+  writeBit("%Q0001.0", 0);
 }
 }
 
 
 int main() {
-  uint cycleCount = 0;
+  
+  std::cout << "ImperiumPLC is running!\n";
   while (true) {
-    gatherInputs();
-    PLC_PROG();
+    try{
+        superviseIO();
+        PLC_PROG();
 
-    handleOutputs();
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    cycleCount++;
-    if(cycleCount >= 604800000){
-        cycleCount = 0;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        PROGRAM_COUNT++;
+        if(PROGRAM_COUNT >= std::numeric_limits<uint64_t>::max()){
+            PROGRAM_COUNT = 0;
+        }
     }
-   }
+    catch(const std::exception& e){
+        std::cout << "Caught exception: " << e.what() << "\n";
+    }
+  }
   return 0;
 }
