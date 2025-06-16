@@ -13,15 +13,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 import { execSync } from 'child_process';
-import os from 'os';
 import fs from 'fs';
 import path from "path";
 import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Compiler.js';
 import * as iec from "./iec-parser/parser.js";
 import { parseStructuredText } from './st-parser/parser.js';
 import { transpile } from './st-parser/jstranspiler.js';
+import which from "which";
 
 export class JSCompiler extends Compiler {
     constructor(options) {
@@ -134,24 +133,28 @@ export class JSCompiler extends Compiler {
                 });
                 taskCode += 
 `
-    setInterval(${t.Interval}, () => {
+    ${target === "nodejs" ? `setInterval(() => {` : ""}
         ${progCode}
-    });
+    ${target === "nodejs" ? `}, ${t.Interval});` : ""}
 `;
             });
         }
         else{
-            taskCode = "setInterval(100, () => {\n";
+            if(target === "nodejs") taskCode = "setInterval(() => {\n";
             programs.forEach((p) => {
                 taskCode += p + "();\n";
             });
-            taskCode += "});"
+            if(target === "nodejs") taskCode += "}, 100);"
         }
         
-        const jsCode = 
+        let jsCode = 
 `import {
         readBit, writeBit, readByte, writeByte, readWord, writeWord, readDWord, writeDWord,
-        getBit, setBit, IOClient, RefVar, superviseIO, mapIO
+        getBit, setBit, resolve, newStatic, RefVar, superviseIO, mapIO,
+        TON, TOF, TP, R_TRIG, F_TRIG, CTU, CTD, CTUD,
+        AND, OR, XOR, NOR, NAND, NOT, ASSIGNMENT,
+        EQ, NE, LT, GT, GE, LE,
+        MOVE, SEL, MUX, MIN, MAX, LIMIT
 } from "./imperium.js";
 ${transpiledCode}
 
@@ -159,14 +162,14 @@ export function setup(){
     ${mapCode}
 }
 
-export function run() {
-  setup();
-  console.log("${plcname} is running!");
-  setInterval(1, superviseIO);
-  ${taskCode}
-}`;
+export function run(){
+    ${target === "nodejs" ? "setInterval(superviseIO, 1);" : ""} 
+    ${taskCode}
+    console.log("${plcname} is running!");
+}
+`;
         if(target === "nodejs"){
-            jsCode += "\nsetup();\nrun();\n";
+            jsCode += "\nsetup();\nrun();";
         }
         fs.mkdirSync(outputPath, { recursive: true });
         fs.writeFileSync(jsFile, jsCode);
@@ -175,7 +178,9 @@ export function run() {
         }
         // Copy core headers and cpp support files
         const coreFiles = [
-            'imperium.js'
+            'imperium.js',
+            'modbus.js',
+            "IOClient.js"
         ];
 
         let coreDir = path.resolve('./src/compilers/support/nodejs');
@@ -186,7 +191,35 @@ export function run() {
             fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
         }
 
+        if(target === "nodejs"){
+            writePackageJson(outputPath, plcname);
+            installDependencies(outputPath);
+        }
     }
 
+}
+
+function writePackageJson(outputDir,plcname) {
+  const pkg = {
+    name: "imperium-" + plcname,
+    version: "1.0.0",
+    type: "module",
+    main: plcname + ".js",
+    dependencies: {
+      "jsmodbus": "^4.0.6"
+    }
+  };
+  fs.writeFileSync(path.join(outputDir, "package.json"), JSON.stringify(pkg, null, 2));
+}
+
+function installDependencies(outputDir) {
+  const npmPath = which.sync('npm'); // find actual npm binary
+  console.log(`Running npm from: ${npmPath}`);
+
+  execSync(`"${npmPath}" install`, {
+    cwd: outputDir,
+    stdio: 'inherit',
+    shell: true
+  });
 }
 

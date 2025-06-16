@@ -18,8 +18,8 @@ function runTest() {
   var compiler = new JSCompiler({
     sourcePath: inputPath,
     outputPath,
-    target: 'code',
-    outputType: "nodejs"
+    target: 'nodejs',
+    outputType: "code"
   });
 
   compiler.compile();
@@ -46,8 +46,8 @@ function runTest() {
   compiler = new JSCompiler({
     sourcePath: inputPath,
     outputPath,
-    target: 'code',
-    outputType: "nodejs",
+    target: 'nodejs',
+    outputType: "cpde",
     resourceName: "PLC1"
   });
   compiler.compile();

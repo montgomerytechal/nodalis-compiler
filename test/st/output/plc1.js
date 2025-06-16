@@ -1,6 +1,10 @@
 import {
         readBit, writeBit, readByte, writeByte, readWord, writeWord, readDWord, writeDWord,
-        getBit, setBit, IOClient, RefVar, superviseIO, mapIO
+        getBit, setBit, resolve, newStatic, RefVar, superviseIO, mapIO,
+        TON, TOF, TP, R_TRIG, F_TRIG, CTU, CTD, CTUD,
+        AND, OR, XOR, NOR, NAND, NOT, ASSIGNMENT,
+        EQ, NE, LT, GT, GE, LE,
+        MOVE, SEL, MUX, MIN, MAX, LIMIT
 } from "./imperium.js";
 // Global variable declarations
 let SW1 = new RefVar("%IX0.0");
@@ -9,21 +13,23 @@ export class PLS { // FUNCTION_BLOCK:PLS
     this.EN = null;
     this.PT = null;
     this.Q = null;
-    this.Timer = new TP();
+    this.Timer = newStatic("PLS.Timer", TP);
     this.Time = null;
   }
   call() {
     this.Timer.call();
-    this.Timer.IN = this.EN;
-    this.Timer.PT = this.PT;
-    this.Q = ( this.Timer.Q );
+    this.Timer.IN = resolve(this.EN);
+    this.Timer.PT = resolve(this.PT);
+    this.Q = resolve(( this.Timer.Q ));
   }
 }
 export function PLC_LD() { // PROGRAM:PLC_LD
-let PLS1 = new TP();
+let PLS1 = newStatic("PLS1", TP);
+false
+PLC_LD
 PLS1.call();
-PLS1.IN = SW1;
-PLS1.PT = 1000;
+PLS1.IN = resolve(SW1);
+PLS1.PT = resolve(1000);
 writeBit("%QX0.0", ( PLS1.Q ));
 writeBit("%QX0.1", ( ( ! SW1 ) ));
 writeBit("%QX0.2", ( ( ( PLS1.ET >= 500 ) ) ));
@@ -36,14 +42,16 @@ mapIO("{\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MOD
 
 }
 
-export function run() {
-  setup();
-  console.log("PLC1 is running!");
-  setInterval(1, superviseIO);
-  
-    setInterval(100, () => {
+export function run(){
+    setInterval(superviseIO, 1); 
+    
+    setInterval(() => {
         PLC_LD();
 
-    });
+    }, 100);
 
+    console.log("PLC1 is running!");
 }
+
+setup();
+run();

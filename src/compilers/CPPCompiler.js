@@ -23,10 +23,10 @@ import * as iec from "./iec-parser/parser.js";
 import { parseStructuredText } from './st-parser/parser.js';
 import { transpile } from './st-parser/gcctranspiler.js';
 
-export class GenericCPPCompiler extends Compiler {
+export class CPPCompiler extends Compiler {
     constructor(options) {
         super(options);
-        this.name = 'GenericCPPCompiler';
+        this.name = 'CPPCompiler';
     }
 
     get supportedLanguages() {
@@ -38,7 +38,7 @@ export class GenericCPPCompiler extends Compiler {
     }
 
     get supportedTargetDevices() {
-        return ['generic'];
+        return ['linux', 'macOS', 'windows'];
     }
 
     get supportedProtocols() {
@@ -239,4 +239,4 @@ int main() {
 
 }
 
-export default GenericCPPCompiler;
+export default CPPCompiler;

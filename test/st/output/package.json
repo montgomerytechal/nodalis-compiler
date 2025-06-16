@@ -1,0 +1,9 @@
+{
+  "name": "imperium-PLC1",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "PLC1.js",
+  "dependencies": {
+    "jsmodbus": "^4.0.6"
+  }
+}

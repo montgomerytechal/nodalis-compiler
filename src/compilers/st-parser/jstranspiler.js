@@ -15,14 +15,14 @@ export function transpile(ast) {
 
       case 'ProgramDeclaration':
         lines.push(`export function ${block.name}() { // PROGRAM:${block.name}`);
-        lines.push(...declareVars(block.varSections));
+        lines.push(...declareVars(block.varSections),false, block.name);
         lines.push(...transpileStatements(block.statements));
         lines.push('}');
         break;
 
       case 'FunctionDeclaration':
         lines.push(`export function ${block.name}() { // FUNCTION:${block.name}`);
-        lines.push(...declareVars(block.varSections));
+        lines.push(...declareVars(block.varSections, false, block.name));
         lines.push(...transpileStatements(block.statements));
 
         for (let i = 0; i < lines.length; i++) {
@@ -37,7 +37,7 @@ export function transpile(ast) {
       case 'FunctionBlockDeclaration':
         lines.push(`export class ${block.name} { // FUNCTION_BLOCK:${block.name}`);
         lines.push('  constructor() {');
-        lines.push(...declareVars(block.varSections, true).map(line => `    ${line}`));
+        lines.push(...declareVars(block.varSections, true, block.name).map(line => `    ${line}`));
         lines.push('  }');
         lines.push('  call() {');
         lines.push(...transpileStatements(block.statements, true).map(line => `    ${line}`));
@@ -68,7 +68,7 @@ function mapStatement(stmt, infb = false) {
           return `setBit(${varName}, ${bitIndex}, ${rightExpr});`;
         }
 
-        return `${left} = ${rightExpr};`;
+        return `${left} = resolve(${rightExpr});`;
       }
 
       case 'IF': {
@@ -142,7 +142,7 @@ function transpileStatements(statements, infb=false) {
   return statements?.flatMap((stmt) => mapStatement(stmt, infb));
 }
 
-function declareVars(varSections, infb = false) {
+function declareVars(varSections, infb = false, blockName = "") {
   if(infb){
     fbVars = [];
   }
@@ -155,9 +155,11 @@ function declareVars(varSections, infb = false) {
       return `${decl}${v.name} = new RefVar("${addr}");`;
     }
 
+    const fullVarName = blockName ? `${blockName}.${v.name}` : v.name;
+
     const initValue = (v.initialValue !== undefined && v.initialValue !== null)
       ? ` = ${v.initialValue}`
-      : isFunctionBlock ? ` = new ${v.type}()` : infb ? " = null" : "";
+      : isFunctionBlock ? ` = newStatic("${fullVarName}", ${v.type})` : infb ? " = null" : "";
 
     return `${decl}${v.name}${initValue};`;
   });
