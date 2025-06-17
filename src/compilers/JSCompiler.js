@@ -15,12 +15,17 @@
 // limitations under the License.
 import { execSync } from 'child_process';
 import fs from 'fs';
+import os from "os";
 import path from "path";
 import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Compiler.js';
 import * as iec from "./iec-parser/parser.js";
 import { parseStructuredText } from './st-parser/parser.js';
 import { transpile } from './st-parser/jstranspiler.js';
 import which from "which";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export class JSCompiler extends Compiler {
     constructor(options) {
@@ -33,7 +38,7 @@ export class JSCompiler extends Compiler {
     }
 
     get supportedOutputTypes() {
-        return [OutputType.SOURCE_CODE];
+        return [OutputType.SOURCE_CODE, OutputType.EXECUTABLE];
     }
 
     get supportedTargetDevices() {
@@ -146,26 +151,31 @@ export class JSCompiler extends Compiler {
             });
             if(target === "nodejs") taskCode += "}, 100);"
         }
-        
-        let jsCode = 
-`import {
+        let includes = 
+        `import {
         readBit, writeBit, readByte, writeByte, readWord, writeWord, readDWord, writeDWord,
         getBit, setBit, resolve, newStatic, RefVar, superviseIO, mapIO,
         TON, TOF, TP, R_TRIG, F_TRIG, CTU, CTD, CTUD,
         AND, OR, XOR, NOR, NAND, NOT, ASSIGNMENT,
         EQ, NE, LT, GT, GE, LE,
         MOVE, SEL, MUX, MIN, MAX, LIMIT
-} from "./imperium.js";
+} from "./imperium.js";`;
+        if(target === "jint"){
+            includes = "";
+        }
+        let jsCode = 
+`${includes}
 ${transpiledCode}
 
 export function setup(){
     ${mapCode}
+    console.log("${plcname} is running!");
 }
 
 export function run(){
     ${target === "nodejs" ? "setInterval(superviseIO, 1);" : ""} 
     ${taskCode}
-    console.log("${plcname} is running!");
+    
 }
 `;
         if(target === "nodejs"){
@@ -176,24 +186,68 @@ export function run(){
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             fs.writeFileSync(stFile, sourceCode);
         }
-        // Copy core headers and cpp support files
-        const coreFiles = [
-            'imperium.js',
-            'modbus.js',
-            "IOClient.js"
-        ];
-
-        let coreDir = path.resolve('./src/compilers/support/nodejs');
-        if(target === "jint"){
-            coreDir = path.resolve('./src/compilers/support/jint');
-        }
-        for (const file of coreFiles) {
-            fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
-        }
-
         if(target === "nodejs"){
+            // Copy core headers and cpp support files
+            const coreFiles = [
+                'imperium.js',
+                'modbus.js',
+                "IOClient.js"
+            ];
+
+            let coreDir = path.resolve('./src/compilers/support/nodejs');
+            
+            for (const file of coreFiles) {
+                fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
+            }
+
             writePackageJson(outputPath, plcname);
             installDependencies(outputPath);
+        }
+        
+
+        if (target === "jint" && outputType === "executable") {
+            const supportDir = path.resolve(__dirname, "support/jint/Imperium");
+            const buildScript = os.platform() === "win32" ? "build.bat" : "build.sh";
+
+            // 1. Copy all files from support/jint/imperium to the output directory
+            fs.cpSync(supportDir, outputPath, { recursive: true });
+
+            // 2. Run the build script inside the output directory
+            const buildPath = path.join(outputPath, buildScript);
+            if(buildPath.endsWith(".sh")){
+                fs.chmodSync(buildPath, 0o755); // make executable
+            }
+            execSync(buildPath, { cwd: outputPath, stdio: "inherit", shell: true });
+
+            // 3. Copy the generated JS file to each publish folder
+            const publishRoot = path.join(outputPath, "publish");
+            
+            const platforms = fs.readdirSync(publishRoot, { withFileTypes: true })
+                .filter(d => d.isDirectory())
+                .map(d => path.join(publishRoot, d.name));
+            const scriptName = filename + ".js"
+            for (const platformDir of platforms) {
+                const dest = path.join(platformDir, scriptName);
+                fs.copyFileSync(jsFile, dest);
+
+                // 2. Patch bootstrap.sh if present
+                const shFile = path.join(platformDir, "bootstrap.sh");
+                if (fs.existsSync(shFile)) {
+                    let content = fs.readFileSync(shFile, "utf-8");
+                    content = content.replace("{script}", scriptName);
+                    fs.writeFileSync(shFile, content, "utf-8");
+                    fs.chmodSync(shFile, 0o755); // make executable
+                }
+
+                // 3. Patch bootstrap.bat if present
+                const batFile = path.join(platformDir, "bootstrap.bat");
+                if (fs.existsSync(batFile)) {
+                    let content = fs.readFileSync(batFile, "utf-8");
+                    content = content.replace("{script}", scriptName);
+                    fs.writeFileSync(batFile, content, "utf-8");
+                }
+
+            }
         }
     }
 

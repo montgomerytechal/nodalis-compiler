@@ -1,11 +1,4 @@
-import {
-        readBit, writeBit, readByte, writeByte, readWord, writeWord, readDWord, writeDWord,
-        getBit, setBit, resolve, newStatic, RefVar, superviseIO, mapIO,
-        TON, TOF, TP, R_TRIG, F_TRIG, CTU, CTD, CTUD,
-        AND, OR, XOR, NOR, NAND, NOT, ASSIGNMENT,
-        EQ, NE, LT, GT, GE, LE,
-        MOVE, SEL, MUX, MIN, MAX, LIMIT
-} from "./imperium.js";
+
 // Global variable declarations
 let SW1 = new RefVar("%IX0.0");
 export class PLS { // FUNCTION_BLOCK:PLS
@@ -40,18 +33,16 @@ export function setup(){
 mapIO("{\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"16\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%QX0.0\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}");
 mapIO("{\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"17\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%QX0.1\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}");
 
-}
-
-export function run(){
-    setInterval(superviseIO, 1); 
-    
-    setInterval(() => {
-        PLC_LD();
-
-    }, 100);
-
     console.log("PLC1 is running!");
 }
 
-setup();
-run();
+export function run(){
+     
+    
+    
+        PLC_LD();
+
+    
+
+    
+}

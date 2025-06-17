@@ -17,6 +17,9 @@ Thumbs.db
 dist/
 build/
 coverage/
+publish/
+bin/
+obj/
 *.tsbuildinfo
 
 # VS Code settings
