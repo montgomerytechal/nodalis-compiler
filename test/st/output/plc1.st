@@ -39,7 +39,6 @@ PROGRAM PLC_LD
     END_VAR
     PLS1.IN := SW1;
 PLS1.PT := 1000;
-%QX0.0 := (PLS1.Q);
-%QX0.0 := ((SW2));
+%QX0.0 := ((SW2) OR PLS1.Q);
 
 END_PROGRAM

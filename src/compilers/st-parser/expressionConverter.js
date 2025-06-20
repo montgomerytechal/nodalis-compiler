@@ -29,7 +29,7 @@
  * @param {string[]} jsfbVars An array of variable names defined in the JS function block.
  * @returns {string} Returns a converted expression.
  */
-export function convertExpression(expr, isjsfb = false, jsfbVars = []) {
+export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=false) {
   if (Array.isArray(expr)) {
     if (!isjsfb) {
       expr = expr.join(" ");
@@ -70,17 +70,32 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = []) {
     }
   }
   results = tokens.join(' ');
-
   // Replace %I/Q/M references
   const parts = results.split(/\s+/);
-  results = parts.map(e => /^%[IQM]\d+(\.\d+)?$/i.test(e) ? getReadAddressExpression(e) : e).join(' ');
+  results = parts.map(e => {
+    // Don't touch raw address reads
+    if (/^%[IQM][XBWDL]?\d+(\.\d+)?$/i.test(e)) return getReadAddressExpression(e);
 
+    // Don't wrap literals or operators
+    if (/^(true|false|null|\d+|!|&&|\|\||==|!=|[<>=+\-*/()])$/i.test(e)) return e;
+
+    // Don't wrap known function expressions (e.g., getBit)
+    if (/^getBit\(/.test(e)) return e;
+
+    // Don't wrap dot-bit references already processed
+    if (/^&?[A-Za-z_]\w*\.\d+$/.test(e)) return e;
+
+    // Otherwise, wrap in resolve()
+    if(isjs)
+      return `resolve(${e})`;
+    else return e;
+  }).join(' ');
   if (results.indexOf("read") === -1) {
     results = results.replace(/\b(?!%)(([A-Za-z_]\w*)\.(\d+))\b/g, (_, full, base, bit) => {
       return `getBit(&${base}, ${bit})`;
     });
   }
-
+  
   return results;
 }
 

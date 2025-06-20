@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1750362848839" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1750370731662" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -60,6 +60,7 @@
                     <ConnectionPointIn>
                     
                     <Connection refConnectionPointOutId="11"/>
+<Connection refConnectionPointOutId="13"/>
 
                 </ConnectionPointIn>
 <ConnectionPointOut connectionPointOutId="7">
@@ -114,45 +115,14 @@
                     
                     
                 </FbdObject>
-
-                </Rung>
-<Rung evaluationOrder="2">
-                    <LdObject xsi:type="LeftPowerRail" >
-                    <RelPosition x="2" y="131"/>
-                    <ConnectionPointOut connectionPointOutId="1">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-<LdObject xsi:type="RightPowerRail" >
-                    <RelPosition x="800" y="131"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="3"/>
-
-                </ConnectionPointIn>
-
-                </LdObject>
 <LdObject xsi:type="Contact"  operand="SW2" edge="none" negated="false">
-                    <RelPosition x="50" y="131"/>
+                    <RelPosition x="115.22776515019059" y="109.7676119872714"/>
                     <ConnectionPointIn>
                     
                     <Connection refConnectionPointOutId="1"/>
 
                 </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="2">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-<LdObject xsi:type="Coil"  operand="%QX0.0" edge="none" negated="false" latch="none">
-                    <RelPosition x="504.4908271613661" y="131"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="2"/>
-
-                </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="3">
+<ConnectionPointOut connectionPointOutId="13">
                     
                 </ConnectionPointOut>
 

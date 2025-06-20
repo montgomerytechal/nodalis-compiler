@@ -24,6 +24,7 @@
 
 import { convertExpression, getWriteAddressExpression } from './expressionConverter.js';
 let fbVars = [];
+let refVars = [];
 /**
  * Converts the tokenized ST code to Javascript.
  * @param {{body: {type: string, name: string, varSections: [], statements: []}}[]} ast The tokenized code.
@@ -90,7 +91,7 @@ function mapStatement(stmt, infb = false) {
             left = "this." + left;
         }
             
-        const rightExpr = convertExpression(stmt.right, infb, fbVars);
+        const rightExpr = convertExpression(stmt.right, infb, fbVars, true);
 
         if (isIOAddress(left)) {
           return getWriteAddressExpression(left, rightExpr) + ";";
@@ -99,11 +100,11 @@ function mapStatement(stmt, infb = false) {
           return `setBit(${varName}, ${bitIndex}, ${rightExpr});`;
         }
 
-        return `${left} = resolve(${rightExpr});`;
+        return `${left} = ${rightExpr};`;
       }
 
       case 'IF': {
-        const cond = convertExpression(stmt.condition, infb, fbVars);
+        const cond = convertExpression(stmt.condition, infb, fbVars,true);
         const lines = [];
 
         lines.push(`if (${cond}) {`);
@@ -112,7 +113,7 @@ function mapStatement(stmt, infb = false) {
 
         if (stmt.elseIfBlocks?.length) {
           for (const elif of stmt.elseIfBlocks) {
-            const elifCond = convertExpression(elif.condition, infb, fbVars);
+            const elifCond = convertExpression(elif.condition, infb, fbVars,true);
             lines.push(`else if (${elifCond}) {`);
             lines.push(...transpileStatements(elif.block, infb).map(s => `  ${s}`));
             lines.push('}');
@@ -129,7 +130,7 @@ function mapStatement(stmt, infb = false) {
       }
 
       case 'WHILE': {
-        const cond = convertExpression(stmt.condition, infb, fbVars);
+        const cond = convertExpression(stmt.condition, infb, fbVars,true);
         return [
           `while (${cond}) {`,
           ...transpileStatements(stmt.body, infb).map(s => `  ${s}`),
@@ -145,7 +146,7 @@ function mapStatement(stmt, infb = false) {
         ];
 
       case 'REPEAT': {
-        const cond = convertExpression(stmt.condition, infb, fbVars);
+        const cond = convertExpression(stmt.condition, infb, fbVars,true);
         return [
           `do {`,
           ...transpileStatements(stmt.body, infb).map(s => `  ${s}`),
@@ -193,6 +194,7 @@ function declareVars(varSections, infb = false, blockName = "") {
     if(infb) fbVars.push(v.name);
     if (v.address) {
       const addr = v.address.startsWith('%') ? v.address : '%' + v.address;
+      refVars.push(v.name);
       return `${decl}${v.name} = createReference("${addr}");`;
     }
 

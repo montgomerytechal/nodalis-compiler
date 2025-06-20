@@ -154,7 +154,7 @@ export class JSCompiler extends Compiler {
         let includes = 
         `import {
         readBit, writeBit, readByte, writeByte, readWord, writeWord, readDWord, writeDWord,
-        getBit, setBit, resolve, newStatic, RefVar, superviseIO, mapIO,
+        getBit, setBit, resolve, newStatic, RefVar, superviseIO, mapIO, createReference,
         TON, TOF, TP, R_TRIG, F_TRIG, CTU, CTD, CTUD,
         AND, OR, XOR, NOR, NAND, NOT, ASSIGNMENT,
         EQ, NE, LT, GT, GE, LE,
@@ -194,7 +194,8 @@ export function run(){
             const coreFiles = [
                 'imperium.js',
                 'modbus.js',
-                "IOClient.js"
+                "IOClient.js",
+                "opcua.js"
             ];
 
             let coreDir = path.resolve('./src/compilers/support/nodejs');
@@ -263,7 +264,8 @@ function writePackageJson(outputDir,plcname) {
     type: "module",
     main: plcname + ".js",
     dependencies: {
-      "jsmodbus": "^4.0.6"
+      "jsmodbus": "^4.0.6",
+      "node-opcua": "^2.156.0"
     }
   };
   fs.writeFileSync(path.join(outputDir, "package.json"), JSON.stringify(pkg, null, 2));

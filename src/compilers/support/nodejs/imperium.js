@@ -21,6 +21,7 @@
  */
 import {IOClient, IOMap, setTiming, setMemoryAccess} from "./IOClient.js"
 import {ModbusClient} from "./modbus.js";
+import { OPCClient } from "./opcua.js";
 
 const MEMORY = Array.from({ length: 64 }, () =>
   Array.from({ length: 16 }, () => new Uint8Array(8))
@@ -585,8 +586,16 @@ function createClient(map) {
   if (map.protocol === "MODBUS-TCP") {
     const modbusClient = new ModbusClient();
     modbusClient.addMapping(map);
+    modbusClient.connect();
     return modbusClient;
   }
+  else if (map.protocol === "OPCUA") {
+    const opcClient = new OPCClient();
+    opcClient.addMapping(map);
+    opcClient.connect();
+    return opcClient;
+  }
+  
   return null;
 }
 
