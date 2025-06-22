@@ -270,6 +270,8 @@ public:
     RefVar(const std::string& addr) : address(addr) {
         cache = read();
     }
+
+    virtual ~RefVar() = default;
     /**
      * Provides an assignment operator for RefVar so that it acts just like a primitive variable.
      * @param value The value to assign.
@@ -329,6 +331,7 @@ private:
         }
     }
 };
+
 /**
  * Gets a bit from a RefVar object.
  * @param var a reference to the RefVar object

@@ -984,7 +984,11 @@ export class Resource extends Serializable{
              * @param {Variable} v 
              */
             (v) => {
-                vars += `${v.Name} ${isValid(v.Address) ?  " AT %" + v.Address.Location + v.Address.Size + v.Address.Address : ""} : ${v.Type.TypeName};\n`;
+                let addr = null;
+                if(isValid(v.Address)){
+                    addr = "%" + v.Address.Location + v.Address.Size + v.Address.Address;
+                }
+                vars += `${v.Name} ${isValid(addr) ?  " AT " + addr : ""} : ${v.Type.TypeName};${isValid(addr) ? `\n//Global={"Name":"${v.Name}", "Address":"${addr}"}` : ""}\n`;
             }
 
         );

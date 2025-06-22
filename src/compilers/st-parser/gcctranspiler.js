@@ -167,6 +167,7 @@ function transpileStatements(statements) {
 function declareVars(varSections) {
   return varSections.map(v => {
     var cleanedType = v.type.trim().toUpperCase();
+    var gv = "";
     const isFunctionBlockType = !mapType(cleanedType) || mapType(cleanedType) === 'auto';
     let init = "";
     cleanedType = mapType(cleanedType);
@@ -182,7 +183,7 @@ function declareVars(varSections) {
     if (v.sectionType==='VAR' && isFunctionBlockType) {
       return `static ${v.type} ${v.name};`; // assume Function Block type
     }
-    return `${cleanedType} ${v.name}${init};`;
+    return `${cleanedType} ${v.name}${init};${gv}`;
   });
 }
 

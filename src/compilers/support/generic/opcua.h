@@ -1,6 +1,8 @@
 #pragma once
 #include "imperium.h"
 #include "open62541.h"
+#include <thread>
+#include <atomic>
 
 class OPCUAClient : public IOClient {
 public:
@@ -28,4 +30,21 @@ private:
 
     template<typename T>
     bool writeValue(const std::string& nodeIdStr, T value, const UA_DataType* type);
+};
+
+class OPCUAServer {
+public:
+    OPCUAServer();
+    ~OPCUAServer();
+
+    void start();
+    void stop();
+    void mapVariable(std::string varname, std::string addr);
+
+private:
+    void run();
+
+    UA_Server* server;
+    std::thread serverThread;
+    std::atomic<bool> running;
 };

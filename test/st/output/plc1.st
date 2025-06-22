@@ -9,7 +9,9 @@
 
 VAR_GLOBAL
     SW1  AT %IX0.0 : BOOL;
+//Global={"Name":"SW1", "Address":"%IX0.0"}
 SW2  AT %IX0.1 : BOOL;
+//Global={"Name":"SW2", "Address":"%IX0.1"}
 
 END_VAR
 FUNCTION_BLOCK PLS

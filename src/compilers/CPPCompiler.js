@@ -88,6 +88,7 @@ export class CPPCompiler extends Compiler {
 
         let tasks = [];
         let programs = [];
+        let globals = [];
         let taskCode = "";
         let mapCode = "";
         let plcname = "ImperiumPLC";
@@ -110,6 +111,11 @@ export class CPPCompiler extends Compiler {
             }
             else if(line.trim().startsWith("//Map=")){
                 mapCode += `mapIO("${line.substring(line.indexOf("=") + 1).trim()}");\n`;
+
+            }
+            else if(line.indexOf("//Global=") > -1){
+                let global = JSON.parse(line.substring(line.indexOf("=") + 1).trim());
+                globals.push(`opcServer.mapVariable("${global.Name}", "${global.Address}");`)
 
             }
             else if(line.trim().startsWith("PROGRAM")){
@@ -152,9 +158,14 @@ export class CPPCompiler extends Compiler {
 #include <thread>
 #include <cstdint>
 #include <limits>
+#include "opcua.h"
+
+OPCUAServer opcServer;
 ${transpiledCode}
 
 int main() {
+  ${globals.join("\n")}
+  opcServer.start();
   ${mapCode}
   std::cout << "${plcname} is running!\\n";
   while (true) {

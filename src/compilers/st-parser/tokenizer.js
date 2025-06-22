@@ -29,6 +29,12 @@
 export function tokenize(code) {
   const tokens = [];
   let match;
+  // Remove single-line comments (//...)
+  code = code.replace(/\/\/.*$/gm, '');
+
+  // Remove multi-line comments ((*...*))
+  code = code.replace(/\(\*[\s\S]*?\*\)/g, '');
+
   //const regex = /(%[IQM][A-Z]?[0-9]+(?:\.[0-9]+)?)|(:=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([:;()<>+\-*/=])/g;
   const regex = /(%[IQM][A-Z]*\d+(?:\.\d+)?)|(:=|>=|<=|<>|!=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([<>+\-*/=;():])/g;
 
