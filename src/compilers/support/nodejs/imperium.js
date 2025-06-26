@@ -253,6 +253,44 @@ export function writeBit(address, value) {
   setBit(buffer, bit, value);
 }
 
+export function readAddress(address){
+  if(address.includes(".")){
+    return readBit(address);
+  }
+  else{
+    switch(address[2]){
+      case "X":
+        return readByte(address);
+      
+      case "W":
+        return readWord(address);
+      
+      case "D":
+        return readDWord(address);
+      
+    }
+  }
+}
+
+export function writeAddress(address, value){
+  if(address.includes(".")){
+    writeBit(address, value);
+  }
+  else{
+    switch(address[2]){
+      case "X":
+        writeByte(address, value);
+      break;
+      case "W":
+        writeWord(address, value);
+      break;
+      case "D":
+        writeDWord(address, value);
+      break;
+    }
+  }
+}
+
 // Function Block base class pattern
 export class FunctionBlock {
   call() {}

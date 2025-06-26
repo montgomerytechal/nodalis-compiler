@@ -236,11 +236,14 @@ namespace Imperium
         protected virtual IOClient? CreateClient(IOMap map)
         {
             IOClient client = null;
-            if (map.protocol == "MODBUS-TCP") client = new ModbusClient();
+            if (map.protocol == "MODBUS-TCP")
+                client = new ModbusClient();
+            else if (map.protocol == "OPCUA")
+                client = new OPCClient();
             if (client != null)
-            {
-                client.AddMapping(map);
-            }
+                {
+                    client.AddMapping(map);
+                }
             return client;
         }
 

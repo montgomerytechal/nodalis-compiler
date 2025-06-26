@@ -92,6 +92,7 @@ export class JSCompiler extends Compiler {
 
         let tasks = [];
         let programs = [];
+        let globals = [];
         let taskCode = "";
         let mapCode = "";
         let plcname = "ImperiumPLC";
@@ -114,6 +115,11 @@ export class JSCompiler extends Compiler {
             }
             else if(line.trim().startsWith("//Map=")){
                 mapCode += `mapIO("${line.substring(line.indexOf("=") + 1).trim()}");\n`;
+
+            }
+            else if(line.indexOf("//Global=") > -1){
+                let global = JSON.parse(line.substring(line.indexOf("=") + 1).trim());
+                globals.push(`opcServer.mapVariable("${global.Name}", "${global.Address}");`)
 
             }
             else if(line.trim().startsWith("PROGRAM")){
@@ -153,22 +159,25 @@ export class JSCompiler extends Compiler {
         }
         let includes = 
         `import {
-        readBit, writeBit, readByte, writeByte, readWord, writeWord, readDWord, writeDWord,
+        readBit, writeBit, readByte, writeByte, readWord, writeWord, readDWord, writeDWord, readAddress, writeAddress,
         getBit, setBit, resolve, newStatic, RefVar, superviseIO, mapIO, createReference,
         TON, TOF, TP, R_TRIG, F_TRIG, CTU, CTD, CTUD,
         AND, OR, XOR, NOR, NAND, NOT, ASSIGNMENT,
         EQ, NE, LT, GT, GE, LE,
         MOVE, SEL, MUX, MIN, MAX, LIMIT
-} from "./imperium.js";`;
+} from "./imperium.js";
+ import {OPCServer} from "./opcua.js";`;
         if(target === "jint"){
             includes = "";
         }
         let jsCode = 
 `${includes}
 ${transpiledCode}
-
-export function setup(){
+${target === "nodejs" ? `let opcServer = new OPCServer();`: ""}
+export async function setup(){
     ${mapCode}
+
+    ${target === "nodejs" ? "opcServer.setReadWriteHandlers(readAddress, writeAddress);\n" + `await opcServer.start();\n` + globals.join("\n") : ""}
     console.log("${plcname} is running!");
 }
 
