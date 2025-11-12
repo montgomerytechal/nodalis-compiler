@@ -1252,7 +1252,7 @@ export class Program extends Serializable {
                  * @param {Variable} v 
                  */
                 (v) => {
-                    decl += `${v.Name} ${isValid(v.Address) ? "%" + v.Address.Location + v.Address.Size + (v.Address.Address.length > 0 ? "." + v.Address.Address : "") : ""} : ${v.Type.TypeName};\n`;
+                    decl += `${v.Name} ${isValid(v.Address) ? "AT %" + v.Address.Location + v.Address.Size + (v.Address.Address.length > 0 ? "." + v.Address.Address : "") : ""} : ${v.Type.TypeName};\n`;
                 }
             );
             st = 
@@ -2512,7 +2512,7 @@ export class LdObject extends Serializable{
                             st = `(${this.Operand1} >= ${this.Operand2})`;
                         break;
                         case "=":
-                            st = `(${this.Operand1} := ${this.Operand2})`;
+                            st = `(${this.Operand1} = ${this.Operand2})`;
                         break;
                         case "<=":
                             st = `(${this.Operand1} <= ${this.Operand2})`;
@@ -2534,10 +2534,12 @@ export class LdObject extends Serializable{
                         st += `(${expression})`;
                     }
                     else if(this.Latch === "set"){
-                        st += this.Operand + ` OR (${expression})`;
+                        st = `IF (${expression}) THEN
+                            ${this.Operand} + " := 1;"
+                        END_IF;`;
                     }
                     else if(this.Latch === "reset"){
-                        st += `IF (${expression}) THEN
+                        st = `IF (${expression}) THEN
                             ${this.Operand} + " := 0;"
                         END_IF;`;
                     }
