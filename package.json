@@ -14,12 +14,19 @@
     "start": "node src/nodalis.js",
     "nodalis": "node ./src/nodalis.js"
   },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
   "bin": {
     "nodalis": "./src/nodalis.js"
   },
+  "preferGlobal": true,
   "repository": {
     "type": "git",
-    "url": "https://montgomerytech.visualstudio.com/nodalis-compiler/_git/nodalis-compiler"
+    "url": "https://github.com/montgomerytechal/nodalis-compiler"
   },
   "keywords": [
     "PLC",
@@ -29,6 +36,10 @@
     "Ladder Logic",
     "Structured Text"
   ],
+  "bugs": {
+    "url": "https://github.com/montgomerytechal/nodalis-compiler/issues"
+  },
+  "homepage": "https://github.com/montgomerytechal/nodalis-compiler#readme",
   "author": "Nathan Skipper",
   "license": "Apache-2.0",
   "devDependencies": {
@@ -41,5 +52,8 @@
     "node-opcua": "^2.156.0",
     "which": "^5.0.0",
     "xmldom": "^0.6.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
