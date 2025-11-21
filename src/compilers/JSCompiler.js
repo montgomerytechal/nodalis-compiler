@@ -95,7 +95,7 @@ export class JSCompiler extends Compiler {
         let globals = [];
         let taskCode = "";
         let mapCode = "";
-        let plcname = "ImperiumPLC";
+        let plcname = "NodalisPLC";
         if(typeof resourceName !== "undefined" && resourceName !== null){
             plcname = resourceName;
         }
@@ -165,7 +165,7 @@ export class JSCompiler extends Compiler {
         AND, OR, XOR, NOR, NAND, NOT, ASSIGNMENT,
         EQ, NE, LT, GT, GE, LE,
         MOVE, SEL, MUX, MIN, MAX, LIMIT
-} from "./imperium.js";
+} from "./nodalis.js";
  import {OPCServer} from "./opcua.js";`;
         if(target === "jint"){
             includes = "";
@@ -201,7 +201,7 @@ export function run(){
         if(target === "nodejs"){
             // Copy core headers and cpp support files
             const coreFiles = [
-                'imperium.js',
+                'nodalis.js',
                 'modbus.js',
                 "IOClient.js",
                 "opcua.js"
@@ -219,10 +219,10 @@ export function run(){
         
 
         if (target === "jint" && outputType === "executable") {
-            const supportDir = path.resolve(__dirname, "support/jint/Imperium");
+            const supportDir = path.resolve(__dirname, "support/jint/Nodalis");
             const buildScript = os.platform() === "win32" ? "build.bat" : "build.sh";
 
-            // 1. Copy all files from support/jint/imperium to the output directory
+            // 1. Copy all files from support/jint/nodalis to the output directory
             fs.cpSync(supportDir, outputPath, { recursive: true });
 
             // 2. Run the build script inside the output directory
@@ -268,7 +268,7 @@ export function run(){
 
 function writePackageJson(outputDir,plcname) {
   const pkg = {
-    name: "imperium-" + plcname,
+      name: "nodalis-" + plcname,
     version: "1.0.0",
     type: "module",
     main: plcname + ".js",

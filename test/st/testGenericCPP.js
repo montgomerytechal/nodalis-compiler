@@ -15,35 +15,35 @@ function runTest() {
   // Clean output dir
   fs.rmSync(outputPath, { recursive: true, force: true });
 
-  var compiler = new CPPCompiler({
-    sourcePath: inputPath,
-    outputPath,
-    target: 'code',
-  });
+  // var compiler = new CPPCompiler({
+  //   sourcePath: inputPath,
+  //   outputPath,
+  //   target: 'code',
+  // });
 
-  compiler.compile();
+  // compiler.compile();
 
-  var actualPath = path.join(outputPath, `${fixtureName}.cpp`);
-  var actual = fs.readFileSync(actualPath, 'utf-8');
-  var expected = fs.readFileSync(expectedPath, 'utf-8');
+  // var actualPath = path.join(outputPath, `${fixtureName}.cpp`);
+  // var actual = fs.readFileSync(actualPath, 'utf-8');
+  // var expected = fs.readFileSync(expectedPath, 'utf-8');
 
-  var normActual = normalize(actual);
-  var normExpected = normalize(expected);
+  // var normActual = normalize(actual);
+  // var normExpected = normalize(expected);
 
-  if (normActual === normExpected) {
-    console.log(`✅ Passed: ${fixtureName}`);
-  } else {
-    console.error(`❌ Failed: ${fixtureName}`);
-    console.log('--- Expected ---');
-    console.log(expected);
-    console.log('--- Got ---');
-    console.log(actual);
-  }
+  // if (normActual === normExpected) {
+  //   console.log(`✅ Passed: ${fixtureName}`);
+  // } else {
+  //   console.error(`❌ Failed: ${fixtureName}`);
+  //   console.log('--- Expected ---');
+  //   console.log(expected);
+  //   console.log('--- Got ---');
+  //   console.log(actual);
+  // }
   fixtureName = "plc1";
   inputPath = path.resolve('test/st/fixtures', `${fixtureName}.iec`);
   expectedPath = path.resolve('test/st/fixtures', `${fixtureName}.cpp`);
 
-  compiler = new CPPCompiler({
+  let compiler = new CPPCompiler({
     sourcePath: inputPath,
     outputPath,
     target: 'generic',

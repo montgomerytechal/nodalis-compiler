@@ -8,9 +8,9 @@ let lastOutput1 = output1;
 (async () => {
     const server = new OPCUAServer({
         port: 4334,
-        resourcePath: "/UA/imperium",
+        resourcePath: "/UA/nodalis",
         buildInfo: {
-            productName: "ImperiumOPC",
+            productName: "NodalisOPC",
             buildNumber: "1",
             buildDate: new Date()
         }
@@ -23,7 +23,7 @@ let lastOutput1 = output1;
 
     const device = namespace.addObject({
         organizedBy: addressSpace.rootFolder.objects,
-        browseName: "Imperium"
+        browseName: "Nodalis"
     });
 
     // Define Input1 node

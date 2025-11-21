@@ -1,9 +1,9 @@
 {
-  "name": "imperium-compiler",
+  "name": "nodalis-compiler",
   "version": "1.0.0",
   "description": "Compiles IEC-61131-3/10 languages into code that can be used as a PLC on multiple platforms.",
-  "icon": "imperium.png",
-  "main": "src/imperium.js",
+  "icon": "nodalis.png",
+  "main": "src/nodalis.js",
   "type": "module",
   "scripts": {
     "test_st_core": "node test/st/testRunner.js",
@@ -11,15 +11,15 @@
     "test_js_compiler": "node test/st/testJS.js",
     "test": "jest",
     "build": "echo 'No build step yet.'",
-    "start": "node src/imperium.js",
-    "imperium": "node ./src/imperium.js"
+    "start": "node src/nodalis.js",
+    "nodalis": "node ./src/nodalis.js"
   },
   "bin": {
-    "imperium": "./src/imperium.js"
+    "nodalis": "./src/nodalis.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://montgomerytech.visualstudio.com/imperium-compiler/_git/imperium-compiler"
+    "url": "https://montgomerytech.visualstudio.com/nodalis-compiler/_git/nodalis-compiler"
   },
   "keywords": [
     "PLC",

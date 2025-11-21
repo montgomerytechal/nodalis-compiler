@@ -108,9 +108,9 @@ export class OPCServer {
   constructor() {
     this.server = new OPCUAServer({
       port: 4840,
-      resourcePath: "/UA/Imperium",
+      resourcePath: "/UA/Nodalis",
       buildInfo: {
-        productName: "ImperiumServer",
+        productName: "NodalisServer",
         buildNumber: "1",
         buildDate: new Date()
       }

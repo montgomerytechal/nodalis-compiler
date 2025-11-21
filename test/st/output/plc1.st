@@ -1,7 +1,7 @@
 
 //Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"0\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%IX0.0\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
 //Map={\"ModuleID\":\"192.168.9.17\",\"ModulePort\":\"5502\",\"Protocol\":\"MODBUS-TCP\",\"RemoteAddress\":\"16\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%QX0.0\",\"Resource\":\"PLC1\",\"PollTime\":\"500\",\"ProtocolProperties\":\"{}\"}
-//Map={\"ModuleID\":\"opc.tcp://localhost:4334/UA/imperium\",\"ModulePort\":\"0\",\"Protocol\":\"OPCUA\",\"RemoteAddress\":\"Input1\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%IX0.1\",\"Resource\":\"PLC1\",\"PollTime\":\"1000\",\"ProtocolProperties\":\"{}\"}
+//Map={\"ModuleID\":\"opc.tcp://localhost:4334/UA/nodalis\",\"ModulePort\":\"0\",\"Protocol\":\"OPCUA\",\"RemoteAddress\":\"Input1\",\"RemoteSize\":\"1\",\"InternalAddress\":\"%IX0.1\",\"Resource\":\"PLC1\",\"PollTime\":\"1000\",\"ProtocolProperties\":\"{}\"}
 
 //Task={"Name":"T100", "Interval":"100", "Priority":"1"}
 

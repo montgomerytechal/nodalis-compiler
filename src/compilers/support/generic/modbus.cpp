@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 /**
- * @description Imperium PLC Modbus
+ * @description Nodalis PLC Modbus
  * @author Nathan Skipper, MTI
  * @version 1.0.2
  * @copyright Apache 2.0

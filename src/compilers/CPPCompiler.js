@@ -91,7 +91,7 @@ export class CPPCompiler extends Compiler {
         let globals = [];
         let taskCode = "";
         let mapCode = "";
-        let plcname = "ImperiumPLC";
+        let plcname = "NodalisPLC";
         if(typeof resourceName !== "undefined" && resourceName !== null){
             plcname = resourceName;
         }
@@ -153,7 +153,7 @@ export class CPPCompiler extends Compiler {
         }
         
         const cppCode = 
-`#include "imperium.h"
+`#include "nodalis.h"
 #include <chrono>
 #include <thread>
 #include <cstdint>
@@ -192,8 +192,8 @@ int main() {
         }
         // Copy core headers and cpp support files
         const coreFiles = [
-            'imperium.h',
-            'imperium.cpp',
+            'nodalis.h',
+            'nodalis.cpp',
             'modbus.h',
             'modbus.cpp',
             "json.hpp",
@@ -257,10 +257,10 @@ int main() {
             let cppCompileCmd;
             if (compiler === 'cl.exe') {
                 cppCompileCmd = `cl.exe /EHsc /std:c++17 /Fe:"${exeFile}" ` +
-                    `"${cppFile}" "${pathTo('imperium.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('open62541.obj')}"`;
+                    `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('open62541.obj')}"`;
             } else {
                 cppCompileCmd = `${compiler} -std=c++17 -o "${exeFile}" ` +
-                    `"${cppFile}" "${pathTo('imperium.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${open62541o}"`;
+                    `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${open62541o}"`;
             }
 
             execSync(cppCompileCmd, { stdio: 'inherit' });

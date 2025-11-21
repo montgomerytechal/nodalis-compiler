@@ -1,4 +1,4 @@
-#include "imperium.h"
+#include "nodalis.h"
 #include <chrono>
 #include <thread>
 #include <cstdint>
@@ -30,7 +30,7 @@ else if (T1.Done = true) {
 
 int main() {
   
-  std::cout << "ImperiumPLC is running!\n";
+  std:: cout << "NodalisPLC is running!\n";
   while (true) {
     try{
         superviseIO();
