@@ -22,6 +22,7 @@ import { fileURLToPath } from 'url';
 // Updated compiler imports
 import { CPPCompiler } from './compilers/CPPCompiler.js';
 import { JSCompiler } from './compilers/JSCompiler.js';
+import { SkipCompiler } from "./compilers/SkipCompiler.js"
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +30,7 @@ const __dirname = path.dirname(__filename);
 const availableCompilers = [
   new CPPCompiler(),
   new JSCompiler(),
+  new SkipCompiler()
 ];
 
 function validateFileExtension(language, sourcePath) {
@@ -41,7 +43,13 @@ function validateFileExtension(language, sourcePath) {
     if (ext !== '.iec') {
       throw new Error(`Invalid file extension for language 'ld'. Expected '.iec', got '${ext}'`);
     }
-  } else {
+  }
+  else if (language === "skip") {
+    if (ext !== ".skip") {
+      throw new Error(`Invalid file extension for language 'skip'. Expected '.skip', got ${ext}`);
+    }
+  }
+  else {
     throw new Error(`Unknown language: ${language}`);
   }
 }

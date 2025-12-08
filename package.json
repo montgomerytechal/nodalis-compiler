@@ -1,6 +1,6 @@
 {
   "name": "nodalis-compiler",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Compiles IEC-61131-3/10 languages into code that can be used as a PLC on multiple platforms.",
   "icon": "nodalis.png",
   "main": "src/nodalis.js",
@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "jsmodbus": "^4.0.10",
+    "mticp-npm": "^1.0.1",
     "node-opcua": "^2.156.0",
     "which": "^5.0.0",
     "xmldom": "^0.6.0"
