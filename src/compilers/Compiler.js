@@ -39,9 +39,10 @@ export const CommunicationProtocol = Object.freeze({
 
 /**
  * @typedef {Object} CompilerOptions
- * @property {string} source - Source file or folder path
- * @property {string} destination - Output destination folder path
- * @property {string} language - One of IECLanguage values
+ * @property {string} sourcePath - Source file or folder path
+ * @property {string} outputPath - Output destination folder path
+ * @property {string} target - The target type for the compiler.
+ * @property {string} resourceName - The name of the resource to compile, if IEC.
  * @property {string} outputType - One of OutputType values
  */
 

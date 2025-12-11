@@ -37,7 +37,7 @@ coverage/
 
 # TypeScript output (if later used)
 *.js.map
-*.d.ts
+#*.d.ts
 
 # Lock files (if using one, ignore others)
 # Choose only one depending on your package manager:

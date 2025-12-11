@@ -59,15 +59,22 @@ export class SkipCompiler extends Compiler {
             throw new Error("Invalid target. Must be IEC, ST, or XML target.");
         }
         else {
-            const action = "to" + target;
+            let action = "to" + target;
             if (!fs.existsSync(outputPath)) {
                 fs.mkdirSync(outputPath);
+            }
+            let tojint = false;
+            if (action === "tojint") {
+                action = "tost";
+                tojint = true;
             }
             runMticp([
                 `action=${action}`,
                 `src=${sourcePath}`,
                     `dst=${outputPath}`
-            ]).then(output => console.log(output))
+            ]).then(output => {
+                console.log(output);
+            })
                 .catch(err => console.error(err));
         }
     }
