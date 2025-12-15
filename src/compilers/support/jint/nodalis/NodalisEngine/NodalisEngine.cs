@@ -582,7 +582,7 @@ namespace Nodalis
         /// </summary>
         /// <param name="name">The name of the function to inject.</param>
         /// <param name="func">The function to call.</param>
-        protected void injectCustomFunction(string name, Delegate func)
+        protected void injectCustomFunction<TDelegate>(string name, TDelegate func) where TDelegate : Delegate
         {
             JsEngine.SetValue(name, func);
         }
@@ -591,7 +591,7 @@ namespace Nodalis
         /// </summary>
         /// <param name="name">The name of the function.</param>
         /// <param name="action">The action to reference.</param>
-        protected void injectCustomAction(string name, Action action)
+        protected void injectCustomAction<TDelegate>(string name, TDelegate action) where TDelegate : Delegate
         {
             JsEngine.SetValue(name, action);
         }
