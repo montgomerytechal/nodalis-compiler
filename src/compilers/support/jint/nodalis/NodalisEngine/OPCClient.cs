@@ -25,13 +25,20 @@ using System.Threading.Tasks;
 
 namespace Nodalis
 {
+    /// <summary>
+    /// Implements the IOClient framework for OPC/UA modules.
+    /// </summary>
     public class OPCClient : IOClient
     {
         private Session? _session;
         private ApplicationConfiguration? _config;
-
+        /// <summary>
+        /// Instantiates a new OPCClient.
+        /// </summary>
         public OPCClient() : base("OPCUA") { }
-
+        /// <summary>
+        /// Connects to the OPC device based on the mappings supplied.
+        /// </summary>
         public override void Connect()
         {
             Task.Run(async () =>
@@ -113,6 +120,16 @@ namespace Nodalis
         public override bool WriteDWord(string address, uint value)
         {
             return WriteVal(address, value, BuiltInType.UInt32);
+        }
+
+        public override bool ReadLWord(string address, out ulong result)
+        {
+            return ReadValue(address, out result, BuiltInType.UInt64);
+        }
+
+        public override bool WriteLWord(string address, ulong value)
+        {
+            return WriteVal(address, value, BuiltInType.UInt64);
         }
 
         private bool ReadValue<T>(string address, out T result, BuiltInType type)

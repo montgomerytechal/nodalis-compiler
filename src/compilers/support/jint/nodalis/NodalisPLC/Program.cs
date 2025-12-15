@@ -50,7 +50,13 @@ class ProgramEngine : NodalisEngine
     public override uint ReadDWord(string address)
     {
         var mem = ParseAddress(address);
-        return (uint)((GetMemoryCell(mem[0], mem[2])  >> (mem[3] % 64)) & 0xFFFFFFFF);
+        return (uint)((GetMemoryCell(mem[0], mem[2]) >> (mem[3] % 64)) & 0xFFFFFFFF);
+    }
+
+    public override ulong ReadLWord(string address)
+    {
+        var mem = ParseAddress(address);
+        return (ulong)((GetMemoryCell(mem[0], mem[2]) >> (mem[3] % 64)) & ulong.MaxValue);
     }
 
     public override void WriteBit(string address, bool value)
@@ -75,6 +81,11 @@ class ProgramEngine : NodalisEngine
     public override void WriteDWord(string address, uint value)
     {
         WriteGeneric(address, value, 32);
+    }
+
+    public override void WriteLWord(string address, ulong value)
+    {
+        WriteGeneric(address, value, 64);
     }
 
     public enum MemorySpace
@@ -110,7 +121,7 @@ class ProgramEngine : NodalisEngine
         {
             return ref MEMORY[r, c];
         }
-        throw new ArgumentOutOfRangeException();      
+        throw new ArgumentOutOfRangeException();
     }
 
     public static List<int> ParseAddress(string address)
@@ -139,6 +150,7 @@ class ProgramEngine : NodalisEngine
             "X" => 8,
             "W" => 16,
             "D" => 32,
+            "L" => 64,
             _ => throw new ArgumentException($"Unknown type: {type}")
         };
 
@@ -165,7 +177,7 @@ class Program
     {
         if (args.Length < 1)
         {
-            Console.WriteLine("Usage: NodalisRuntime <jsfile>");
+            Console.WriteLine("Usage: NodalisPLC <jsfile>");
             return;
         }
 

@@ -25,6 +25,9 @@ using System.Threading.Tasks;
 
 namespace Nodalis
 {
+    /// <summary>
+    /// The OPCServer provides a server interface for handling inputs and outputs for OPC/UA
+    /// </summary>
     public class OPCServer
     {
         private ApplicationInstance _application;
@@ -32,17 +35,29 @@ namespace Nodalis
         private Dictionary<string, string> _addressMap = new();
         private NodalisNodeManager? _nodeManager;
         private StandardServer? _server;
-
+        /// <summary>
+        /// Instantiates a new OPCServer with the given engine.
+        /// </summary>
+        /// <param name="engine">The NodalisEngine object to use for memory.</param>
         public OPCServer(NodalisEngine engine)
         {
             _engine = engine;
         }
 
+        /// <summary>
+        /// Maps a OPC/UA variable name to a PLC address.
+        /// </summary>
+        /// <param name="varName">The OPC variable name.</param>
+        /// <param name="address">The PLC address associated with the variable.</param>
         public void MapVariable(string varName, string address)
         {
             _addressMap[varName] = address;
         }
 
+        /// <summary>
+        /// Starts the server.
+        /// </summary>
+        /// <returns></returns>
         public async Task StartAsync()
         {
             _application = new ApplicationInstance
@@ -81,7 +96,10 @@ namespace Nodalis
 
             Console.WriteLine("OPC UA Server started at: opc.tcp://localhost:4840/UA/Nodalis");
         }
-
+        /// <summary>
+        /// Stops the server.
+        /// </summary>
+        /// <returns></returns>
         public async Task StopAsync()
         {
             if (_server != null)

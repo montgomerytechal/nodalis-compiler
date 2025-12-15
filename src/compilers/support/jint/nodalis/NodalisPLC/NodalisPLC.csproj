@@ -3,14 +3,22 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64;osx-x64;win-arm64;linux-arm;linux-arm64</RuntimeIdentifiers>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <PackageIcon>nodalis.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\..\..\..\nodalis.png" Pack="true" PackagePath="\" Link="nodalis.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Jint" Version="3.0.0-beta-2031" />
-    <PackageReference Include="System.Text.Json" Version="8.0.3" />
+    <PackageReference Include="System.Text.Json" Version="*" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\\NodalisEngine\\NodalisEngine.csproj" />

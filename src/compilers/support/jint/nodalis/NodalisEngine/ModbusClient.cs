@@ -36,11 +36,15 @@ namespace Nodalis
         private int port = 502;
         private byte unitId = 1;
         private ushort transactionId = 0;
-
+        /// <summary>
+        /// Instantiates a new Modbus client.
+        /// </summary>
         public ModbusClient() : base("MODBUS-TCP")
         {
         }
-
+        /// <summary>
+        /// Connects to the modbus device based on the mappings provided.
+        /// </summary>
         public override void Connect()
         {
             if (connected) Disconnect();
@@ -191,6 +195,29 @@ namespace Nodalis
             var payload = new byte[] {
                 (byte)(addr >> 8), (byte)(addr & 0xFF),
                 0x04,
+                (byte)(value >> 24), (byte)((value >> 16) & 0xFF),
+                (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)
+            };
+            return SendRequest(0x10, addr, 2, payload, out _);
+        }
+
+        public override bool ReadLWord(string address, out ulong result)
+        {
+            result = 0;
+            if (!ushort.TryParse(address, out var addr)) return false;
+            if (!SendRequest(0x03, addr, 4, null, out var response)) return false;
+            result = (ulong)((response[2] << 56) | (response[3] << 48) | (response[4] << 40) | (response[5] << 32) | (response[6] << 24) | (response[7] << 16) | (response[8] << 8) | response[9]);
+            return true;
+        }
+
+        public override bool WriteLWord(string address, ulong value)
+        {
+            if (!ushort.TryParse(address, out var addr)) return false;
+            var payload = new byte[] {
+                (byte)(addr >> 8), (byte)(addr & 0xFF),
+                0x04,
+                (byte)(value >> 56), (byte)((value >> 48) & 0xFF),
+                (byte)(value >> 40), (byte)((value >> 32) & 0xFF),
                 (byte)(value >> 24), (byte)((value >> 16) & 0xFF),
                 (byte)((value >> 8) & 0xFF), (byte)(value & 0xFF)
             };
