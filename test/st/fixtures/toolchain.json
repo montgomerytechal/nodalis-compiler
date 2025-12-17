@@ -1,0 +1,9 @@
+{
+    "linux-arm": "arm-linux-gnueabi-g++",
+    "linux-arm64": "aarch64-linux-gnu-g++",
+    "linux-x64": "x86_64-linux-gnu-g++",
+    "macos-arm64": "clang++",
+    "macos-x64": "clang++",
+    "windows-x64": "x86_64-w64-mingw32-g++",
+    "windows-arm64": "/opt/llvm-mingw/bin/aarch64-w64-mingw32-g++"
+}

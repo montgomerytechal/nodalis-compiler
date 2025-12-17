@@ -105,6 +105,64 @@ await app.compile({
 
 ---
 
+## 🧠 Compiler Specifics
+
+### CPPCompiler
+
+`CPPCompiler` translates IEC Ladder Diagram (`.iec`) and Structured Text (`.st`, `.iec`) sources into ANSI C++ output. Depending on the requested output type it either produces compilable sources or invokes the toolchain to emit an executable.
+
+#### Dependencies
+
+- Uses a default cross-compiler profile tuned for macOS-style Clang/LLVM toolchains when no overrides are provided.
+- Supply a `toolchain.json` file beside your source to describe a custom toolchain. Example:
+
+```json
+{
+    "linux-arm": "arm-linux-gnueabi-g++",
+    "linux-arm64": "aarch64-linux-gnu-g++",
+    "linux-x64": "x86_64-linux-gnu-g++",
+    "macos-arm64": "clang++",
+    "macos-x64": "clang++",
+    "windows-x64": "x86_64-w64-mingw32-g++",
+    "windows-arm64": "/opt/llvm-mingw/bin/aarch64-w64-mingw32-g++"
+}
+```
+
+- Without an explicit file Nodalis falls back to the default compiler for the host OS (`clang++` on macOS, `g++` on Linux, and `cl.exe` or MinGW-w64 `g++` on Windows).
+- Common cross-compiler sources: Homebrew packages (`brew install armmbed/formulae/arm-none-eabi-gcc`) and osxcross for macOS targeting, MinGW-w64/MSYS2 or Visual Studio Build Tools for Windows, and distro packages such as `gcc-arm-linux-gnueabihf` or `x86_64-w64-mingw32-g++` on Linux.
+
+#### Variations
+
+- Windows builds exclude the OPC/UA client and server components to keep dependencies minimal.
+
+---
+
+## 🟦 JSCompiler
+
+`JSCompiler` transpiles LD (`.iec`) and ST (`.st`, `.iec`) programs into JavaScript for either **Node.js** or **jint** targets.
+
+- Node.js target: emits a Node module in the output directory and installs the needed npm dependencies.
+- jint target: generates a .NET 8 project embedding jint that cross-compiles to Windows, macOS, and Linux for `arm64`, `arm`, and `x64` architectures.
+
+### Dependencies
+
+- Node.js target requires `node` and `npm` to be available on the host.
+- jint target requires the .NET SDK (8.0+).
+
+---
+
+## 🗒 SkipCompiler
+
+`SkipCompiler` converts Skipper Sheet (`.skip`) files into three possible targets:
+
+- `xml`: produces MTI device-ready XML definitions.
+- `iec`: emits IEC ladder logic mirroring the sheet.
+- `st`: emits Structured Text representing the sheet logic.
+
+Choose the desired format via the CLI `--target`/`--outputType` flags.
+
+---
+
 ## 🗂 Project Structure
 
 | File | Description |

@@ -2,9 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { CPPCompiler } from '../../src/compilers/CPPCompiler.js';
 
-var fixtureName = 'plc';
-var inputPath = path.resolve('test/st/fixtures', `${fixtureName}.st`);
-var expectedPath = path.resolve('test/st/fixtures', `${fixtureName}.cpp`);
+var inputPath = path.resolve('test/st/fixtures', `PLC-1.st`);
 var outputPath = path.resolve('test/st/output');
 
 function normalize(text) {
@@ -12,59 +10,23 @@ function normalize(text) {
 }
 
 function runTest() {
-  // Clean output dir
-  fs.rmSync(outputPath, { recursive: true, force: true });
 
-  // var compiler = new CPPCompiler({
-  //   sourcePath: inputPath,
-  //   outputPath,
-  //   target: 'code',
-  // });
 
-  // compiler.compile();
-
-  // var actualPath = path.join(outputPath, `${fixtureName}.cpp`);
-  // var actual = fs.readFileSync(actualPath, 'utf-8');
-  // var expected = fs.readFileSync(expectedPath, 'utf-8');
-
-  // var normActual = normalize(actual);
-  // var normExpected = normalize(expected);
-
-  // if (normActual === normExpected) {
-  //   console.log(`✅ Passed: ${fixtureName}`);
-  // } else {
-  //   console.error(`❌ Failed: ${fixtureName}`);
-  //   console.log('--- Expected ---');
-  //   console.log(expected);
-  //   console.log('--- Got ---');
-  //   console.log(actual);
-  // }
-  fixtureName = "plc1";
-  inputPath = path.resolve('test/st/fixtures', `${fixtureName}.iec`);
-  expectedPath = path.resolve('test/st/fixtures', `${fixtureName}.cpp`);
-
-  let compiler = new CPPCompiler({
-    sourcePath: inputPath,
-    outputPath,
-    target: 'generic',
-    outputType: "executable",
-    resourceName: "PLC1"
-  });
-  compiler.compile();
-
+  const targets = ["windows-x64", "windows-arm64", "linux-x64", "linux-arm", "linux-arm64", "macos-x64", "macos-arm64"];
   inputPath = path.resolve('test/st/fixtures', `PLC-1.st`);
-  outputPath += "/linux";
-  compiler = new CPPCompiler({
-    sourcePath: inputPath,
-    outputPath,
-    target: 'linux',
-    outputType: "executable",
-    resourceName: "MainResource"
+
+  targets.forEach(async t => {
+    outputPath = path.resolve('test/st/output') + "/" + t;
+    fs.rmSync(outputPath, { recursive: true, force: true });
+
+    await new CPPCompiler({
+      sourcePath: inputPath,
+      outputPath,
+      target: t,
+      outputType: "executable",
+      resourceName: "MainResource"
+    }).compile();
   });
-
-
-
-  compiler.compile();
 
 }
 
