@@ -88,6 +88,16 @@ bool OPCUAClient::writeDWord(const std::string& remote, uint32_t value) {
     return writeValue(remote, value, &UA_TYPES[UA_TYPES_UINT32]);
 }
 
+bool OPCUAClient::readLWord(const std::string &remote, uint64_t &result)
+{
+    return readValue(remote, result, &UA_TYPES[UA_TYPES_UINT64]);
+}
+
+bool OPCUAClient::writeLWord(const std::string &remote, uint64_t value)
+{
+    return writeValue(remote, value, &UA_TYPES[UA_TYPES_UINT64]);
+}
+
 static UA_StatusCode staticRead(UA_Server*, const UA_NodeId*, void*, const UA_NodeId*, void* nodeContext,
                                 UA_Boolean, const UA_NumericRange*, UA_DataValue* dataValue) {
     auto* addr = static_cast<std::string*>(nodeContext);
@@ -263,5 +273,18 @@ void OPCUAServer::mapVariable(std::string varname, std::string addr){
             nullptr
         );
     }
-    
+    else if (addr.c_str()[2] == 'L')
+    {
+        UA_Server_addDataSourceVariableNode(
+            server,
+            UA_NODEID_STRING(1, (char *)varname.c_str()),
+            UA_NODEID_NUMERIC(0, UA_NS0ID_OBJECTSFOLDER),
+            UA_NODEID_NUMERIC(0, UA_NS0ID_ORGANIZES),
+            UA_QUALIFIEDNAME(1, (char *)varname.c_str()),
+            UA_NODEID_NUMERIC(0, UA_NS0ID_BASEDATAVARIABLETYPE),
+            attr,
+            ds,
+            addrStr, // pass the address as a string*
+            nullptr);
+    }
 }

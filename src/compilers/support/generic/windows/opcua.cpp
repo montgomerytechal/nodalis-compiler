@@ -48,6 +48,15 @@ bool OPCUAClient::writeDWord(const std::string& remote, uint32_t value) {
     return false;
 }
 
+bool OPCUAClient::readLWord(const std::string &remote, uint64_t &result)
+{
+    return false;
+}
+
+bool OPCUAClient::writeLWord(const std::string &remote, uint64_t value)
+{
+    return false;
+}
 
 OPCUAServer::OPCUAServer() {
     

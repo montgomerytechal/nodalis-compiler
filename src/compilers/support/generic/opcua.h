@@ -20,6 +20,8 @@ protected:
     bool writeWord(const std::string& remote, uint16_t value) override;
     bool readDWord(const std::string& remote, uint32_t& result) override;
     bool writeDWord(const std::string& remote, uint32_t value) override;
+    bool readLWord(const std::string &remote, uint64_t &result) override;
+    bool writeLWord(const std::string &remote, uint64_t value) override;
 
 private:
     UA_Client* client;

@@ -34,6 +34,29 @@ uint64_t elapsed() {
     ).count();
 }
 
+uint64_t readLWord(std::string address)
+{
+    std::vector<int> parts = parseAddress(address);
+    int space = parts[0], width = parts[1], index = parts[2], bit = parts[3];
+
+    if (width != 64)
+    {
+        throw std::invalid_argument("Invalid address type: " + address);
+    }
+    if (space == -1)
+    {
+        throw std::invalid_argument("Invalid address space: " + address);
+    }
+    if (index == -1)
+    {
+        throw std::invalid_argument("Invalid address index: " + address);
+    }
+    if (bit > -1)
+    {
+        throw std::invalid_argument("Invalid address format. Reference specifies a bit: " + address);
+    }
+    return *getMemoryLWord(space, index);
+}
 
 uint32_t readDWord(std::string address){
    std::vector<int> parts = parseAddress(address);
@@ -118,9 +141,38 @@ bool readBit(std::string address){
     case 32:
         ret = getBit(getMemoryDWord(space, index), bit);
         break;
-   }
+    case 64:
+        ret = getBit(getMemoryLWord(space, index), bit);
+        break;
+    }
    return ret;
 }
+
+void writeLWord(std::string address, uint64_t value)
+{
+    std::vector<int> parts = parseAddress(address);
+    int space = parts[0], width = parts[1], index = parts[2], bit = parts[3];
+
+    if (width != 64)
+    {
+        throw std::invalid_argument("Invalid address type: " + address);
+    }
+    if (space == -1)
+    {
+        throw std::invalid_argument("Invalid address space: " + address);
+    }
+    if (index == -1)
+    {
+        throw std::invalid_argument("Invalid address index: " + address);
+    }
+    if (bit > -1)
+    {
+        throw std::invalid_argument("Invalid address format. Reference specifies a bit: " + address);
+    }
+    uint64_t *temp = getMemoryLWord(space, index);
+    *temp = value;
+}
+
 void writeDWord(std::string address, uint32_t value){
     std::vector<int> parts = parseAddress(address);
    int space = parts[0], width = parts[1], index = parts[2], bit = parts[3];
@@ -206,7 +258,10 @@ void writeBit(std::string address, bool value){
     case 32:
         setBit(getMemoryDWord(space, index), bit, value);
         break;
-   }
+    case 64:
+        setBit(getMemoryLWord(space, index), bit, value);
+        break;
+    }
 }
 bool getBit(void* var, int bit) {
     // Advance to the byte containing the bit

@@ -118,7 +118,11 @@ inline std::vector<int> parseAddress(const std::string& address) {
         else if(toLowerCase(type) == "d"){
             width = 32;
         }
-        
+        else if (toLowerCase(type) == "l")
+        {
+            width = 32;
+        }
+
         if(bit != ""){
             ibit = std::stoi(bit);
         }
@@ -182,6 +186,24 @@ inline uint32_t* getMemoryDWord(int space, int addr){
 }
 
 /**
+ * Gets a long word pointer to a memory address in a certain memory space.
+ * @param space The memory space from which to get the address
+ * @param addr The double word index to pull from.
+ * @return Returns a long word pointer to a memory address, or 0 if there is no memory at the given address.
+ */
+inline uint64_t *getMemoryLWord(int space, int addr)
+{
+    return (uint64_t *)getMemoryByte(space, addr * 8);
+}
+
+/**
+ * Reads the 64 bit value at a given address.
+ * @param address The address of the memory to get the 64 bit value from.
+ * @returns Returns a 64 bit value
+ */
+uint64_t readLWord(std::string address);
+
+/**
  * Reads the 32 bit value at a given address.
  * @param address The address of the memory to get the 32 bit value from.
  * @returns Returns a 32 bit value
@@ -205,6 +227,14 @@ uint8_t readByte(std::string address);
  * @returns Returns a boolean value indicating the status of the bit.
  */
 bool readBit(std::string address);
+
+/**
+ * Writes a 64 bit value to an address in memory.
+ * @param address The address of memory to write to.
+ * @param value The 64 bit value to write to memory.
+ */
+void writeDWord(std::string address, uint32_t value);
+
 /**
  * Writes a 32 bit value to an address in memory.
  * @param address The address of memory to write to.
@@ -308,7 +338,13 @@ private:
             return readWord(address);
         } else if constexpr (std::is_same_v<T, uint32_t>) {
             return readDWord(address);
-        } else {
+        }
+        else if constexpr (std::is_same_v<T, uint64_t>)
+        {
+            return readLWord(address);
+        }
+        else
+        {
             static_assert(!std::is_same_v<T, T>, "Unsupported type for RefVar");
         }
     }
@@ -325,7 +361,13 @@ private:
             writeWord(address, value);
         } else if constexpr (std::is_same_v<T, uint32_t>) {
             writeDWord(address, value);
-        } else {
+        }
+        else if constexpr (std::is_same_v<T, uint64_t>)
+        {
+            writeLWord(address, value);
+        }
+        else
+        {
             static_assert(!std::is_same_v<T, T>, "Unsupported type for RefVar");
         }
     }
@@ -458,6 +500,8 @@ protected:
     virtual bool writeWord(const std::string& remote, uint16_t value) = 0;
     virtual bool readDWord(const std::string& remote, uint32_t& result) = 0;
     virtual bool writeDWord(const std::string& remote, uint32_t value) = 0;
+    virtual bool readLWord(const std::string &remote, uint64_t &result) = 0;
+    virtual bool writeLWord(const std::string &remote, uint64_t value) = 0;
     virtual void connect() = 0;
 };
 

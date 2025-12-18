@@ -10,11 +10,11 @@
 //Instance={"TypeName":"A10004", "Name":"A10004-Instance", "AssociatedTaskName":"A10004Task"}
 //Instance={"TypeName":"A10005", "Name":"A10005-Instance", "AssociatedTaskName":"A10005Task"}
 
-            //Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"0\", \"RemoteSize\": \"64\" \"InternalAddress\": \"%IL0\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"\"}
-//Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"1\", \"RemoteSize\": \"64\" \"InternalAddress\": \"%IL16\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"\"}
-//Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"2\", \"RemoteSize\": \"64\" \"InternalAddress\": \"%IL32\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"\"}
-//Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"3\", \"RemoteSize\": \"64\" \"InternalAddress\": \"%IL48\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"\"}
-//Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"4\", \"RemoteSize\": \"64\" \"InternalAddress\": \"%IL64\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"{}\"}
+            //Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"0\", \"RemoteSize\": \"64\", \"InternalAddress\": \"%IL0\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"\"}
+//Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"1\", \"RemoteSize\": \"64\", \"InternalAddress\": \"%IL16\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"\"}
+//Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"2\", \"RemoteSize\": \"64\", \"InternalAddress\": \"%IL32\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"\"}
+//Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"3\", \"RemoteSize\": \"64\", \"InternalAddress\": \"%IL48\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"\"}
+//Map={ \"ModuleID\": \"\", \"ModulePort\": \"\", \"Protocol\": \"MTI\", \"RemoteAddress\": \"4\", \"RemoteSize\": \"64\", \"InternalAddress\": \"%IL64\", \"Resource\": \"MainResource\", \"PollTime\": \"100\", \"Properties\": \"{}\"}
 
             VAR_GLOBAL
                 ERS1 : BOOL;
@@ -159,8 +159,8 @@ ILOA10001 := ((%ML0.42));
 
 PSDAI21.K := %IL0.21;
 PSDAI21.IN0 := 0;
-PSDAI21.IN1 := %ML0;
-%ML0 := (PSDAI21.OUT);
+PSDAI21.IN1 := %ML0.21;
+%ML0.21 := (PSDAI21.OUT);
 %IL0.21 := ((%IL0.21));
 
 GPS1 := ((%ML0.34));

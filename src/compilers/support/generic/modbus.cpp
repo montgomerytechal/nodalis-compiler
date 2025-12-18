@@ -376,3 +376,33 @@ bool ModbusClient::writeDWord(const std::string& remote, uint32_t value) {
     ModbusResponse res;
     return sendRequest(req, res);
 }
+
+bool ModbusClient::readLWord(const std::string &remote, uint64_t &result)
+{
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    ModbusRequest req = createReadRequest(READ_HOLDING_REGISTERS, addr, 4);
+    ModbusResponse res;
+    if (!sendRequest(req, res))
+        return false;
+
+    result = ((uint64_t)res.data[0] << 56) | ((uint64_t)res.data[1] << 48) | ((uint64_t)res.data[2] << 40) | ((uint64_t)res.data[3] << 32) | ((uint64_t)res.data[4] << 24) | ((uint64_t)res.data[5] << 16) | ((uint64_t)res.data[6] << 8) | (uint64_t)res.data[7];
+    return true;
+}
+
+bool ModbusClient::writeLWord(const std::string &remote, uint64_t value)
+{
+    uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
+    std::vector<uint8_t> data = {
+        static_cast<uint8_t>((value >> 56) & 0xFF),
+        static_cast<uint8_t>((value >> 48) & 0xFF),
+        static_cast<uint8_t>((value >> 40) & 0xFF),
+        static_cast<uint8_t>((value >> 32) & 0xFF),
+        static_cast<uint8_t>((value >> 24) & 0xFF),
+        static_cast<uint8_t>((value >> 16) & 0xFF),
+        static_cast<uint8_t>((value >> 8) & 0xFF),
+        static_cast<uint8_t>(value & 0xFF)};
+
+    ModbusRequest req = {deviceAddress, WRITE_MULTIPLE_REGISTERS, addr, 4, data};
+    ModbusResponse res;
+    return sendRequest(req, res);
+}
