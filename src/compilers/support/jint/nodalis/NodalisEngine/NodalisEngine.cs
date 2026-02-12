@@ -323,7 +323,11 @@ namespace Nodalis
         public FunctionBlock(Engine engine, string className)
         {
             _engine = engine;
-            var constructor = engine.GetValue(className);
+            var constructor = engine.Evaluate(className);
+
+            if (constructor.IsUndefined() || constructor.IsNull())
+                throw new InvalidOperationException($"JS constructor '{className}' was not found (Evaluate returned {constructor}).");
+
             _jsObj = engine.Construct(constructor).AsObject();
         }
         /// <summary>
@@ -347,8 +351,15 @@ namespace Nodalis
         /// </summary>
         public void Call()
         {
-            var callFn = _jsObj.Get("call");
-            _engine.Invoke(callFn, _jsObj);
+            var obj = _jsObj as ObjectInstance ?? _jsObj.AsObject();
+
+            var callVal = obj.Get("call");
+
+            if (callVal.IsUndefined() || callVal.IsNull())
+                throw new InvalidOperationException("JS instance has no 'call' property.");
+
+
+            callVal.Call(obj, Array.Empty<JsValue>());
         }
     }
 
@@ -856,26 +867,40 @@ namespace Nodalis
         public long ET;
         private bool lastIN = false;
         private long start = 0;
-
+        private bool running = false;
         public void call()
         {
-            Q = false;
-            if (!lastIN && IN)
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+            // Rising edge starts the pulse
+            if (IN && !lastIN)
             {
-                lastIN = IN;
+                running = true;
+                start = now;
                 ET = 0;
-                start = 0;
             }
-            if (IN)
+
+            lastIN = IN;
+
+            if (running)
             {
-                Q = true;
+                ET = now - start;
+
+                if (ET >= PT)
+                {
+                    Q = false;
+                    running = false;
+                    ET = PT; // clamp
+                }
+                else
+                {
+                    Q = true;
+                }
             }
-            else if (lastIN && !IN)
+            else
             {
-                if (start == 0) start = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-                ET = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - start;
-                if (PT >= ET) Q = true;
-                else lastIN = false;
+                Q = false;
+                ET = 0;
             }
         }
     }

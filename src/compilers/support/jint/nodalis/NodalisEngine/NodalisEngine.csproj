@@ -24,7 +24,7 @@
   <PropertyGroup>
   <TargetFrameworks>net8.0</TargetFrameworks> 
   <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <!-- optional -->
-  <Version>1.0.5</Version>
+  <Version>1.0.9</Version>
   <Authors>Nathan Skipper</Authors>
   <Company>Montgomery Technology, Inc.</Company>
   <PackageId>NodalisEngine</PackageId>
