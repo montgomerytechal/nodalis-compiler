@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.16] - 2026-02-13
+
+- Fixed issues with compiling function blocks in jint.
+- Fixed TP function block in NodalisEngine.
+
 ## [1.0.15] - 2026-02-10
 
 - Fixed issue with calling functions. Changed AND/OR to bitwise operators in JS/C

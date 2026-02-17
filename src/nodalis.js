@@ -89,7 +89,7 @@ export class Nodalis {
 
   getCompiler(target, outputType, language) {
     return this.compilers.find(c =>
-      c.supportedTargetDevices.includes(target) &&
+      ((typeof c.canHandleTarget === "function" && c.canHandleTarget(target)) || c.supportedTargetDevices.includes(target)) &&
       c.supportedOutputTypes.includes(outputType) &&
       c.supportedLanguages.includes(language.toUpperCase())
     );
