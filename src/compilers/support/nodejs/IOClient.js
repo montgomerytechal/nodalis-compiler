@@ -57,6 +57,7 @@ export class IOClient {
       }
       console.log(`Adding map for ${map.moduleID}:${map.modulePort}->${map.localAddress}`);
       this.mappings.push(map);
+      this.onMappingAdded(this.mappings[this.mappings.length - 1]);
     }
   }
 
@@ -107,4 +108,5 @@ export class IOClient {
   readDWord(remote, callback) {}
   writeDWord(remote, value) {}
   connect() {}
+  onMappingAdded(map) {}
 }

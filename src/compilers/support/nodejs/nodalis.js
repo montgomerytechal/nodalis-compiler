@@ -22,6 +22,7 @@
 import {IOClient, IOMap, setTiming, setMemoryAccess} from "./IOClient.js"
 import {ModbusClient} from "./modbus.js";
 import { OPCClient } from "./opcua.js";
+import { GPIOClient } from "./gpio.js";
 
 const MEMORY = Array.from({ length: 64 }, () =>
   Array.from({ length: 16 }, () => new Uint8Array(8))
@@ -633,6 +634,15 @@ function createClient(map) {
     opcClient.connect();
     return opcClient;
   }
+  else if (map.protocol === "GPIO") {
+    if (process.platform !== "linux") {
+      return null;
+    }
+    const gpioClient = new GPIOClient();
+    gpioClient.addMapping(map);
+    gpioClient.connect();
+    return gpioClient;
+  }
   
   return null;
 }
@@ -659,4 +669,3 @@ export function superviseIO() {
     console.error("SuperviseIO Exception:", e.message);
   }
 }
-

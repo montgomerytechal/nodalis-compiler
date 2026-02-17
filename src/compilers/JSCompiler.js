@@ -47,7 +47,7 @@ export class JSCompiler extends Compiler {
     }
 
     get supportedProtocols() {
-        return [CommunicationProtocol.MODBUS, CommunicationProtocol.OPC_UA, CommunicationProtocol.BACNET];
+        return [CommunicationProtocol.MODBUS, CommunicationProtocol.OPC_UA, CommunicationProtocol.BACNET, CommunicationProtocol.GPIO];
     }
 
     get compilerVersion() {
@@ -205,7 +205,8 @@ export function run(){
                 'nodalis.js',
                 'modbus.js',
                 "IOClient.js",
-                "opcua.js"
+                "opcua.js",
+                "gpio.js"
             ];
 
             let coreDir = path.resolve(__dirname + '/support/nodejs');
@@ -291,4 +292,3 @@ function installDependencies(outputDir) {
     shell: true
   });
 }
-

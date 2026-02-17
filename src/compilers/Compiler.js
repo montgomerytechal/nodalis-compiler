@@ -31,9 +31,8 @@ export const OutputType = Object.freeze({
 export const CommunicationProtocol = Object.freeze({
   MODBUS: 'Modbus',
   BACNET: 'BACnet',
-  ETHERNET_IP: 'Ethernet/IP',
-  PROFINET: 'Profinet',
-  OPC_UA: 'OPC UA',
+  OPC_UA: 'OPCUA',
+  GPIO: 'GPIO',
   CUSTOM: 'Custom'
 });
 
@@ -106,4 +105,3 @@ export class Compiler {
     throw new Error('compile() must be implemented by subclass.');
   }
 }
-

@@ -59,7 +59,7 @@ export class CPPCompiler extends Compiler {
     }
 
     get supportedProtocols() {
-        return [CommunicationProtocol.MODBUS];
+        return [CommunicationProtocol.MODBUS, CommunicationProtocol.GPIO];
     }
 
     get compilerVersion() {
@@ -277,7 +277,8 @@ int main() {
                 `"${pathTo('nodalis.cpp')}"`,
                 `"${pathTo('modbus.cpp')}"`,
                 `"${pathTo('opcua.cpp')}"`,
-                `"${pathTo('bacnet.cpp')}"`
+                `"${pathTo('bacnet.cpp')}"`,
+                `"${pathTo('gpio.cpp')}"`
             ];
 
             inputs.push(`"${open62541o}"`);
@@ -286,7 +287,7 @@ int main() {
             if (compiler === 'cl.exe') {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
                 cppCompileCmd = `cl.exe /I${bacneti} /I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} ${cppFlagSegment}/EHsc /std:c++17 /Fe:"${exeFile}" ` +
-                    `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('bacnet.cpp')}"`; //"${pathTo('open62541.obj')}"`;
+                    `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('bacnet.cpp')}" "${pathTo('gpio.cpp')}"`; //"${pathTo('open62541.obj')}"`;
             } else {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
                 cppCompileCmd = `${compiler} ${cppFlagSegment}-std=c++17 -I${bacneti} -I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} -o "${exeFile}" ${inputs.join(' ')} ${archFlags.linker}`;

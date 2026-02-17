@@ -75,7 +75,7 @@ export class ArduinoCompiler extends Compiler {
     }
 
     get supportedProtocols() {
-        return [CommunicationProtocol.MODBUS];
+        return [CommunicationProtocol.MODBUS, CommunicationProtocol.GPIO];
     }
 
     get compilerVersion() {
@@ -229,6 +229,8 @@ void loop() {
         fs.cpSync(path.join(supportDir, 'nodalis.cpp'), path.join(outputPath, 'nodalis.cpp'), { force: true });
         fs.cpSync(path.join(supportDir, 'modbus.h'), path.join(outputPath, 'modbus.h'), { force: true });
         fs.cpSync(path.join(supportDir, 'modbus.cpp'), path.join(outputPath, 'modbus.cpp'), { force: true });
+        fs.cpSync(path.join(supportDir, 'gpio.h'), path.join(outputPath, 'gpio.h'), { force: true });
+        fs.cpSync(path.join(supportDir, 'gpio.cpp'), path.join(outputPath, 'gpio.cpp'), { force: true });
         fs.cpSync(path.join(supportDir, 'json.hpp'), path.join(outputPath, 'json.hpp'), { force: true });
 
         if (outputType === 'executable') {

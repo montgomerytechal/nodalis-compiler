@@ -24,6 +24,7 @@
 #include "modbus.h"
 #include "opcua.h"
 #include "bacnet.h"
+#include "gpio.h"
 
 uint64_t PROGRAM_COUNT = 0;
 uint64_t MEMORY[64][16] = { 0 };
@@ -472,6 +473,15 @@ std::unique_ptr<IOClient> createClient(IOMap& map){
         auto ret = std::make_unique<BACNETClient>();
         ret->addMapping(map);
         return ret;
+    }
+    else if(map.protocol == "GPIO"){
+#ifdef __linux__
+        auto ret = std::make_unique<GPIOClient>();
+        ret->addMapping(map);
+        return ret;
+#else
+        return nullptr;
+#endif
     }
     return nullptr;
 }
