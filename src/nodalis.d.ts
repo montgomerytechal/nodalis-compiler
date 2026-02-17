@@ -23,9 +23,7 @@ export type OutputTypeCode = 'executable' | 'node' | 'code';
 export type CommunicationProtocolCode =
     | 'Modbus'
     | 'BACnet'
-    | 'Ethernet/IP'
-    | 'Profinet'
-    | 'OPC UA'
+    | 'OPCUA'
     | 'Custom';
 
 /** Information about a compiler returned by Nodalis.listCompilers() */
@@ -71,7 +69,7 @@ export interface CompileOptions {
 
 /** Options for Nodalis.program(...) */
 export interface ProgramOptions {
-    /** Programming target (e.g. 'MTI') */
+    /** Programming target (e.g. 'MTI', 'FILE', 'SSH', 'Arduino') */
     target: string;
 
     /** Source file or folder to program from */
@@ -85,6 +83,27 @@ export interface ProgramOptions {
 
     /** Optional password for programming */
     password?: string;
+
+    /** Optional package/service name for deployment package outputs */
+    packageName?: string;
+
+    /** Optional entry point relative to source root (e.g. index.js, plc) */
+    entryPoint?: string;
+
+    /** Optional runtime hint */
+    runtime?: 'auto' | 'node' | 'executable' | string;
+
+    /** Optional remote path for SSH deployments */
+    remotePath?: string;
+
+    /** Optional SSH port for SSH deployments */
+    sshPort?: string | number;
+
+    /** Arduino board FQBN for Arduino deployments */
+    arduinoFqbn?: string;
+
+    /** Alias for arduinoFqbn */
+    fqbn?: string;
 }
 
 /**

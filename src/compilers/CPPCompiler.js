@@ -235,9 +235,7 @@ int main() {
             const requestedTarget = target ?? `${targetInfo.os}-${targetInfo.arch}`;
             const hostOs = this.getHostOS();
             const hostArch = this.getHostArch();
-            // if (targetInfo.os !== hostOs || targetInfo.arch !== hostArch) {
-            //     throw new Error(`Cross-compiling to ${requestedTarget} is not supported from a ${hostOs}-${hostArch} host.`);
-            // }
+
 
             const compiler = this.detectCompiler(hostOs, hostArch, targetInfo.os, targetInfo.arch);
             //const cCompiler = this.getCCompilerBinary(compiler);
@@ -250,23 +248,10 @@ int main() {
             const open62541o = pathTo(path.join("open62541", "lib", target, isWindowsTarget ? "open62541.lib" : 'open62541.o'));
             const bacneta = pathTo(path.join("bacnet-stack", target, "libbacnet.a"));
             const bacneti = pathTo(path.join("bacnet-stack", target, "include"));
-            //let cCompileCmd = "";
-            // if (compiler === 'cl.exe') {
-            //     // Compile C file with cl
-            //     const cFlagSegment = formatFlags(archFlags.c);
-            //     cCompileCmd = `cl.exe ${cFlagSegment}/c /TC "${open62541c}" /Fo"${pathTo('open62541.obj')}"`;
-            // } else {
-            // if (!isWindowsTarget) {
-            //     const cFlagSegment = formatFlags(archFlags.c);
 
-            //     cCompileCmd = `${cCompiler} ${cFlagSegment}-std=c11 -D_DEFAULT_SOURCE -D_BSD_SOURCE -c "${open62541c}" -o "${open62541o}"`;
-
-            // }
-
-            // if (cCompileCmd !== "") execSync(cCompileCmd, { stdio: 'inherit' });
 
             // Step 3: Compile C++ files with C++ compiler and link object
-            let exeFile = path.join(outputPath, filename);
+            let exeFile = path.join(outputPath, "nodalisplc");
             if (isWindowsTarget && !exeFile.endsWith('.exe')) {
                 exeFile += '.exe';
             }

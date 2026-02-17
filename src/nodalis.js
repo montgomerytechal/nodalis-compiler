@@ -25,6 +25,9 @@ import { ArduinoCompiler } from './compilers/ArduinoCompiler.js';
 import { JSCompiler } from './compilers/JSCompiler.js';
 import { SkipCompiler } from "./compilers/SkipCompiler.js";
 import { MTIProgrammer } from "./programmers/MTIProgrammer.js";
+import { FileProgrammer } from './programmers/FileProgrammer.js';
+import { SSHProgrammer } from './programmers/SSHProgrammer.js';
+import { ArduinoProgrammer } from './programmers/ArduinoProgrammer.js';
 import { CompileList } from "mticp-npm"
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,7 +41,10 @@ const availableCompilers = [
 ];
 
 const availableProgrammers = [
-  new MTIProgrammer()
+  new MTIProgrammer(),
+  new FileProgrammer(),
+  new SSHProgrammer(),
+  new ArduinoProgrammer()
 ];
 
 function validateFileExtension(language, sourcePath) {
@@ -98,8 +104,9 @@ export class Nodalis {
   }
 
   getProgrammer(target) {
+    const normalizedTarget = String(target || '').toLowerCase();
     return this.programmers.find(p =>
-      p.target === target
+      String(p.target).toLowerCase() === normalizedTarget
     );
   }
 
@@ -123,7 +130,7 @@ export class Nodalis {
     await compiler.compile();
   }
 
-  async program({ target, source, destination, username, password }) {
+  async program({ target, source, destination, username, password, packageName, entryPoint, runtime, remotePath, sshPort, arduinoFqbn, fqbn }) {
     const programmer = this.getProgrammer(target);
     if (!programmer) {
       throw new Error(`No programmer found for target ${target}.`);
@@ -132,7 +139,14 @@ export class Nodalis {
       source,
       destination,
       username,
-      password
+      password,
+      packageName,
+      entryPoint,
+      runtime,
+      remotePath,
+      sshPort,
+      arduinoFqbn,
+      fqbn
     }
     if (await programmer.program() === false) {
       throw new Error(`Failed to program ${target} ${destination}`);
@@ -164,10 +178,16 @@ Actions:
 
   --action deploy  Programs a device based on a protocol.
     --target        The device/protocol targeted for programming.
-    --source    The path to the file or folder to use for programming.
+    --source        The path to the file or folder to use for programming.
     --destination   The destination of the target device.
     --username      The username for programming the device, if needed.
     --password      The password for programming the device, if needed.
+    --packageName   Optional package/service name for FILE/SSH deployment.
+    --entryPoint    Optional executable/js file relative to source root.
+    --runtime       Optional runtime: auto | node | executable.
+    --remotePath    Optional remote path for SSH deployment.
+    --sshPort       Optional SSH port for SSH deployment.
+    --arduinoFqbn   Required for Arduino target if --target Arduino.
 
 Examples:
   node nodalis.js --action list-compilers
@@ -223,7 +243,14 @@ Examples:
         source: argMap.source,
         destination: argMap.destination,
         username: argMap.username,
-        password: argMap.password
+        password: argMap.password,
+        packageName: argMap.packageName,
+        entryPoint: argMap.entryPoint,
+        runtime: argMap.runtime,
+        remotePath: argMap.remotePath,
+        sshPort: argMap.sshPort,
+        arduinoFqbn: argMap.arduinoFqbn,
+        fqbn: argMap.fqbn
       }).then(() => {
         console.log('Deployment completed.');
       }).catch(err => {

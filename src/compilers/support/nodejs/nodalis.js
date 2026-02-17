@@ -23,6 +23,7 @@ import {IOClient, IOMap, setTiming, setMemoryAccess} from "./IOClient.js"
 import {ModbusClient} from "./modbus.js";
 import { OPCClient } from "./opcua.js";
 import { GPIOClient } from "./gpio.js";
+import { BacnetClient } from "./bacnet.js";
 
 const MEMORY = Array.from({ length: 64 }, () =>
   Array.from({ length: 16 }, () => new Uint8Array(8))
@@ -622,19 +623,26 @@ function findClient(map) {
 }
 
 function createClient(map) {
-  if (map.protocol === "MODBUS-TCP") {
+  const protocol = String(map.protocol || "").toUpperCase();
+  if (protocol === "MODBUS-TCP") {
     const modbusClient = new ModbusClient();
     modbusClient.addMapping(map);
     modbusClient.connect();
     return modbusClient;
   }
-  else if (map.protocol === "OPCUA") {
+  else if (protocol === "OPCUA") {
     const opcClient = new OPCClient();
     opcClient.addMapping(map);
     opcClient.connect();
     return opcClient;
   }
-  else if (map.protocol === "GPIO") {
+  else if (protocol === "BACNET" || protocol === "BACNET-IP") {
+    const bacnetClient = new BacnetClient();
+    bacnetClient.addMapping(map);
+    bacnetClient.connect();
+    return bacnetClient;
+  }
+  else if (protocol === "GPIO") {
     if (process.platform !== "linux") {
       return null;
     }

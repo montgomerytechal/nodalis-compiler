@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1770328365936" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1771349767036" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -118,7 +118,7 @@
 
                 </FbdObject>
 <FbdObject xsi:type="Block" identifier="PLS1" typeName="TP" instanceName="PLS1">
-                    <RelPosition x="196.03698825961365" y="13.207714018357718"/>
+                    <RelPosition x="196.03698825961365" y="18.9658025460099"/>
                     <InputVariables>
                     <InputVariable parameterName="IN" negated="false">
                     <ConnectionPointIn>
@@ -153,14 +153,14 @@
 
                 </Rung>
 <Rung evaluationOrder="2">
-                    <LdObject xsi:type="LeftPowerRail" >
+                    <LdObject xsi:type="LeftPowerRail"  operand="2" edge="none" negated="false" latch="none">
                     <RelPosition x="2" y="129"/>
                     <ConnectionPointOut connectionPointOutId="1">
                     
                 </ConnectionPointOut>
 
                 </LdObject>
-<LdObject xsi:type="RightPowerRail" >
+<LdObject xsi:type="RightPowerRail"  operand="2" edge="none" negated="false" latch="none">
                     <RelPosition x="800" y="129"/>
                     <ConnectionPointIn>
                     
@@ -169,7 +169,7 @@
                 </ConnectionPointIn>
 
                 </LdObject>
-<LdObject xsi:type="Contact"  operand="SW1" edge="none" negated="false">
+<LdObject xsi:type="Contact"  operand="SW1" edge="none" negated="false" latch="none">
                     <RelPosition x="50" y="129"/>
                     <ConnectionPointIn>
                     
@@ -265,14 +265,14 @@
 
                 </Rung>
 <Rung evaluationOrder="3">
-                    <LdObject xsi:type="LeftPowerRail" >
+                    <LdObject xsi:type="LeftPowerRail"  operand="3" edge="none" negated="false" latch="none">
                     <RelPosition x="2" y="228"/>
                     <ConnectionPointOut connectionPointOutId="1">
                     
                 </ConnectionPointOut>
 
                 </LdObject>
-<LdObject xsi:type="RightPowerRail" >
+<LdObject xsi:type="RightPowerRail"  operand="3" edge="none" negated="false" latch="none">
                     <RelPosition x="800" y="228"/>
                     <ConnectionPointIn>
                     
@@ -281,7 +281,7 @@
                 </ConnectionPointIn>
 
                 </LdObject>
-<LdObject xsi:type="CompareContact"  operand1="CU" operand2="1" compareOperator="=">
+<LdObject xsi:type="CompareContact"  operand1="CU" operand2="1" edge="none" negated="false" latch="none" compareOperator="=">
                     <RelPosition x="50.5534515691539" y="228"/>
                     <ConnectionPointIn>
                     
@@ -308,14 +308,14 @@
 
                 </Rung>
 <Rung evaluationOrder="4">
-                    <LdObject xsi:type="LeftPowerRail" >
+                    <LdObject xsi:type="LeftPowerRail"  operand="4" edge="none" negated="false" latch="none">
                     <RelPosition x="2" y="282"/>
                     <ConnectionPointOut connectionPointOutId="1">
                     
                 </ConnectionPointOut>
 
                 </LdObject>
-<LdObject xsi:type="RightPowerRail" >
+<LdObject xsi:type="RightPowerRail"  operand="4" edge="none" negated="false" latch="none">
                     <RelPosition x="800" y="282"/>
                     <ConnectionPointIn>
                     
@@ -324,7 +324,7 @@
                 </ConnectionPointIn>
 
                 </LdObject>
-<LdObject xsi:type="Contact"  operand="SW1R" edge="none" negated="false">
+<LdObject xsi:type="Contact"  operand="SW1R" edge="none" negated="false" latch="none">
                     <RelPosition x="50" y="282"/>
                     <ConnectionPointIn>
                     
@@ -351,14 +351,14 @@
 
                 </Rung>
 <Rung evaluationOrder="5">
-                    <LdObject xsi:type="LeftPowerRail" >
+                    <LdObject xsi:type="LeftPowerRail"  operand="5" edge="none" negated="false" latch="none">
                     <RelPosition x="2" y="336"/>
                     <ConnectionPointOut connectionPointOutId="1">
                     
                 </ConnectionPointOut>
 
                 </LdObject>
-<LdObject xsi:type="RightPowerRail" >
+<LdObject xsi:type="RightPowerRail"  operand="5" edge="none" negated="false" latch="none">
                     <RelPosition x="800" y="336"/>
                     <ConnectionPointIn>
                     
@@ -367,7 +367,7 @@
                 </ConnectionPointIn>
 
                 </LdObject>
-<LdObject xsi:type="Contact"  operand="SW1R" edge="none" negated="false">
+<LdObject xsi:type="Contact"  operand="SW1R" edge="none" negated="false" latch="none">
                     <RelPosition x="50" y="336"/>
                     <ConnectionPointIn>
                     

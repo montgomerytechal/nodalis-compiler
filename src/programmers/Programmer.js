@@ -14,10 +14,9 @@
 
 export const ProgrammingTargets = Object.freeze({
     MTI: 'MTI',
+    FILE: 'FILE',
     SSH: 'SSH',
-    ARDUINO: 'Arduino',
-    FTP: 'FTP',
-    HTTP_POST: 'HTTP-POST'
+    ARDUINO: 'arduino'
 });
 
 /**
@@ -36,7 +35,7 @@ export class Programmer{
      */
     constructor(options) {
         if (new.target === Programmer) {
-            throw new Error('Cannot instantiate abstract class Compiler directly.');
+            throw new Error('Cannot instantiate abstract class Programmer directly.');
         }
 
         this.options = options;
@@ -47,6 +46,6 @@ export class Programmer{
    * @returns {Promise<bool>}
    */
     async program() {
-        throw new Error('compile() must be implemented by subclass.');
+        throw new Error('program() must be implemented by subclass.');
     }
 }

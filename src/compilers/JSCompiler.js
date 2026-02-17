@@ -206,7 +206,8 @@ export function run(){
                 'modbus.js',
                 "IOClient.js",
                 "opcua.js",
-                "gpio.js"
+                "gpio.js",
+                "bacnet.js"
             ];
 
             let coreDir = path.resolve(__dirname + '/support/nodejs');
@@ -240,7 +241,7 @@ export function run(){
             const platforms = fs.readdirSync(publishRoot, { withFileTypes: true })
                 .filter(d => d.isDirectory())
                 .map(d => path.join(publishRoot, d.name));
-            const scriptName = filename + ".js"
+            const scriptName = "nodalisplc.js"
             for (const platformDir of platforms) {
                 const dest = path.join(platformDir, scriptName);
                 fs.copyFileSync(jsFile, dest);
@@ -270,13 +271,14 @@ export function run(){
 
 function writePackageJson(outputDir,plcname) {
   const pkg = {
-      name: "nodalis-" + plcname,
+      name: "nodalisplc",
     version: "1.0.0",
     type: "module",
-    main: plcname + ".js",
+      main: "nodalisplc.js",
     dependencies: {
       "jsmodbus": "^4.0.6",
-      "node-opcua": "^2.156.0"
+      "node-opcua": "^2.156.0",
+      "bacstack": "^0.0.8"
     }
   };
   fs.writeFileSync(path.join(outputDir, "package.json"), JSON.stringify(pkg, null, 2));
