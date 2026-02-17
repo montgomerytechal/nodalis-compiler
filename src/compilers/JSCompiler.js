@@ -58,7 +58,7 @@ export class JSCompiler extends Compiler {
         const { sourcePath, outputPath, target, outputType, resourceName } = this.options;
         var sourceCode = fs.readFileSync(sourcePath, 'utf-8');
         const filename = path.basename(sourcePath, path.extname(sourcePath));
-        const jsFile = path.join(outputPath, `${filename}.js`);
+        const jsFile = path.join(outputPath, `nodalisplc.js`);
         const stFile = path.join(outputPath, `${filename}.st`);
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             if(typeof resourceName === "undefined" || resourceName === null || resourceName.length === 0){
@@ -215,7 +215,6 @@ export function run(){
             for (const file of coreFiles) {
                 fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
             }
-
             writePackageJson(outputPath, plcname);
             installDependencies(outputPath);
         }
@@ -278,7 +277,7 @@ function writePackageJson(outputDir,plcname) {
     dependencies: {
       "jsmodbus": "^4.0.6",
       "node-opcua": "^2.156.0",
-      "bacstack": "^0.0.8"
+        "bacstack": "^0.0.1-beta.14"
     }
   };
   fs.writeFileSync(path.join(outputDir, "package.json"), JSON.stringify(pkg, null, 2));

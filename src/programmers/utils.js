@@ -26,9 +26,12 @@ const DEPLOYABLE_BINARY_EXTENSIONS = new Set([
   '.bin',
   '.elf',
   '.out',
-  '.wasm'
+  '.wasm',
+  '.sh',
+  '.ps1',
+  '.bat'
 ]);
-const EXCLUDED_STATIC_LIBRARY_EXTENSIONS = new Set(['.a', '.lib']);
+const EXCLUDED_STATIC_LIBRARY_EXTENSIONS = new Set(['.a', '.lib', '.o', '.pdb']);
 export const DEPLOY_EXCLUDED_DIRECTORIES = new Set(['bacnet-stack', 'open62541']);
 
 export async function runCommand(command, args = [], options = {}) {

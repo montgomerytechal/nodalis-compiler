@@ -23,6 +23,7 @@ using Jint;
 using Jint.Runtime;
 using Nodalis;
 using System.Text.RegularExpressions;
+using System.Diagnostics;
 
 
 class ProgramEngine : NodalisEngine
@@ -175,15 +176,15 @@ class Program
 {
     static void Main(string[] args)
     {
-        if (args.Length < 1)
+        var file = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath), "nodalisplc.js");
+        if (args.Length >= 1)
         {
-            Console.WriteLine("Usage: NodalisPLC <jsfile>");
-            return;
+            file = args[0];
         }
 
         var engine = new ProgramEngine();
         long lastExec = engine.ElapsedMilliseconds;
-        string jsCode = File.ReadAllText(args[0]);
+        string jsCode = File.ReadAllText(file);
         try
         {
             engine.Load(jsCode);
