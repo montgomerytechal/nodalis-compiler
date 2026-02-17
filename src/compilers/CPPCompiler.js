@@ -38,28 +38,6 @@ const DEFAULT_TOOLCHAIN = {
     "windows-arm64": "/opt/llvm-mingw/bin/aarch64-w64-mingw32-g++"
 };
 
-const DEFAULT_ARDUINO_FQBN = {
-    "arduino-opta": "arduino:mbed_opta:opta"
-};
-
-const MODBUS_ARDUINO_CORE_IDS = new Set([
-    "arduino:megaavr",
-    "arduino:samd",
-    "arduino:mbed_nano",
-    "arduino:mbed_portenta",
-    "arduino:mbed_opta"
-]);
-
-const UNSUPPORTED_ARDUINO_MODBUS_FQBNS = new Set([
-    "arduino:mbed_portenta:portenta_x8"
-]);
-
-const UNSUPPORTED_ARDUINO_TARGET_ALIASES = {
-    "arduino-portenta-x8": "arduino:mbed_portenta:portenta_x8",
-    "arduino-portenta_x8": "arduino:mbed_portenta:portenta_x8"
-};
-
-let CachedArduinoTargetTable = null;
 let ToolChain = { ...DEFAULT_TOOLCHAIN };
 
 export class CPPCompiler extends Compiler {
@@ -77,15 +55,7 @@ export class CPPCompiler extends Compiler {
     }
 
     get supportedTargetDevices() {
-        const baseTargets = ['linux-arm', "linux-arm64", "linux-x64", 'macos-x64', "macos-arm64", 'windows-x64', "windows-arm64"];
-        const arduinoTargets = this.getArduinoTargetTable().targets;
-        return [...baseTargets, ...arduinoTargets];
-    }
-
-    canHandleTarget(target) {
-        if (typeof target !== "string") return false;
-        if (target.startsWith("arduino:")) return true;
-        return this.supportedTargetDevices.includes(target);
+        return ['linux-arm', "linux-arm64", "linux-x64", 'macos-x64', "macos-arm64", 'windows-x64', "windows-arm64"];
     }
 
     get supportedProtocols() {
@@ -98,8 +68,6 @@ export class CPPCompiler extends Compiler {
 
     async compile() {
         const { sourcePath, outputPath, target, outputType, resourceName } = this.options;
-        const isArduinoTarget = typeof target === "string" && (target.startsWith("arduino-") || target.startsWith("arduino:"));
-        let compilerConfig = {};
 
         ToolChain = { ...DEFAULT_TOOLCHAIN };
         const sourceDir = fs.lstatSync(sourcePath).isDirectory() ? sourcePath : path.dirname(sourcePath);
@@ -110,7 +78,6 @@ export class CPPCompiler extends Compiler {
                 if (typeof customToolchain !== "object" || customToolchain === null) {
                     throw new Error("The toolchain configuration must be a JSON object.");
                 }
-                compilerConfig = customToolchain;
                 ToolChain = { ...ToolChain, ...customToolchain };
             } catch (err) {
                 throw new Error(`Failed to load toolchain configuration from ${toolchainConfigPath}: ${err.message}`);
@@ -122,8 +89,7 @@ export class CPPCompiler extends Compiler {
 
         var sourceCode = fs.readFileSync(sourcePath, 'utf-8');
         const filename = path.basename(sourcePath, path.extname(sourcePath));
-        const sketchName = isArduinoTarget ? path.basename(path.resolve(outputPath)) : filename;
-        const cppFile = path.join(outputPath, `${sketchName}.${isArduinoTarget ? "ino" : "cpp"}`);
+        const cppFile = path.join(outputPath, `${filename}.cpp`);
         const stFile = path.join(outputPath, `${filename}.st`);
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             if(typeof resourceName === "undefined" || resourceName === null || resourceName.length === 0){
@@ -185,7 +151,7 @@ export class CPPCompiler extends Compiler {
             }
             else if(line.indexOf("//Global=") > -1){
                 let global = JSON.parse(line.substring(line.indexOf("=") + 1).trim());
-                globals.push(`${isArduinoTarget ? "modbusServer" : "opcServer"}.mapVariable("${global.Name}", "${global.Address}");`)
+                globals.push(`opcServer.mapVariable("${global.Name}", "${global.Address}");`)
 
             }
             else if(line.trim().startsWith("PROGRAM")){
@@ -222,31 +188,7 @@ export class CPPCompiler extends Compiler {
             });
         }
         
-        const cppCode = isArduinoTarget ?
-`#include "nodalis.h"
-#include <stdint.h>
-#include "modbus.h"
-
-NodalisModbusTcpServer modbusServer;
-${transpiledCode}
-
-void setup() {
-  ${globals.join("\n")}
-  modbusServer.start();
-  ${mapCode}
-}
-
-void loop() {
-  modbusServer.poll();
-  superviseIO();
-  ${taskCode}
-  delay(1);
-  PROGRAM_COUNT++;
-  if(PROGRAM_COUNT == UINT64_MAX){
-      PROGRAM_COUNT = 0;
-  }
-}` :
-`#include "nodalis.h"
+        const cppCode = `#include "nodalis.h"
 #include <chrono>
 #include <thread>
 #include <cstdint>
@@ -283,58 +225,13 @@ int main() {
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             fs.writeFileSync(stFile, sourceCode);
         }
-        // Copy core headers and cpp support files
-        const coreFiles = [
-            'nodalis.h',
-            'nodalis.cpp',
-            'modbus.h',
-            'modbus.cpp',
-            'bacnet.h',
-            'bacnet.cpp',
-            "json.hpp"
-        ];
-
-        // if (!target.includes("windows")) {
-        //     coreFiles.push(...["opcua.h",
-        //         "opcua.cpp", "open62541.h",
-        //         "open62541.c"]);
-        // }
-        // else {
-        //     coreFiles.push(...["opcua.h",
-        //         "opcua.cpp"]);
-        // }
-
-        const coreDir = path.resolve(__dirname + (isArduinoTarget ? '/support/arduino' : '/support/generic'));
+        const coreDir = path.resolve(__dirname + '/support/generic');
         fs.cpSync(coreDir, outputPath, {force: true, recursive: true});
-        // for (const file of coreFiles) {
-            
-        //     fs.copyFileSync(path.join(target.includes("windows") && file.includes("opc") ? coreDir + "/windows/" : coreDir, file), path.join(outputPath, file));
-        // }
 
         const pathTo = name => path.join(outputPath, name);
-        const targetInfo = isArduinoTarget ? null : this.resolveTarget(target);
+        const targetInfo = this.resolveTarget(target);
 
         if (outputType === 'executable') {
-            if (isArduinoTarget) {
-                const arduinoCli = compilerConfig.arduino_cli || compilerConfig.arduinoCli || "arduino-cli";
-                const arduinoFqbn = this.resolveArduinoFqbn(target, compilerConfig);
-                if (!arduinoFqbn) {
-                    throw new Error(`No Arduino FQBN configured for target "${target}". Use an explicit FQBN target (e.g. arduino:mbed_opta:opta) or add "arduino_fqbn" to toolchain.json.`);
-                }
-                this.assertArduinoModbusTargetSupported(arduinoFqbn);
-
-                this.ensureArduinoCoreInstalled(arduinoCli, arduinoFqbn);
-
-                const buildDir = path.join(outputPath, "build");
-                fs.mkdirSync(buildDir, { recursive: true });
-                const arduinoCompileCmd = `${arduinoCli} compile --fqbn "${arduinoFqbn}" "${outputPath}" --build-path "${buildDir}" --output-dir "${buildDir}" --export-binaries`;
-                try {
-                    execSync(arduinoCompileCmd, { stdio: 'inherit' });
-                } catch (err) {
-                    throw new Error(`Arduino CLI build failed. Verify arduino-cli is installed and the board core for "${arduinoFqbn}" is available. Inner error: ${err.message}`);
-                }
-                return;
-            }
             const requestedTarget = target ?? `${targetInfo.os}-${targetInfo.arch}`;
             const hostOs = this.getHostOS();
             const hostArch = this.getHostArch();
@@ -397,118 +294,6 @@ int main() {
 
             execSync(cppCompileCmd, { stdio: 'inherit' });
         }
-    }
-
-    resolveArduinoFqbn(target, compilerConfig = {}) {
-        const explicit = compilerConfig.arduino_fqbn || compilerConfig.arduinoFqbn;
-        if (explicit && typeof explicit === "string" && explicit.includes(":")) {
-            return explicit;
-        }
-        if (typeof target === "string" && target.startsWith("arduino:")) {
-            return target;
-        }
-        if (typeof target === "string" && UNSUPPORTED_ARDUINO_TARGET_ALIASES[target]) {
-            return UNSUPPORTED_ARDUINO_TARGET_ALIASES[target];
-        }
-        const table = this.getArduinoTargetTable();
-        return table.targetToFqbn[target] || DEFAULT_ARDUINO_FQBN[target] || null;
-    }
-
-    ensureArduinoCoreInstalled(arduinoCli, arduinoFqbn) {
-        const fqbnParts = arduinoFqbn.split(":");
-        if (fqbnParts.length < 3) {
-            throw new Error(`Invalid Arduino FQBN "${arduinoFqbn}".`);
-        }
-        const coreId = `${fqbnParts[0]}:${fqbnParts[1]}`;
-
-        let coreList = "";
-        try {
-            coreList = execSync(`${arduinoCli} core list`, { encoding: "utf8" });
-        } catch (err) {
-            throw new Error(`Failed to query installed Arduino cores using "${arduinoCli}". ${err.message}`);
-        }
-        if (coreList.includes(coreId)) {
-            return;
-        }
-
-        try {
-            execSync(`${arduinoCli} core update-index`, { stdio: 'inherit' });
-            execSync(`${arduinoCli} core install ${coreId}`, { stdio: 'inherit' });
-        } catch (err) {
-            throw new Error(`Failed to install Arduino core "${coreId}" required for ${arduinoFqbn}. ${err.message}`);
-        }
-    }
-
-    assertArduinoModbusTargetSupported(arduinoFqbn) {
-        if (UNSUPPORTED_ARDUINO_MODBUS_FQBNS.has(arduinoFqbn)) {
-            throw new Error(
-                `Arduino target "${arduinoFqbn}" is currently unsupported for Modbus-TCP builds. ` +
-                `Use a supported target like "arduino:mbed_portenta:envie_m7" or "arduino:mbed_opta:opta".`
-            );
-        }
-    }
-
-    getArduinoTargetTable(refresh = false) {
-        if (!refresh && CachedArduinoTargetTable) {
-            return CachedArduinoTargetTable;
-        }
-
-        const targetToFqbn = { ...DEFAULT_ARDUINO_FQBN };
-        const targets = Object.keys(DEFAULT_ARDUINO_FQBN);
-
-        try {
-            const boardListRaw = execSync(`arduino-cli board listall --format json`, { encoding: "utf8" });
-            const boardList = JSON.parse(boardListRaw);
-            const boards = Array.isArray(boardList.boards) ? boardList.boards : [];
-
-            for (const board of boards) {
-                const fqbn = board?.fqbn;
-                if (!fqbn || typeof fqbn !== "string") {
-                    continue;
-                }
-                const parts = fqbn.split(":");
-                if (parts.length < 3) {
-                    continue;
-                }
-                const coreId = `${parts[0]}:${parts[1]}`;
-                if (!MODBUS_ARDUINO_CORE_IDS.has(coreId)) {
-                    continue;
-                }
-                if (UNSUPPORTED_ARDUINO_MODBUS_FQBNS.has(fqbn)) {
-                    continue;
-                }
-
-                if (!targetToFqbn[fqbn]) {
-                    targetToFqbn[fqbn] = fqbn;
-                    targets.push(fqbn);
-                }
-
-                const boardId = parts[2];
-                const alias = `arduino-${boardId.toLowerCase()}`;
-                if (!targetToFqbn[alias]) {
-                    targetToFqbn[alias] = fqbn;
-                    targets.push(alias);
-                }
-
-                const boardName = typeof board?.name === "string" ? board.name : "";
-                if (boardName.length > 0) {
-                    let nameSlug = boardName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-                    nameSlug = nameSlug.replace(/^arduino-/, '');
-                    if (nameSlug.length > 0) {
-                        const nameAlias = `arduino-${nameSlug}`;
-                        if (!targetToFqbn[nameAlias]) {
-                            targetToFqbn[nameAlias] = fqbn;
-                            targets.push(nameAlias);
-                        }
-                    }
-                }
-            }
-        } catch {
-            // Keep defaults when arduino-cli is unavailable.
-        }
-
-        CachedArduinoTargetTable = { targetToFqbn, targets };
-        return CachedArduinoTargetTable;
     }
 
     resolveTarget(target) {

@@ -21,6 +21,7 @@ import { fileURLToPath } from 'url';
 
 // Updated compiler imports
 import { CPPCompiler } from './compilers/CPPCompiler.js';
+import { ArduinoCompiler } from './compilers/ArduinoCompiler.js';
 import { JSCompiler } from './compilers/JSCompiler.js';
 import { SkipCompiler } from "./compilers/SkipCompiler.js";
 import { MTIProgrammer } from "./programmers/MTIProgrammer.js";
@@ -30,6 +31,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const availableCompilers = [
+  new ArduinoCompiler(),
   new CPPCompiler(),
   new JSCompiler(),
   new SkipCompiler()

@@ -1,8 +1,6 @@
 #include "nodalis.h"
 
-#include "bacnet.h"
 #include "modbus.h"
-#include "opcua.h"
 
 uint64_t PROGRAM_COUNT = 0;
 uint64_t MEMORY[64][16] = {0};
@@ -323,18 +321,6 @@ std::unique_ptr<IOClient> createClient(IOMap &map)
     if (proto == "modbus-tcp")
     {
         auto ret = std::make_unique<NodalisModbusClient>();
-        ret->addMapping(map);
-        return ret;
-    }
-    if (proto == "opcua")
-    {
-        auto ret = std::make_unique<OPCUAClient>();
-        ret->addMapping(map);
-        return ret;
-    }
-    if (proto == "bacnet" || proto == "bacnet-ip")
-    {
-        auto ret = std::make_unique<BACNETClient>();
         ret->addMapping(map);
         return ret;
     }

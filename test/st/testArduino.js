@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { CPPCompiler } from '../../src/compilers/CPPCompiler.js';
+import { ArduinoCompiler } from '../../src/compilers/ArduinoCompiler.js';
 
 var inputPath = path.resolve('test/st/fixtures', `plc1.iec`);
 var outputPath = path.resolve('test/st/output');
@@ -19,7 +19,7 @@ function runTest() {
     outputPath = path.resolve('test/st/output') + "/" + t;
     fs.rmSync(outputPath, { recursive: true, force: true });
 
-    await new CPPCompiler({
+    await new ArduinoCompiler({
       sourcePath: inputPath,
       outputPath,
       target: t,
