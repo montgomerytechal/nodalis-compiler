@@ -23,6 +23,7 @@ import { fileURLToPath } from 'url';
 import { CPPCompiler } from './compilers/CPPCompiler.js';
 import { ArduinoCompiler } from './compilers/ArduinoCompiler.js';
 import { JSCompiler } from './compilers/JSCompiler.js';
+import { CodeSysCompiler } from './compilers/CodeSysCompiler.js';
 import { SkipCompiler } from "./compilers/SkipCompiler.js";
 import { MTIProgrammer } from "./programmers/MTIProgrammer.js";
 import { FileProgrammer } from './programmers/FileProgrammer.js';
@@ -37,6 +38,7 @@ const availableCompilers = [
   new ArduinoCompiler(),
   new CPPCompiler(),
   new JSCompiler(),
+  new CodeSysCompiler(),
   new SkipCompiler()
 ];
 
@@ -110,7 +112,18 @@ export class Nodalis {
     );
   }
 
-  async compile({ target, outputType, outputPath, resourceName, sourcePath, language }) {
+  async compile({
+    target,
+    outputType,
+    outputPath,
+    resourceName,
+    sourcePath,
+    language,
+    codesysCommand,
+    codesysCommandTemplate,
+    codesysProjectFile,
+    codesysPouName
+  }) {
     validateFileExtension(language, sourcePath);
 
     const compiler = this.getCompiler(target, outputType, language);
@@ -125,6 +138,10 @@ export class Nodalis {
       target,
       outputType,
       language,
+      codesysCommand,
+      codesysCommandTemplate,
+      codesysProjectFile,
+      codesysPouName
     };
 
     await compiler.compile();
@@ -169,12 +186,16 @@ Actions:
 
   --action compile
       Required options:
-        --target        Target platform (e.g. nodejs, generic-cpp)
+        --target        Target platform (e.g. nodejs, linux-arm64, codesys)
         --outputType    Output type (e.g. code, executable)
         --outputPath    Directory to write the result
         --resourceName  Resource name (used for .iec projects)
         --sourcePath    Path to source file (.st or .iec)
         --language      st (Structured Text) or ld (Ladder Diagram)
+        --codesysCommand Optional CODESYS executable/command for --target codesys
+        --codesysCommandTemplate Optional shell template for --target codesys executable builds
+        --codesysProjectFile Optional .project path for CODESYS automation (defaults to <output>/<resource>.project)
+        --codesysPouName Optional POU name to create/update in CODESYS project
 
   --action deploy  Programs a device based on a protocol.
     --target        The device/protocol targeted for programming.
@@ -229,6 +250,10 @@ Examples:
         resourceName: argMap.resourceName,
         sourcePath: argMap.sourcePath,
         language: argMap.language,
+        codesysCommand: argMap.codesysCommand,
+        codesysCommandTemplate: argMap.codesysCommandTemplate,
+        codesysProjectFile: argMap.codesysProjectFile,
+        codesysPouName: argMap.codesysPouName
       }).then(() => {
         console.log('Compilation completed.');
       }).catch(err => {

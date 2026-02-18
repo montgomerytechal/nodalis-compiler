@@ -65,6 +65,22 @@ export interface CompileOptions {
 
     /** Language code (e.g. 'st', 'ld', 'skip'). Case-insensitive. */
     language: string;
+
+    /** Optional CODESYS command or executable path used by target "codesys". */
+    codesysCommand?: string;
+
+    /**
+     * Optional shell template for CODESYS executable builds.
+     * Placeholders: {codesysCommand}, {projectDir}, {projectFile}, {scriptFile}, {buildConfig},
+     * {sourcePath}, {stFile}, {outputDir}, {resourceName}, {pouName}
+     */
+    codesysCommandTemplate?: string;
+
+    /** Optional .project file path used by CodeSysCompiler automation. */
+    codesysProjectFile?: string;
+
+    /** Optional POU name to create/update in generated CODESYS project. */
+    codesysPouName?: string;
 }
 
 /** Options for Nodalis.program(...) */
