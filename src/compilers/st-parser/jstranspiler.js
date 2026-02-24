@@ -25,6 +25,7 @@
 import { convertExpression, getWriteAddressExpression } from './expressionConverter.js';
 let fbVars = [];
 let refVars = [];
+let fbInstanceVars = [];
 /**
  * Converts the tokenized ST code to Javascript.
  * @param {{body: {type: string, name: string, varSections: [], statements: []}}[]} ast The tokenized code.
@@ -43,6 +44,7 @@ export function transpile(ast) {
       case 'ProgramDeclaration':
         lines.push(`export function ${block.name}() { // PROGRAM:${block.name}`);
         lines.push(...declareVars(block.varSections, false, block.name));
+        fbInstanceVars = getFunctionBlockVarNames(block.varSections);
         lines.push(...transpileStatements(block.statements));
         lines.push('}');
         break;
@@ -50,6 +52,7 @@ export function transpile(ast) {
       case 'FunctionDeclaration':
         lines.push(`export function ${block.name}() { // FUNCTION:${block.name}`);
         lines.push(...declareVars(block.varSections, false, block.name));
+        fbInstanceVars = getFunctionBlockVarNames(block.varSections);
         lines.push(...transpileStatements(block.statements));
 
         for (let i = 0; i < lines.length; i++) {
@@ -67,6 +70,7 @@ export function transpile(ast) {
         lines.push(...declareVars(block.varSections, true, block.name).map(line => `    ${line}`));
         lines.push('  }');
         lines.push('  call() {');
+        fbInstanceVars = getFunctionBlockVarNames(block.varSections);
         lines.push(...transpileStatements(block.statements, true).map(line => `    ${line}`));
         lines.push('  }');
         lines.push('}');
@@ -155,16 +159,31 @@ function mapStatement(stmt, infb = false) {
       }
 
       case 'CALL': {
-        // If args exist, it's a normal function call: Foo(a, b);
-        if (stmt.args && stmt.args.length) {
-          const argsExpr = convertExpression(stmt.args, infb, fbVars, true);
+        const targetName = resolveCallTarget(stmt.name, infb);
+        const isFunctionBlockCall = isFunctionBlockInstance(stmt.name);
+        const argParts = parseCallArguments(stmt.args || []);
+
+        if (isFunctionBlockCall) {
+          if (argParts.length > 0 && argParts.every((arg) => arg.kind === 'named')) {
+            const lines = argParts.map((arg) => {
+              const rightExpr = convertExpression(arg.expr, infb, fbVars, true);
+              return `${targetName}.${arg.name} = ${rightExpr};`;
+            });
+            lines.push(`${targetName}.call();`);
+            return lines;
+          }
+
+          return [`${targetName}.call();`];
+        }
+
+        if (argParts.length) {
+          const argsExpr = argParts
+            .map((arg) => convertExpression(arg.raw, infb, fbVars, true))
+            .join(', ');
           return [`${stmt.name}(${argsExpr});`];
         }
 
-      // Otherwise treat as FB instance call: FB1();
-        let ext = "";
-        if (infb && fbVars.includes(stmt.name)) ext = "this.";
-        return [`${ext}${stmt.name}.call();`];
+        return [`${stmt.name}();`];
       }
       default:
         return [`// Unsupported statement type: ${stmt.type}`];
@@ -229,6 +248,70 @@ function isIOAddress(expr) {
  */
 function isBitSelector(expr) {
   return typeof expr === 'string' && /^[A-Za-z_]\w*\.\d+$/.test(expr);
+}
+
+function getFunctionBlockVarNames(varSections = []) {
+  return varSections
+    .filter((v) => !mapType(v.type) || mapType(v.type) === 'any')
+    .map((v) => v.name);
+}
+
+function isFunctionBlockInstance(name) {
+  const root = String(name || '').split('.')[0];
+  return fbInstanceVars.includes(root);
+}
+
+function resolveCallTarget(name, infb) {
+  const root = String(name || '').split('.')[0];
+  if (infb && fbVars.includes(root)) return `this.${name}`;
+  return name;
+}
+
+function parseCallArguments(args = []) {
+  const groups = [];
+  let current = [];
+  let depth = 0;
+
+  for (const token of args) {
+    if (token === '(') depth++;
+    if (token === ')') depth--;
+
+    if (token === ',' && depth === 0) {
+      if (current.length) groups.push(current);
+      current = [];
+      continue;
+    }
+
+    current.push(token);
+  }
+
+  if (current.length) groups.push(current);
+
+  return groups.map((raw) => {
+    let depthLevel = 0;
+    let assignIndex = -1;
+
+    for (let i = 0; i < raw.length; i++) {
+      const tk = raw[i];
+      if (tk === '(') depthLevel++;
+      else if (tk === ')') depthLevel--;
+      else if (tk === ':=' && depthLevel === 0) {
+        assignIndex = i;
+        break;
+      }
+    }
+
+    if (assignIndex > 0) {
+      return {
+        kind: 'named',
+        name: raw.slice(0, assignIndex).join('').trim(),
+        expr: raw.slice(assignIndex + 1),
+        raw
+      };
+    }
+
+    return { kind: 'positional', raw, expr: raw };
+  });
 }
 
 function mapType(type) {

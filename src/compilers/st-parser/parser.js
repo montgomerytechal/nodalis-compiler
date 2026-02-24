@@ -23,7 +23,6 @@
  */
 
 import { tokenize } from './tokenizer.js';
-import {mapType} from "./gcctranspiler.js";
 
 /**
  * Parses a block of structured text code and divides it into statement objects that can then be transpiled.
@@ -143,6 +142,29 @@ function parseStatement() {
   if (token.value.toUpperCase() === 'REPEAT') return parseRepeat();
   if (token.value.toUpperCase() === 'CASE') return parseCase();
 
+  // Call statement like: Foo(...);
+  if (token.type === 'IDENTIFIER' && peek(1)?.value === '(') {
+    const name = consume().value; // IDENTIFIER
+    consume(); // '('
+
+    const args = [];
+    let depth = 1;
+
+    while (peek() && depth > 0) {
+      const t = consume();
+
+      if (t.value === '(') depth++;
+      else if (t.value === ')') depth--;
+
+      if (depth > 0) args.push(t.value); // don't include final ')'
+    }
+
+    // optional semicolon
+    if (peek()?.value === ';') consume();
+
+    return { type: 'CALL', name, args };
+  }
+
   // Assignment: x := y;
   const lhsTokens = [];
 let i = 0;
@@ -161,29 +183,6 @@ if (peek(i)?.value === ':=') {
   if (peek()?.value === ';') consume();
   return { type: 'ASSIGN', left: lhs, right };
 }
-
-  // Call statement like: Foo(...);
-  if (token.type === 'IDENTIFIER' && peek(1)?.value === '(') {
-    const name = consume().value; // IDENTIFIER
-    consume(); // '('
-
-    const args = [];
-    let depth = 1;
-
-    while (peek() && depth > 0) {
-      const t = consume();
-
-      if (t.value === '(') depth++;
-      else if (t.value === ')') depth--;
-
-      if (depth > 0) args.push(t.value); // don't include final ')'
-    }
-
-  // optional semicolon
-    if (peek()?.value === ';') consume();
-
-    return { type: 'CALL', name, args };
-  }
 
   consume(); // Skip unknown
   return null;
@@ -320,11 +319,6 @@ function parseStatementsUntil(endTokens) {
     }
 
     stmts.push(...parseStatements('END_PROGRAM'));
-    vars.forEach((v) => {
-      if (mapType(v.type) === "auto") {
-        stmts.push({ type: "CALL", name: v.name });
-      }
-    });
     expect('END_PROGRAM');
 
     return { type: 'ProgramDeclaration', name, varSections: vars, statements: stmts };
@@ -343,11 +337,6 @@ function parseStatementsUntil(endTokens) {
     }
 
     stmts.push(...parseStatements('END_FUNCTION'));
-    vars.forEach((v) => {
-      if (mapType(v.type) === "auto") {
-        stmts.push({ type: "CALL", name: v.name });
-      }
-    });
     expect('END_FUNCTION');
 
     return { type: 'FunctionDeclaration', name, returnType, varSections: vars, statements: stmts };
@@ -364,11 +353,6 @@ function parseStatementsUntil(endTokens) {
     }
 
     stmts.push(...parseStatements('END_FUNCTION_BLOCK'));
-    vars.forEach((v) => {
-      if (mapType(v.type) === "auto") {
-        stmts.push({ type: "CALL", name: v.name });
-      }
-    });
     expect('END_FUNCTION_BLOCK');
 
     return { type: 'FunctionBlockDeclaration', name, varSections: vars, statements: stmts };

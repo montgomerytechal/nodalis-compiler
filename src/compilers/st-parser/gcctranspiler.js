@@ -24,6 +24,7 @@
 
 import { convertExpression } from './expressionConverter.js';
 import { getWriteAddressExpression } from './expressionConverter.js';
+let fbInstanceVars = [];
 
 /**
  * Converts the tokenized ST code to ANSCII C++.
@@ -42,6 +43,7 @@ export function transpile(ast) {
       case 'ProgramDeclaration':
         lines.push(`void ${block.name}() { //PROGRAM:${block.name}`);
         lines.push(...declareVars(block.varSections));
+        fbInstanceVars = getFunctionBlockVarNames(block.varSections);
         lines.push(...transpileStatements(block.statements));
         lines.push('}');
         break;
@@ -49,6 +51,7 @@ export function transpile(ast) {
       case 'FunctionDeclaration':
         lines.push(`${mapType(block.returnType)} ${block.name}() { //FUNCTION:${block.name}`);
         lines.push(...declareVars(block.varSections));
+        fbInstanceVars = getFunctionBlockVarNames(block.varSections);
         lines.push(...transpileStatements(block.statements));
         lines.push('}');
 
@@ -68,6 +71,7 @@ export function transpile(ast) {
           lines.push(...declareVars(block.varSections));
         //}
         lines.push('  void operator()() {');
+        fbInstanceVars = getFunctionBlockVarNames(block.varSections);
         lines.push(...transpileStatements(block.statements).map(line => `    ${line}`));
         lines.push('  }');
         lines.push('};');
@@ -139,14 +143,30 @@ function mapStatement(stmt){
             `}`
           ];
       case "CALL": {
-        // If args exist, it's a normal function call: Foo(a, b);
-        if (stmt.args && stmt.args.length) {
-          const argsExpr = convertExpression(stmt.args, infb, fbVars, true);
+        const isFunctionBlockCall = isFunctionBlockInstance(stmt.name);
+        const argParts = parseCallArguments(stmt.args || []);
+
+        if (isFunctionBlockCall) {
+          if (argParts.length > 0 && argParts.every((arg) => arg.kind === 'named')) {
+            const lines = argParts.map((arg) => {
+              const rightExpr = convertExpression(arg.expr);
+              return `${stmt.name}.${arg.name} = ${rightExpr};`;
+            });
+            lines.push(`${stmt.name}();`);
+            return lines;
+          }
+
+          return [`${stmt.name}();`];
+        }
+
+        if (argParts.length) {
+          const argsExpr = argParts
+            .map((arg) => convertExpression(arg.raw))
+            .join(', ');
           return [`${stmt.name}(${argsExpr});`];
         }
 
-        // Otherwise treat as FB instance call: FB1();
-        return [stmt.name + "();"];
+        return [`${stmt.name}();`];
       }
         default:
           return [`// unsupported: ${stmt.type}`];
@@ -186,13 +206,18 @@ function declareVars(varSections) {
       init = `("${addr}")`
     }
     else if (v.initialValue !== undefined && v.initialValue !== null) {
-      init = ` = ${v.initialValue}`;
+      init = ` = ${normalizeCppLiteral(v.initialValue)}`;
     }
     if (v.sectionType==='VAR' && isFunctionBlockType) {
       return `static ${v.type} ${v.name};`; // assume Function Block type
     }
     return `${cleanedType} ${v.name}${init};${gv}`;
   });
+}
+
+function normalizeCppLiteral(value) {
+  if (typeof value !== 'string') return value;
+  return value.replace(/\b0o([0-7]+)\b/gi, '0$1');
 }
 
 /**
@@ -242,4 +267,65 @@ function isBitSelector(expr) {
  */
 function isIOAddress(expr) {
   return typeof expr === 'string' && /^%[IQM]/i.test(expr);
+}
+
+function getFunctionBlockVarNames(varSections = []) {
+  return varSections
+    .filter((v) => {
+      const cleanedType = v.type.trim().toUpperCase();
+      return !mapType(cleanedType) || mapType(cleanedType) === 'auto';
+    })
+    .map((v) => v.name);
+}
+
+function isFunctionBlockInstance(name) {
+  const root = String(name || '').split('.')[0];
+  return fbInstanceVars.includes(root);
+}
+
+function parseCallArguments(args = []) {
+  const groups = [];
+  let current = [];
+  let depth = 0;
+
+  for (const token of args) {
+    if (token === '(') depth++;
+    if (token === ')') depth--;
+
+    if (token === ',' && depth === 0) {
+      if (current.length) groups.push(current);
+      current = [];
+      continue;
+    }
+
+    current.push(token);
+  }
+
+  if (current.length) groups.push(current);
+
+  return groups.map((raw) => {
+    let depthLevel = 0;
+    let assignIndex = -1;
+
+    for (let i = 0; i < raw.length; i++) {
+      const tk = raw[i];
+      if (tk === '(') depthLevel++;
+      else if (tk === ')') depthLevel--;
+      else if (tk === ':=' && depthLevel === 0) {
+        assignIndex = i;
+        break;
+      }
+    }
+
+    if (assignIndex > 0) {
+      return {
+        kind: 'named',
+        name: raw.slice(0, assignIndex).join('').trim(),
+        expr: raw.slice(assignIndex + 1),
+        raw
+      };
+    }
+
+    return { kind: 'positional', raw, expr: raw };
+  });
 }

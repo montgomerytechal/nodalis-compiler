@@ -59,6 +59,11 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
     .replace(/\bFALSE\b/gi, 'false')
     .replace(/\b(?<![><!])=(?!=)/g, '==');  // ✅ fix assignment/comparison
 
+  // JS accepts 0o..., but C++ requires legacy octal form 0...
+  if (!isjs) {
+    results = results.replace(/\b0o([0-7]+)\b/gi, '0$1');
+  }
+
     const tokens = results.split(/\s+/);
   for (let i = 0; i < tokens.length; i++) {
     if (tokens[i] === '=' &&
@@ -78,7 +83,7 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
     if (/^%[IQM][XBWDL]?\d+(\.\d+)?$/i.test(e)) return getReadAddressExpression(e);
 
     // Don't wrap literals or operators
-    if (/^(true|false|null|\d+|!|&&|\|\||==|!=|[<>=+\-*/(),&|])$/i.test(e)) return e;
+    if (/^(true|false|null|[+-]?\d+|[+-]?(?:(?:\d+\.\d*|\d*\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)|0[bB][01]+|0[oO][0-7]+|0[xX][0-9a-f]+|!|&&|\|\||==|!=|[<>=+\-*/(),&|])$/i.test(e)) return e;
 
     // Don't wrap known function expressions (e.g., getBit)
     if (/^getBit\(/.test(e)) return e;
@@ -154,4 +159,3 @@ export function getWriteAddressExpression(addr, value){
   }
   return result;
 }
-

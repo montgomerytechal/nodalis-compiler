@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1771349767036" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1771887699344" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -17,25 +17,7 @@
                     
                 </ExternalVars>
                     <Vars accessSpecifier="private">
-                    <Variable name="PLS1" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>TP</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="IL" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>ULINT</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="SW1P" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>BOOL</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="SR1" orderWithinParamSet="">
+                    <Variable name="SR1" orderWithinParamSet="">
                     <Type>
                     <TypeName>SR</TypeName>
                 </Type>
@@ -47,15 +29,21 @@
                 </Type>
                     undefined
                 </Variable>
-<Variable name="CU" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>SINT</TypeName>
-                </Type>
-                    undefined
-                </Variable>
 <Variable name="SW1R" orderWithinParamSet="">
                     <Type>
                     <TypeName>BOOL</TypeName>
+                </Type>
+                    undefined
+                </Variable>
+<Variable name="CU" orderWithinParamSet="">
+                    <Type>
+                    <TypeName>WORD</TypeName>
+                </Type>
+                    undefined
+                </Variable>
+<Variable name="PLS1" orderWithinParamSet="">
+                    <Type>
+                    <TypeName>TP</TypeName>
                 </Type>
                     undefined
                 </Variable>
@@ -423,24 +411,36 @@
                 </BodyContent>
                 </MainBody>
                 </Program>
-        <FunctionBlock name="PLS">
+        <FunctionBlock name="COUNTER">
                     <Parameters>
                     <OutputVars>
-                    <Variable name="Q" orderWithinParamSet="1">
+                    <Variable name="R" orderWithinParamSet="4">
                     <Type>
                     <TypeName>BOOL</TypeName>
+                </Type>
+                    undefined
+                </Variable>
+<Variable name="CV" orderWithinParamSet="5">
+                    <Type>
+                    <TypeName>INT</TypeName>
                 </Type>
                     undefined
                 </Variable>
                 </OutputVars>
                     <InputVars>
-                    <Variable name="EN" orderWithinParamSet="1">
+                    <Variable name="IN" orderWithinParamSet="1">
                     <Type>
                     <TypeName>BOOL</TypeName>
                 </Type>
                     undefined
                 </Variable>
-<Variable name="PT" orderWithinParamSet="2">
+<Variable name="SV" orderWithinParamSet="2">
+                    <Type>
+                    <TypeName>INT</TypeName>
+                </Type>
+                    undefined
+                </Variable>
+<Variable name="RV" orderWithinParamSet="3">
                     <Type>
                     <TypeName>INT</TypeName>
                 </Type>
@@ -449,112 +449,77 @@
                 </InputVars>
                 </Parameters>
                     <Vars accessSpecifier="private">
-                    <Variable name="Timer" orderWithinParamSet="">
+                    <Variable name="CMP1" orderWithinParamSet="">
                     <Type>
-                    <TypeName>TP</TypeName>
-                </Type>
-                    undefined
-                </Variable>
-<Variable name="Time" orderWithinParamSet="">
-                    <Type>
-                    <TypeName>INT</TypeName>
+                    <TypeName>CMP</TypeName>
                 </Type>
                     undefined
                 </Variable>
                 </Vars>
                     <MainBody>
-                    <BodyContent xsi:type="LD">
-                    <Rung evaluationOrder="1">
-                    <LdObject xsi:type="LeftPowerRail"  operand="1" edge="none" negated="false" latch="none">
-                    <RelPosition x="2" y="2"/>
-                    <ConnectionPointOut connectionPointOutId="1">
-                    
-                </ConnectionPointOut>
+                    <BodyContent xsi:type="ST">
+                    <ST><![CDATA[(*Counts up from SV to RV each time IN is true. *)
+(*If SV = RV, then R = true, otherwise false. *)
+(*CV represents the current value. *)
 
-                </LdObject>
-<LdObject xsi:type="RightPowerRail"  operand="1" edge="none" negated="false" latch="none">
-                    <RelPosition x="800" y="2"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="6"/>
+IF CV = 0 THEN
+    CV := SV;
+END_IF;
 
-                </ConnectionPointIn>
+IF IN THEN
+    CV := CV + 1;
+END_IF;
+CMP1(CV1 := CV, CV2 := RV);
 
-                </LdObject>
-<LdObject xsi:type="Contact"  operand="EN" edge="none" negated="false" latch="none">
-                    <RelPosition x="50" y="2"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="1"/>
+IF CMP1.Q < 0 THEN
+    CV := SV;
+    R := TRUE;
+END_IF;
 
-                </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="2">
+]]></ST>
+                </BodyContent>
+                </MainBody>
+                </FunctionBlock><FunctionBlock name="CMP">
+                    <Parameters>
+                    <OutputVars>
+                    <Variable name="Q" orderWithinParamSet="3">
+                    <Type>
+                    <TypeName>INT</TypeName>
+                </Type>
+                    undefined
+                </Variable>
+                </OutputVars>
+                    <InputVars>
+                    <Variable name="CV1" orderWithinParamSet="1">
+                    <Type>
+                    <TypeName>INT</TypeName>
+                </Type>
+                    undefined
+                </Variable>
+<Variable name="CV2" orderWithinParamSet="2">
+                    <Type>
+                    <TypeName>INT</TypeName>
+                </Type>
+                    undefined
+                </Variable>
+                </InputVars>
+                </Parameters>
+                    <Vars accessSpecifier="private">
                     
-                </ConnectionPointOut>
-
-                </LdObject>
-<FbdObject xsi:type="DataSource" identifier="PT" typeName="" instanceName="PT">
-                    <RelPosition x="53.76984218408019" y="57.02893017591785"/>
-                    <InputVariables>
-                    
-                </InputVariables>
-                    <OutputVariables>
-                    
-                </OutputVariables>
-                    
-                    <ConnectionPointOut connectionPointOutId="3">
-                    
-                </ConnectionPointOut>
-
-                </FbdObject>
-<FbdObject xsi:type="Block" identifier="Timer" typeName="TP" instanceName="Timer">
-                    <RelPosition x="213.1108990076851" y="17.01446508795892"/>
-                    <InputVariables>
-                    <InputVariable parameterName="IN" negated="false">
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="2"/>
-
-                </ConnectionPointIn>
-                </InputVariable>
-<InputVariable parameterName="PT" negated="false">
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="3"/>
-
-                </ConnectionPointIn>
-                </InputVariable>
-                </InputVariables>
-                    <OutputVariables>
-                    <OutputVariable parameterName="Q">
-                    <ConnectionPointOut connectionPointOutId="4">
-                    
-                </ConnectionPointOut>
-                </OutputVariable>
-<OutputVariable parameterName="ET">
-                    <ConnectionPointOut connectionPointOutId="5">
-                    
-                </ConnectionPointOut>
-                </OutputVariable>
-                </OutputVariables>
-                    
-                    
-                </FbdObject>
-<LdObject xsi:type="Coil"  operand="Q" edge="none" negated="false" latch="none">
-                    <RelPosition x="444.3677324863824" y="1.9999999999999976"/>
-                    <ConnectionPointIn>
-                    
-                    <Connection refConnectionPointOutId="4"/>
-
-                </ConnectionPointIn>
-<ConnectionPointOut connectionPointOutId="6">
-                    
-                </ConnectionPointOut>
-
-                </LdObject>
-
-                </Rung>
-
+                </Vars>
+                    <MainBody>
+                    <BodyContent xsi:type="ST">
+                    <ST><![CDATA[(*Compares two integers (CV1 and CV2) *)
+(* If CV1 is greater than CV2, Q = 1 *)
+(* If CV2 is greater than CV1, Q = -1 *)
+(* If CV1 = CV2, Q = 0 *)
+IF CV1 = CV2 THEN
+    Q := 0;
+ELSIF CV1 > CV2 THEN
+    Q := 1;
+ELSE
+    Q := -1;
+END_IF;]]></ST>
                 </BodyContent>
                 </MainBody>
                 </FunctionBlock>

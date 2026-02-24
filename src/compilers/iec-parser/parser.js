@@ -736,7 +736,43 @@ export class NamespaceDecl extends Serializable{
     toST(){
         var blocks = "";
         var programs = "";
-        forEachElem(this.FunctionBlocks, (f) => blocks += f.toST() + "\n");
+        const fbs = {};
+        const defined = {};
+        const fbfbs = {};
+        forEachElem(this.FunctionBlocks, f => fbs[f.Name] = f);
+        forEachElem(this.FunctionBlocks, (f) => {
+            fbfbs[f.Name] = [];
+            forEachElem(f.Vars.Variables,
+                /**
+                 * 
+                 * @param {Variable} v 
+                 */
+                (v) => {
+                    if (typeof fbs[v.Type.TypeName] !== "undefined") {
+                        fbfbs[f.Name].push(v.Type.TypeName);
+                    }
+                });
+        });
+        /**
+         * 
+         * @param {FunctionBlock} f 
+         */
+        const define = (f) => {
+            if (typeof defined[f.Name] !== "undefined") return;
+            if (fbfbs[f.Name].length === 0) {
+                defined[f.Name] = f;
+            }
+            else {
+                forEachElem(fbfbs[f.Name], fn => define(fbs[fn]));
+                defined[f.Name] = f;
+            }
+        }
+
+        forEachElem(this.FunctionBlocks, f => define(f));
+        for (let f in defined) {
+            blocks += f.toST() + "\n";
+        }
+        //forEachElem(this.FunctionBlocks, (f) => blocks += f.toST() + "\n");
         forEachElem(this.Programs, (p) => programs += p.toST() + "\n");
         return `${blocks}
         ${programs}`;
@@ -962,7 +998,43 @@ export class Resource extends Serializable{
         var included = "";
         var map = this.Parent.Parent.Parent.MappingTable.toST(this.Name);
         var programs = this.Parent.Parent.Parent.getAllPrograms();
-        var fbs = this.Parent.Parent.Parent.getAllFunctionBlocks();
+        var fblocks = this.Parent.Parent.Parent.getAllFunctionBlocks();
+        const fbs = {};
+        const defined = {};
+        const fbfbs = {};
+        forEachElem(fblocks, f => fbs[f.Name] = f);
+        forEachElem(fblocks, (f) => {
+            fbfbs[f.Name] = [];
+            forEachElem(f.Vars.Variables,
+                /**
+                 * 
+                 * @param {Variable} v 
+                 */
+                (v) => {
+                    if (typeof fbs[v.Type.TypeName] !== "undefined") {
+                        fbfbs[f.Name].push(v.Type.TypeName);
+                    }
+                });
+        });
+        /**
+         * 
+         * @param {FunctionBlock} f 
+         */
+        const define = (f) => {
+            if (typeof defined[f.Name] !== "undefined") return;
+            if (fbfbs[f.Name].length === 0) {
+                defined[f.Name] = f;
+            }
+            else {
+                forEachElem(fbfbs[f.Name], fn => define(fbs[fn]));
+                defined[f.Name] = f;
+            }
+        }
+
+        forEachElem(fblocks, f => define(f));
+        for (let f in defined) {
+            included += fbs[f].toST() + "\n";
+        }
         forEachElem(fbs, fb => included += fb.toST() + "\n");
         forEachElem(this.Tasks, t => tasks += t.toST());
         forEachElem(this.ProgramInstances, 
@@ -2073,7 +2145,13 @@ export class Rung extends Serializable {
                                 }
                             });
                         }
+
+
                     );
+                    if (block.Type === "Block") {
+                        st += block.InstanceName + "();\n";
+                    }
+
                     forEachElem(block.OutputVariables.Variables, 
                             /**
                          * 
@@ -2535,13 +2613,13 @@ export class LdObject extends Serializable{
                     }
                     else if(this.Latch === "set"){
                         st = `IF (${expression}) THEN
-                            ${this.Operand} := 1;"
-                        END_IF;`;
+                            ${this.Operand} := 1;
+                        END_IF`;
                     }
                     else if(this.Latch === "reset"){
                         st = `IF (${expression}) THEN
-                            ${this.Operand} := 0;"
-                        END_IF;`;
+                            ${this.Operand} := 0;
+                        END_IF`;
                     }
                     
 
@@ -3364,6 +3442,7 @@ export class FbdObject extends Serializable {
                             st = `${this.InstanceName}.${variable}`;
                         }
                     }
+
                 break;
             }
         }
