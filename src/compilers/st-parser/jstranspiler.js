@@ -164,12 +164,20 @@ function mapStatement(stmt, infb = false) {
         const argParts = parseCallArguments(stmt.args || []);
 
         if (isFunctionBlockCall) {
-          if (argParts.length > 0 && argParts.every((arg) => arg.kind === 'named')) {
-            const lines = argParts.map((arg) => {
+          if (argParts.length > 0 && argParts.every((arg) => arg.kind !== 'positional')) {
+            const lines = argParts
+              .filter((arg) => arg.kind === 'named_input')
+              .map((arg) => {
               const rightExpr = convertExpression(arg.expr, infb, fbVars, true);
               return `${targetName}.${arg.name} = ${rightExpr};`;
             });
             lines.push(`${targetName}.call();`);
+            lines.push(...argParts
+              .filter((arg) => arg.kind === 'named_output')
+              .map((arg) => {
+                const outTarget = resolveAssignmentTarget(arg.expr, infb);
+                return `${outTarget} = ${targetName}.${arg.name};`;
+              }));
             return lines;
           }
 
@@ -267,6 +275,13 @@ function resolveCallTarget(name, infb) {
   return name;
 }
 
+function resolveAssignmentTarget(expr, infb) {
+  const raw = Array.isArray(expr) ? expr.join('').trim() : String(expr || '').trim();
+  const root = raw.split('.')[0];
+  if (infb && fbVars.includes(root)) return `this.${raw}`;
+  return raw;
+}
+
 function parseCallArguments(args = []) {
   const groups = [];
   let current = [];
@@ -289,6 +304,7 @@ function parseCallArguments(args = []) {
 
   return groups.map((raw) => {
     let depthLevel = 0;
+    let assignKind = null;
     let assignIndex = -1;
 
     for (let i = 0; i < raw.length; i++) {
@@ -296,6 +312,11 @@ function parseCallArguments(args = []) {
       if (tk === '(') depthLevel++;
       else if (tk === ')') depthLevel--;
       else if (tk === ':=' && depthLevel === 0) {
+        assignKind = 'named_input';
+        assignIndex = i;
+        break;
+      } else if (tk === '=>' && depthLevel === 0) {
+        assignKind = 'named_output';
         assignIndex = i;
         break;
       }
@@ -303,7 +324,7 @@ function parseCallArguments(args = []) {
 
     if (assignIndex > 0) {
       return {
-        kind: 'named',
+        kind: assignKind,
         name: raw.slice(0, assignIndex).join('').trim(),
         expr: raw.slice(assignIndex + 1),
         raw

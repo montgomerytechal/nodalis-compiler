@@ -147,12 +147,20 @@ function mapStatement(stmt){
         const argParts = parseCallArguments(stmt.args || []);
 
         if (isFunctionBlockCall) {
-          if (argParts.length > 0 && argParts.every((arg) => arg.kind === 'named')) {
-            const lines = argParts.map((arg) => {
+          if (argParts.length > 0 && argParts.every((arg) => arg.kind !== 'positional')) {
+            const lines = argParts
+              .filter((arg) => arg.kind === 'named_input')
+              .map((arg) => {
               const rightExpr = convertExpression(arg.expr);
               return `${stmt.name}.${arg.name} = ${rightExpr};`;
             });
             lines.push(`${stmt.name}();`);
+            lines.push(...argParts
+              .filter((arg) => arg.kind === 'named_output')
+              .map((arg) => {
+                const outTarget = resolveAssignmentTarget(arg.expr);
+                return `${outTarget} = ${stmt.name}.${arg.name};`;
+              }));
             return lines;
           }
 
@@ -283,6 +291,11 @@ function isFunctionBlockInstance(name) {
   return fbInstanceVars.includes(root);
 }
 
+function resolveAssignmentTarget(expr) {
+  if (Array.isArray(expr)) return expr.join('').trim();
+  return String(expr || '').trim();
+}
+
 function parseCallArguments(args = []) {
   const groups = [];
   let current = [];
@@ -305,6 +318,7 @@ function parseCallArguments(args = []) {
 
   return groups.map((raw) => {
     let depthLevel = 0;
+    let assignKind = null;
     let assignIndex = -1;
 
     for (let i = 0; i < raw.length; i++) {
@@ -312,6 +326,11 @@ function parseCallArguments(args = []) {
       if (tk === '(') depthLevel++;
       else if (tk === ')') depthLevel--;
       else if (tk === ':=' && depthLevel === 0) {
+        assignKind = 'named_input';
+        assignIndex = i;
+        break;
+      } else if (tk === '=>' && depthLevel === 0) {
+        assignKind = 'named_output';
         assignIndex = i;
         break;
       }
@@ -319,7 +338,7 @@ function parseCallArguments(args = []) {
 
     if (assignIndex > 0) {
       return {
-        kind: 'named',
+        kind: assignKind,
         name: raw.slice(0, assignIndex).join('').trim(),
         expr: raw.slice(assignIndex + 1),
         raw

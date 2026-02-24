@@ -298,49 +298,13 @@ export class FunctionBlock {
   call() {}
 }
 
-// Utility to create simple boolean gates
-function createBoolGate(name, expr) {
-  return class extends FunctionBlock {
-    constructor() {
-      super();
-      this.IN1 = false;
-      this.IN2 = false;
-      this.OUT = false;
-    }
-    call() {
-      this.OUT = expr(this.IN1, this.IN2);
-    }
-  };
-}
-
 // Logic Gates
-export const AND = createBoolGate("AND", (a, b) => a && b);
-export const OR = createBoolGate("OR", (a, b) => a || b);
-export const XOR = createBoolGate("XOR", (a, b) => a !== b);
-export const NOR = createBoolGate("NOR", (a, b) => !(a || b));
-export const NAND = createBoolGate("NAND", (a, b) => !(a && b));
-
-export class NOT extends FunctionBlock {
-  constructor() {
-    super();
-    this.IN = false;
-    this.OUT = false;
-  }
-  call() {
-    this.OUT = !this.IN;
-  }
-}
-
-export class ASSIGNMENT extends FunctionBlock {
-  constructor() {
-    super();
-    this.IN = false;
-    this.OUT = false;
-  }
-  call() {
-    this.OUT = this.IN;
-  }
-}
+export const AND = (a, b) => a && b;
+export const OR = (a, b) => a || b;
+export const XOR = (a, b) => a !== b;
+export const NOR = (a, b) => !(a || b);
+export const NAND = (a, b) => !(a && b);
+export const NOT = (a) => !(a);
 
 export class TON extends FunctionBlock {
   constructor() {
@@ -512,102 +476,134 @@ export class CTUD extends FunctionBlock {
   }
 }
 
-function createCompareBlock(expr) {
-  return class extends FunctionBlock {
-    constructor() {
-      super();
-      this.IN1 = 0;
-      this.IN2 = 0;
-      this.OUT = false;
-    }
-    call() {
-      this.OUT = expr(this.IN1, this.IN2);
-    }
-  };
+export const EQ = (a, b) => a === b;
+export const NE = (a, b) => a !== b;
+export const LT = (a, b) => a < b;
+export const GT = (a, b) => a > b;
+export const GE = (a, b) => a >= b;
+export const LE = (a, b) => a <= b;
+
+export const MOVE = (IN, OUT) => {
+  OUT = IN;
 }
 
-export const EQ = createCompareBlock((a, b) => a === b);
-export const NE = createCompareBlock((a, b) => a !== b);
-export const LT = createCompareBlock((a, b) => a < b);
-export const GT = createCompareBlock((a, b) => a > b);
-export const GE = createCompareBlock((a, b) => a >= b);
-export const LE = createCompareBlock((a, b) => a <= b);
 
-export class MOVE extends FunctionBlock {
-  constructor() {
-    super();
-    this.IN = 0;
-    this.OUT = 0;
-  }
-  call() {
-    this.OUT = this.IN;
-  }
+export const SEL = (G, IN0, IN1) => {
+  return G ? IN1 : IN0;
 }
 
-export class SEL extends FunctionBlock {
-  constructor() {
-    super();
-    this.G = false;
-    this.IN0 = 0;
-    this.IN1 = 0;
-    this.OUT = 0;
+export const MUX = (K, ...INS) => {
+
+  if (K < 0 || K >= INS.length) {
+    throw new RangeError("MUX selector out of range.");
   }
-  call() {
-    this.OUT = this.G ? this.IN1 : this.IN0;
-  }
+  return INS[K];
 }
 
-export class MUX extends FunctionBlock {
-  constructor() {
-    super();
-    this.K = false;
-    this.IN0 = 0;
-    this.IN1 = 0;
-    this.OUT = 0;
-  }
-  call() {
-    this.OUT = this.K ? this.IN1 : this.IN0;
-  }
+export const MIN = Math.min;
+
+export const MAX = Math.max;
+
+export const LIMIT = (MN, IN, MX) => {
+  if (IN < MN) return MN;
+  else if (IN > MX) return MX;
+  else return IN;
 }
 
-export class MIN extends FunctionBlock {
-  constructor() {
-    super();
-    this.IN1 = 0;
-    this.IN2 = 0;
-    this.OUT = 0;
-  }
-  call() {
-    this.OUT = Math.min(this.IN1, this.IN2);
-  }
-}
+export const ADD = (...args) => {
+  return args.reduce((sum, val) => sum + val, 0);
+};
 
-export class MAX extends FunctionBlock {
-  constructor() {
-    super();
-    this.IN1 = 0;
-    this.IN2 = 0;
-    this.OUT = 0;
-  }
-  call() {
-    this.OUT = Math.max(this.IN1, this.IN2);
-  }
-}
+export const MUL = (...args) => {
+  return args.reduce((prod, val) => prod * val, 1);
+};
 
-export class LIMIT extends FunctionBlock {
-  constructor() {
-    super();
-    this.MN = 0;
-    this.IN = 0;
-    this.MX = 0;
-    this.OUT = 0;
-  }
-  call() {
-    if (this.IN < this.MN) this.OUT = this.MN;
-    else if (this.IN > this.MX) this.OUT = this.MX;
-    else this.OUT = this.IN;
-  }
-}
+export const DIV = (IN1, IN2) => {
+  return IN1 / IN2;
+};
+
+export const SUB = (IN1, IN2) => {
+  return IN1 - IN2;
+};
+
+export const EXPT = (IN1, IN2) => {
+  return Math.pow(IN1, IN2);
+  // or: return IN1 ** IN2;
+};
+
+export const LOG = (IN) => {
+  return Math.log10(IN);   // base-10 log
+};
+
+export const LN = (IN) => {
+  return Math.log(IN);     // natural log
+};
+
+export const MOD = (IN1, IN2) => {
+  return IN1 % IN2;
+};
+
+export const SIN = (IN) => {
+  return Math.sin(IN);
+};
+
+export const COS = (IN) => {
+  return Math.cos(IN);
+};
+
+export const TAN = (IN) => {
+  return Math.tan(IN);
+};
+
+export const ASIN = (IN) => {
+  return Math.asin(IN);
+};
+
+export const ACOS = (IN) => {
+  return Math.acos(IN);
+};
+
+export const ATAN = (IN) => {
+  return Math.atan(IN);
+};
+
+export const ABS = (IN) => {
+  return Math.abs(IN);
+};
+
+export const SQRT = (IN) => {
+  return Math.sqrt(IN);
+};
+
+export const EXP = (IN) => {
+  return Math.exp(IN);
+};
+
+export const SHL = (IN, N) => {
+  N = N & 31; // normalize to 0..31
+  return (IN << N) | 0;
+};
+
+// Logical shift right (fills with 0s)
+export const SHR = (IN, N) => {
+  N = N & 31;
+  return (IN >>> N) >>> 0;
+};
+
+// Rotate left (32-bit)
+export const ROL = (IN, N) => {
+  N = N & 31;
+  IN = IN >>> 0; // force unsigned 32-bit
+  return ((IN << N) | (IN >>> (32 - N))) >>> 0;
+};
+
+// Rotate right (32-bit)
+export const ROR = (IN, N) => {
+  N = N & 31;
+  IN = IN >>> 0; // force unsigned 32-bit
+  return ((IN >>> N) | (IN << (32 - N))) >>> 0;
+};
+
 
 const Clients = [];
 

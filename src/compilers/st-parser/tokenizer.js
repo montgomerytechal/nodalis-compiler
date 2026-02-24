@@ -44,7 +44,7 @@ export function tokenize(code) {
   code = code.replace(/\(\*[\s\S]*?\*\)/g, '');
 
   //const regex = /(%[IQM][A-Z]?[0-9]+(?:\.[0-9]+)?)|(:=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([:;()<>+\-*/=])/g;
-  const regex = new RegExp(`(%[IQM][A-Z]*\\d+(?:\\.\\d+)?)|(:=|>=|<=|<>|!=)|([A-Za-z_]\\w*\\.\\d+)|([A-Za-z_]\\w*\\.\\w+)|(${NUMBER_TOKEN_PATTERN})|([A-Za-z_]\\w*)|([<>+\\-*/=;():,])`, 'gi');
+  const regex = new RegExp(`(%[IQM][A-Z]*\\d+(?:\\.\\d+)?)|(:=|=>|>=|<=|<>|!=)|([A-Za-z_]\\w*\\.\\d+)|([A-Za-z_]\\w*\\.\\w+)|(${NUMBER_TOKEN_PATTERN})|([A-Za-z_]\\w*)|([<>+\\-*/=;():,])`, 'gi');
 
 while ((match = regex.exec(code)) !== null) {
   const [_, address, compoundSymbol, bitIdentifier, propIdentifier, number, identifier, symbol] = match;
@@ -89,7 +89,7 @@ function getTokenType(value) {
     'END_FUNCTION_BLOCK', 'END_FUNCTION', 'END_PROGRAM'
   ]);
 
-  const symbols = new Set([':=', ';', ':', '(', ')', '+', '-', '*', '/', '>', '<', '=']);
+  const symbols = new Set([':=', '=>', ';', ':', '(', ')', '+', '-', '*', '/', '>', '<', '=']);
 
   if (keywords.has(value.toUpperCase())) return 'KEYWORD';
   if (symbols.has(value)) return 'SYMBOL';

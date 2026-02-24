@@ -512,6 +512,90 @@ namespace Nodalis
             val = state ? (val | (1u << bit)) : (val & ~(1u << bit));
             var.Value = (T)Convert.ChangeType(val, typeof(T));
         }
+
+        private static bool IsIntegralArg(JsValue value)
+        {
+            if (value.IsBoolean()) return true;
+            if (!value.IsNumber()) return false;
+            var number = value.AsNumber();
+            return !double.IsNaN(number)
+                   && !double.IsInfinity(number)
+                   && number >= 0
+                   && number <= ulong.MaxValue
+                   && number == Math.Truncate(number);
+        }
+
+        private static bool IsFloatingArg(JsValue value)
+        {
+            if (!value.IsNumber()) return false;
+            var number = value.AsNumber();
+            return !double.IsNaN(number)
+                   && !double.IsInfinity(number)
+                   && number != Math.Truncate(number);
+        }
+
+        private static ulong AsUInt64(JsValue value) => value.IsBoolean() ? (value.AsBoolean() ? 1UL : 0UL) : (ulong)value.AsNumber();
+        private static double AsDouble(JsValue value) => value.IsBoolean() ? (value.AsBoolean() ? 1.0 : 0.0) : value.AsNumber();
+
+        private static bool AllBoolean(params JsValue[] args)
+        {
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (!args[i].IsBoolean()) return false;
+            }
+            return true;
+        }
+
+        private static bool AllIntegral(params JsValue[] args)
+        {
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (!IsIntegralArg(args[i])) return false;
+            }
+            return true;
+        }
+
+        private static bool AnyFloating(params JsValue[] args)
+        {
+            for (var i = 0; i < args.Length; i++)
+            {
+                if (IsFloatingArg(args[i])) return true;
+            }
+            return false;
+        }
+
+        private static ulong PowUInt64(ulong @base, ulong exp)
+        {
+            ulong result = 1;
+            var b = @base;
+            var e = exp;
+            unchecked
+            {
+                while (e > 0)
+                {
+                    if ((e & 1UL) != 0)
+                        result *= b;
+                    e >>= 1;
+                    if (e > 0)
+                        b *= b;
+                }
+            }
+            return result;
+        }
+
+        private static ulong RotateLeft64(ulong value, int n)
+        {
+            n &= 63;
+            if (n == 0) return value;
+            return (value << n) | (value >> (64 - n));
+        }
+
+        private static ulong RotateRight64(ulong value, int n)
+        {
+            n &= 63;
+            if (n == 0) return value;
+            return (value >> n) | (value << (64 - n));
+        }
         /// <summary>
         /// Reads a bit from memory.
         /// </summary>
@@ -642,6 +726,248 @@ namespace Nodalis
 
             var funcFlags = PropertyFlag.Configurable | PropertyFlag.Writable;
 
+            JsEngine.SetValue("AND", new ClrFunction(JsEngine, "AND", (thisObj, args) =>
+            {
+                if (AllBoolean(args))
+                    return JsValue.FromObject(JsEngine, args[0].AsBoolean() & args[1].AsBoolean());
+                if (!AllIntegral(args))
+                    throw new Exception("AND expects integer or boolean inputs.");
+                return JsValue.FromObject(JsEngine, AsUInt64(args[0]) & AsUInt64(args[1]));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("OR", new ClrFunction(JsEngine, "OR", (thisObj, args) =>
+            {
+                if (AllBoolean(args))
+                    return JsValue.FromObject(JsEngine, args[0].AsBoolean() | args[1].AsBoolean());
+                if (!AllIntegral(args))
+                    throw new Exception("OR expects integer or boolean inputs.");
+                return JsValue.FromObject(JsEngine, AsUInt64(args[0]) | AsUInt64(args[1]));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("XOR", new ClrFunction(JsEngine, "XOR", (thisObj, args) =>
+            {
+                if (AllBoolean(args))
+                    return JsValue.FromObject(JsEngine, args[0].AsBoolean() ^ args[1].AsBoolean());
+                if (!AllIntegral(args))
+                    throw new Exception("XOR expects integer or boolean inputs.");
+                return JsValue.FromObject(JsEngine, AsUInt64(args[0]) ^ AsUInt64(args[1]));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("NAND", new ClrFunction(JsEngine, "NAND", (thisObj, args) =>
+            {
+                if (AllBoolean(args))
+                    return JsValue.FromObject(JsEngine, !(args[0].AsBoolean() & args[1].AsBoolean()));
+                if (!AllIntegral(args))
+                    throw new Exception("NAND expects integer or boolean inputs.");
+                return JsValue.FromObject(JsEngine, ~(AsUInt64(args[0]) & AsUInt64(args[1])));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("NOR", new ClrFunction(JsEngine, "NOR", (thisObj, args) =>
+            {
+                if (AllBoolean(args))
+                    return JsValue.FromObject(JsEngine, !(args[0].AsBoolean() | args[1].AsBoolean()));
+                if (!AllIntegral(args))
+                    throw new Exception("NOR expects integer or boolean inputs.");
+                return JsValue.FromObject(JsEngine, ~(AsUInt64(args[0]) | AsUInt64(args[1])));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("NOT", new ClrFunction(JsEngine, "NOT", (thisObj, args) =>
+            {
+                if (args[0].IsBoolean())
+                    return JsValue.FromObject(JsEngine, !args[0].AsBoolean());
+                if (!AllIntegral(args[0]))
+                    throw new Exception("NOT expects an integer or boolean input.");
+                return JsValue.FromObject(JsEngine, ~AsUInt64(args[0]));
+            }, 1, funcFlags));
+
+            JsEngine.SetValue("SEL", new ClrFunction(JsEngine, "SEL", (thisObj, args) =>
+            {
+                return args[0].AsBoolean() ? args[2] : args[1];
+            }, 3, funcFlags));
+
+            JsEngine.SetValue("LIMIT", new ClrFunction(JsEngine, "LIMIT", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                {
+                    var mn = AsDouble(args[0]);
+                    var input = AsDouble(args[1]);
+                    var mx = AsDouble(args[2]);
+                    return JsValue.FromObject(JsEngine, Math.Min(Math.Max(input, mn), mx));
+                }
+                if (!AllIntegral(args))
+                    throw new Exception("LIMIT expects numeric inputs.");
+                var mnInt = AsUInt64(args[0]);
+                var inputInt = AsUInt64(args[1]);
+                var mxInt = AsUInt64(args[2]);
+                var limited = inputInt < mnInt ? mnInt : (inputInt > mxInt ? mxInt : inputInt);
+                return JsValue.FromObject(JsEngine, limited);
+            }, 3, funcFlags));
+
+            JsEngine.SetValue("EQ", new ClrFunction(JsEngine, "EQ", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, AsDouble(args[0]) == AsDouble(args[1]));
+                if (AllIntegral(args))
+                    return JsValue.FromObject(JsEngine, AsUInt64(args[0]) == AsUInt64(args[1]));
+                return JsValue.FromObject(JsEngine, args[0].Equals(args[1]));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("NE", new ClrFunction(JsEngine, "NE", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, AsDouble(args[0]) != AsDouble(args[1]));
+                if (AllIntegral(args))
+                    return JsValue.FromObject(JsEngine, AsUInt64(args[0]) != AsUInt64(args[1]));
+                return JsValue.FromObject(JsEngine, !args[0].Equals(args[1]));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("LT", new ClrFunction(JsEngine, "LT", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, AsDouble(args[0]) < AsDouble(args[1]));
+                if (AllIntegral(args))
+                    return JsValue.FromObject(JsEngine, AsUInt64(args[0]) < AsUInt64(args[1]));
+                throw new Exception("LT expects numeric inputs.");
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("GT", new ClrFunction(JsEngine, "GT", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, AsDouble(args[0]) > AsDouble(args[1]));
+                if (AllIntegral(args))
+                    return JsValue.FromObject(JsEngine, AsUInt64(args[0]) > AsUInt64(args[1]));
+                throw new Exception("GT expects numeric inputs.");
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("GE", new ClrFunction(JsEngine, "GE", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, AsDouble(args[0]) >= AsDouble(args[1]));
+                if (AllIntegral(args))
+                    return JsValue.FromObject(JsEngine, AsUInt64(args[0]) >= AsUInt64(args[1]));
+                throw new Exception("GE expects numeric inputs.");
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("LE", new ClrFunction(JsEngine, "LE", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, AsDouble(args[0]) <= AsDouble(args[1]));
+                if (AllIntegral(args))
+                    return JsValue.FromObject(JsEngine, AsUInt64(args[0]) <= AsUInt64(args[1]));
+                throw new Exception("LE expects numeric inputs.");
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("MOVE", new ClrFunction(JsEngine, "MOVE", (thisObj, args) => args[0], 1, funcFlags));
+
+            JsEngine.SetValue("SUB", new ClrFunction(JsEngine, "SUB", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, AsDouble(args[0]) - AsDouble(args[1]));
+                if (!AllIntegral(args))
+                    throw new Exception("SUB expects numeric inputs.");
+                unchecked
+                {
+                    return JsValue.FromObject(JsEngine, AsUInt64(args[0]) - AsUInt64(args[1]));
+                }
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("DIV", new ClrFunction(JsEngine, "DIV", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, AsDouble(args[0]) / AsDouble(args[1]));
+                if (!AllIntegral(args))
+                    throw new Exception("DIV expects numeric inputs.");
+                return JsValue.FromObject(JsEngine, AsUInt64(args[0]) / AsUInt64(args[1]));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("MOD", new ClrFunction(JsEngine, "MOD", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, AsDouble(args[0]) % AsDouble(args[1]));
+                if (!AllIntegral(args))
+                    throw new Exception("MOD expects numeric inputs.");
+                return JsValue.FromObject(JsEngine, AsUInt64(args[0]) % AsUInt64(args[1]));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("EXPT", new ClrFunction(JsEngine, "EXPT", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, Math.Pow(AsDouble(args[0]), AsDouble(args[1])));
+                if (!AllIntegral(args))
+                    throw new Exception("EXPT expects numeric inputs.");
+                return JsValue.FromObject(JsEngine, PowUInt64(AsUInt64(args[0]), AsUInt64(args[1])));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("LOG", new ClrFunction(JsEngine, "LOG", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Log10(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("LN", new ClrFunction(JsEngine, "LN", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Log(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("SIN", new ClrFunction(JsEngine, "SIN", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Sin(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("COS", new ClrFunction(JsEngine, "COS", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Cos(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("TAN", new ClrFunction(JsEngine, "TAN", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Tan(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("ASIN", new ClrFunction(JsEngine, "ASIN", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Asin(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("ACOS", new ClrFunction(JsEngine, "ACOS", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Acos(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("ATAN", new ClrFunction(JsEngine, "ATAN", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Atan(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("ABS", new ClrFunction(JsEngine, "ABS", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                    return JsValue.FromObject(JsEngine, Math.Abs(AsDouble(args[0])));
+                if (!AllIntegral(args))
+                    throw new Exception("ABS expects a numeric input.");
+                var value = AsUInt64(args[0]);
+                return JsValue.FromObject(JsEngine, value);
+            }, 1, funcFlags));
+
+            JsEngine.SetValue("SQRT", new ClrFunction(JsEngine, "SQRT", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Sqrt(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("EXP", new ClrFunction(JsEngine, "EXP", (thisObj, args) =>
+                JsValue.FromObject(JsEngine, Math.Exp(AsDouble(args[0]))), 1, funcFlags));
+
+            JsEngine.SetValue("SHL", new ClrFunction(JsEngine, "SHL", (thisObj, args) =>
+            {
+                if (!AllIntegral(args))
+                    throw new Exception("SHL expects integer or boolean inputs.");
+                var shift = (int)(AsUInt64(args[1]) & 63UL);
+                return JsValue.FromObject(JsEngine, AsUInt64(args[0]) << shift);
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("SHR", new ClrFunction(JsEngine, "SHR", (thisObj, args) =>
+            {
+                if (!AllIntegral(args))
+                    throw new Exception("SHR expects integer or boolean inputs.");
+                var shift = (int)(AsUInt64(args[1]) & 63UL);
+                return JsValue.FromObject(JsEngine, AsUInt64(args[0]) >> shift);
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("ROL", new ClrFunction(JsEngine, "ROL", (thisObj, args) =>
+            {
+                if (!AllIntegral(args))
+                    throw new Exception("ROL expects integer or boolean inputs.");
+                return JsValue.FromObject(JsEngine, RotateLeft64(AsUInt64(args[0]), (int)AsUInt64(args[1])));
+            }, 2, funcFlags));
+
+            JsEngine.SetValue("ROR", new ClrFunction(JsEngine, "ROR", (thisObj, args) =>
+            {
+                if (!AllIntegral(args))
+                    throw new Exception("ROR expects integer or boolean inputs.");
+                return JsValue.FromObject(JsEngine, RotateRight64(AsUInt64(args[0]), (int)AsUInt64(args[1])));
+            }, 2, funcFlags));
+
             JsEngine.SetValue("getBit", new ClrFunction(JsEngine, "getBit", (thisObj, args) =>
             {
                 if (args[0].IsObject())
@@ -723,12 +1049,118 @@ namespace Nodalis
                 return args[0];
             }, 1, funcFlags));
 
+            JsEngine.SetValue("MUX", new ClrFunction(JsEngine, "MUX", (thisObj, args) =>
+            {
+                var k = (int)args[0].AsNumber();
+                var count = args.Length - 1;
+                if (k < 0 || k >= count)
+                    throw new Exception("MUX selector out of range.");
+                return args[k + 1];
+            }, 1, funcFlags));
+
+            JsEngine.SetValue("MIN", new ClrFunction(JsEngine, "MIN", (thisObj, args) =>
+            {
+                if (args.Length == 0)
+                    return JsValue.FromObject(JsEngine, double.NaN);
+
+                if (AnyFloating(args))
+                {
+                    var minFloat = AsDouble(args[0]);
+                    for (var i = 1; i < args.Length; i++)
+                    {
+                        var val = AsDouble(args[i]);
+                        if (val < minFloat) minFloat = val;
+                    }
+                    return JsValue.FromObject(JsEngine, minFloat);
+                }
+
+                if (!AllIntegral(args))
+                    throw new Exception("MIN expects numeric inputs.");
+
+                var minInt = AsUInt64(args[0]);
+                for (var i = 1; i < args.Length; i++)
+                {
+                    var val = AsUInt64(args[i]);
+                    if (val < minInt) minInt = val;
+                }
+                return JsValue.FromObject(JsEngine, minInt);
+            }, 1, funcFlags));
+
+            JsEngine.SetValue("MAX", new ClrFunction(JsEngine, "MAX", (thisObj, args) =>
+            {
+                if (args.Length == 0)
+                    return JsValue.FromObject(JsEngine, double.NaN);
+
+                if (AnyFloating(args))
+                {
+                    var maxFloat = AsDouble(args[0]);
+                    for (var i = 1; i < args.Length; i++)
+                    {
+                        var val = AsDouble(args[i]);
+                        if (val > maxFloat) maxFloat = val;
+                    }
+                    return JsValue.FromObject(JsEngine, maxFloat);
+                }
+
+                if (!AllIntegral(args))
+                    throw new Exception("MAX expects numeric inputs.");
+
+                var maxInt = AsUInt64(args[0]);
+                for (var i = 1; i < args.Length; i++)
+                {
+                    var val = AsUInt64(args[i]);
+                    if (val > maxInt) maxInt = val;
+                }
+                return JsValue.FromObject(JsEngine, maxInt);
+            }, 1, funcFlags));
+
+            JsEngine.SetValue("ADD", new ClrFunction(JsEngine, "ADD", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                {
+                    double sumFloat = 0;
+                    for (var i = 0; i < args.Length; i++)
+                        sumFloat += AsDouble(args[i]);
+                    return JsValue.FromObject(JsEngine, sumFloat);
+                }
+
+                if (!AllIntegral(args))
+                    throw new Exception("ADD expects numeric inputs.");
+
+                ulong sumInt = 0;
+                unchecked
+                {
+                    for (var i = 0; i < args.Length; i++)
+                        sumInt += AsUInt64(args[i]);
+                }
+                return JsValue.FromObject(JsEngine, sumInt);
+            }, 0, funcFlags));
+
+            JsEngine.SetValue("MUL", new ClrFunction(JsEngine, "MUL", (thisObj, args) =>
+            {
+                if (AnyFloating(args))
+                {
+                    double productFloat = 1;
+                    for (var i = 0; i < args.Length; i++)
+                        productFloat *= AsDouble(args[i]);
+                    return JsValue.FromObject(JsEngine, productFloat);
+                }
+
+                if (!AllIntegral(args))
+                    throw new Exception("MUL expects numeric inputs.");
+
+                ulong productInt = 1;
+                unchecked
+                {
+                    for (var i = 0; i < args.Length; i++)
+                        productInt *= AsUInt64(args[i]);
+                }
+                return JsValue.FromObject(JsEngine, productInt);
+            }, 0, funcFlags));
+
             var types = new[] {
-                typeof(TON), typeof(TOF), typeof(TP), typeof(AND), typeof(OR), typeof(NOT), typeof(XOR),
-                typeof(NAND), typeof(NOR), typeof(SR), typeof(RS), typeof(R_TRIG), typeof(F_TRIG),
-                typeof(CTU), typeof(CTD), typeof(CTUD), typeof(EQ), typeof(NE), typeof(LT),
-                typeof(GT), typeof(GE), typeof(LE), typeof(MOVE), typeof(SEL), typeof(MUX),
-                typeof(MIN), typeof(MAX), typeof(LIMIT), typeof(ASSIGNMENT)
+                typeof(TON), typeof(TOF), typeof(TP), typeof(SR), typeof(RS), typeof(R_TRIG), typeof(F_TRIG),
+                typeof(CTU), typeof(CTD), typeof(CTUD)
             };
             foreach (var t in types)
                 JsEngine.SetValue(t.Name, TypeReference.CreateTypeReference(JsEngine, t));
@@ -1097,75 +1529,6 @@ namespace Nodalis
         }
     }
     /// <summary>
-    /// implements the EQ function block.
-    /// </summary>
-    public class EQ
-    {
-        public uint IN1;
-        public uint IN2;
-        public bool OUT;
-        public void call() => OUT = IN1 == IN2;
-    }
-    /// <summary>
-    /// Implements the NE function block.
-    /// </summary>
-    public class NE
-    {
-        public uint IN1;
-        public uint IN2;
-        public bool OUT;
-        public void call() => OUT = IN1 != IN2;
-    }
-    /// <summary>
-    /// Implements the LT function block.
-    /// </summary>
-    public class LT
-    {
-        public uint IN1;
-        public uint IN2;
-        public bool OUT;
-        public void call() => OUT = IN1 < IN2;
-    }
-    /// <summary>
-    /// Implements GT function block.
-    /// </summary>
-    public class GT
-    {
-        public uint IN1;
-        public uint IN2;
-        public bool OUT;
-        public void call() => OUT = IN1 > IN2;
-    }
-    /// <summary>
-    /// Implements the GE function block.
-    /// </summary>
-    public class GE
-    {
-        public uint IN1;
-        public uint IN2;
-        public bool OUT;
-        public void call() => OUT = IN1 >= IN2;
-    }
-    /// <summary>
-    /// Implements the LE function block.
-    /// </summary>
-    public class LE
-    {
-        public uint IN1;
-        public uint IN2;
-        public bool OUT;
-        public void call() => OUT = IN1 <= IN2;
-    }
-    /// <summary>
-    /// Implements the MOVE function block.
-    /// </summary>
-    public class MOVE
-    {
-        public uint IN;
-        public uint OUT;
-        public void call() => OUT = IN;
-    }
-    /// <summary>
     /// Implements the SEL function block.
     /// </summary>
     public class SEL
@@ -1222,14 +1585,5 @@ namespace Nodalis
             else if (IN > MX) OUT = MX;
             else OUT = IN;
         }
-    }
-    /// <summary>
-    /// Implements the ASSIGNMENT function block.
-    /// </summary>
-    public class ASSIGNMENT
-    {
-        public bool IN;
-        public bool OUT;
-        public void call() => OUT = IN;
     }
 }

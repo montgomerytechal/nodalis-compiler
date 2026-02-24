@@ -2904,149 +2904,176 @@ export class FbdObject extends Serializable {
         {
             TypeName: "TON",
             InputVariables: ["IN", "PT"],
-            OutputVariables: ["Q", "ET"]
+            OutputVariables: ["Q", "ET"],
+            Style: "FB"
         },
         {
             TypeName: "TOF",
             InputVariables: ["IN", "PT"],
-            OutputVariables: ["Q", "ET"]
+            OutputVariables: ["Q", "ET"],
+            Style: "FB"
         },
         {
             TypeName: "TP",
             InputVariables: ["IN", "PT"],
-            OutputVariables: ["Q", "ET"]
+            OutputVariables: ["Q", "ET"],
+            Style: "FB"
         },
         {
             TypeName: "OR",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "AND",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
-        },
-        {
-            TypeName: "ASSIGNMENT",
-            InputVariables: ["IN"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "NOT",
             InputVariables: ["IN"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "XOR",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "NOR",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "NAND",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "SR",
             InputVariables: ["S1", "R"],
-            OutputVariables: ["Q1"]
+            OutputVariables: ["Q1"],
+            Style: "FB"
         },
         {
             TypeName: "RS",
             InputVariables: ["S", "R1"],
-            OutputVariables: ["Q1"]
+            OutputVariables: ["Q1"],
+            Style: "FB"
         },
         {
             TypeName: "R_TRIG",
             InputVariables: ["CLK"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "FB"
         },
         {
             TypeName: "F_TRIG",
             InputVariables: ["CLK"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "FB"
         },
         {
             TypeName: "CTU",
             InputVariables: ["CU", "R", "PV"],
-            OutputVariables: ["Q", "CV"]
+            OutputVariables: ["Q", "CV"],
+            Style: "FB"
         },
         {
             TypeName: "CTD",
             InputVariables: ["CD", "LD", "PV"],
-            OutputVariables: ["Q", "CV"]
+            OutputVariables: ["Q", "CV"],
+            Style: "FB"
         },
         {
             TypeName: "CTUD",
             InputVariables: ["CU", "CD", "R", "LD", "PV"],
-            OutputVariables: ["QU", "QD", "CV"]
+            OutputVariables: ["QU", "QD", "CV"],
+            Style: "FB"
         },
         {
             TypeName: "EQ",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "NE",
             InputVariables: ["IN1, IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "LT",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "GT",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "GE",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "LE",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "MOVE",
             InputVariables: ["IN"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "SEL",
             InputVariables: ["G", "IN0", "IN1"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "MUX",
             InputVariables: ["K", "IN0", "IN1"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "MIN",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "MAX",
             InputVariables: ["IN1", "IN2"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
         {
             TypeName: "LIMIT",
             InputVariables: ["MN", "IN", "MX"],
-            OutputVariables: ["OUT"]
+            OutputVariables: ["OUT"],
+            Style: "F"
         },
     ];
+
+    static getStandardBlock(name) {
+        return FbdObject.StandardBlocks.find(fb => fb.TypeName === name);
+    }
 
     /**
      * Creates an instantiation of an FbdObject block based on the given properties.

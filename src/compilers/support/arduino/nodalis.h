@@ -442,42 +442,38 @@ private:
     uint64_t startTime = 0;
 };
 
-#define BOOL_GATE(NAME, EXPR)  \
-    class NAME                 \
-    {                          \
-    public:                    \
-        bool IN1 = false;      \
-        bool IN2 = false;      \
-        bool OUT = false;      \
-        void operator()()      \
-        {                      \
-            OUT = (EXPR);      \
-        }                      \
-    };
-
-BOOL_GATE(AND, IN1 && IN2)
-BOOL_GATE(OR, IN1 || IN2)
-BOOL_GATE(XOR, IN1 != IN2)
-BOOL_GATE(NOR, !(IN1 || IN2))
-BOOL_GATE(NAND, !(IN1 && IN2))
-#undef BOOL_GATE
-
-class NOT
+template <typename T>
+inline T AND(T IN1, T IN2)
 {
-public:
-    bool IN = false;
-    bool OUT = false;
-    void operator()() { OUT = !IN; }
-};
-
-class ASSIGNMENT
+    return IN1 & IN2;
+}
+template <typename T>
+inline T OR(T IN1, T IN2)
 {
-public:
-    bool IN = false;
-    bool OUT = false;
-    void operator()() { OUT = IN; }
-};
+    return IN1 | IN2;
+}
+template <typename T>
+inline T XOR(T IN1, T IN2)
+{
+    return IN1 ^ IN2;
+}
+template <typename T>
+inline T NOR(T IN1, T IN2)
+{
+    return ~(IN1 | IN2);
+}
+template <typename T>
+inline T NAND(T IN1, T IN2)
+{
+    return ~(IN1 & IN2);
+}
+template <typename T>
+inline T NOT(T IN)
+{
+    return ~(IN);
+}
 
+// Set/Reset flip-flops
 class SR
 {
 public:
@@ -510,6 +506,7 @@ public:
     }
 };
 
+// Rising-edge Trigger
 class R_TRIG
 {
 public:
@@ -526,6 +523,7 @@ private:
     bool lastCLK = false;
 };
 
+// Falling-edge Trigger
 class F_TRIG
 {
 public:
@@ -542,6 +540,7 @@ private:
     bool lastCLK = false;
 };
 
+// Up Counter
 class CTU
 {
 public:
@@ -569,6 +568,7 @@ private:
     bool lastCU = false;
 };
 
+// Down Counter
 class CTD
 {
 public:
@@ -596,6 +596,7 @@ private:
     bool lastCD = false;
 };
 
+// Up/Down Counter
 class CTUD
 {
 public:
@@ -638,17 +639,12 @@ private:
     bool lastCD = false;
 };
 
-#define COMP_BLOCK(NAME, EXPR) \
-    class NAME                 \
-    {                          \
-    public:                    \
-        uint32_t IN1 = 0;      \
-        uint32_t IN2 = 0;      \
-        bool OUT = false;      \
-        void operator()()      \
-        {                      \
-            OUT = (EXPR);      \
-        }                      \
+// Comparison blocks
+#define COMP_BLOCK(NAME, EXPR)  \
+    template <typename T>       \
+    inline T NAME(T IN1, T IN2) \
+    {                           \
+        return (EXPR);          \
     };
 
 COMP_BLOCK(EQ, IN1 == IN2)
@@ -659,67 +655,285 @@ COMP_BLOCK(GE, IN1 >= IN2)
 COMP_BLOCK(LE, IN1 <= IN2)
 #undef COMP_BLOCK
 
-class MOVE
+template <typename T>
+inline T MOVE(T IN, T &OUT)
 {
-public:
-    uint32_t IN = 0;
-    uint32_t OUT = 0;
-    void operator()() { OUT = IN; }
+    OUT = IN;
 };
 
-class SEL
+template <typename T>
+inline T SEL(bool G, T IN0, T IN1)
 {
-public:
-    bool G = false;
-    uint32_t IN0 = 0;
-    uint32_t IN1 = 0;
-    uint32_t OUT = 0;
-    void operator()() { OUT = G ? IN1 : IN0; }
+    return G ? IN1 : IN0;
 };
 
-class MUX
+template <typename T, typename... Ts>
+inline T MUX(std::size_t K, T in0, Ts... rest)
 {
-public:
-    bool K = false;
-    uint32_t IN0 = 0;
-    uint32_t IN1 = 0;
-    uint32_t OUT = 0;
-    void operator()() { OUT = K ? IN1 : IN0; }
-};
-
-class MIN
-{
-public:
-    uint32_t IN1 = 0;
-    uint32_t IN2 = 0;
-    uint32_t OUT = 0;
-    void operator()() { OUT = std::min(IN1, IN2); }
-};
-
-class MAX
-{
-public:
-    uint32_t IN1 = 0;
-    uint32_t IN2 = 0;
-    uint32_t OUT = 0;
-    void operator()() { OUT = std::max(IN1, IN2); }
-};
-
-class LIMIT
-{
-public:
-    uint32_t MN = 0;
-    uint32_t IN = 0;
-    uint32_t MX = 0;
-    uint32_t OUT = 0;
-
-    void operator()()
+    constexpr std::size_t N = 1 + sizeof...(Ts);
+    if (K >= N)
     {
-        if (IN < MN)
-            OUT = MN;
-        else if (IN > MX)
-            OUT = MX;
-        else
-            OUT = IN;
+        throw std::out_of_range("MUX selector out of range");
     }
+
+    auto values = std::tuple<T, Ts...>(in0, rest...);
+    return std::apply(
+        [K](auto... elems) -> T
+        {
+            T arr[] = {elems...};
+            return arr[K];
+        },
+        values);
 };
+
+// ============================================================
+// Type helpers
+// ============================================================
+
+template <typename T>
+using decay_t = typename std::decay<T>::type;
+
+template <typename T>
+inline constexpr bool is_integral_v = std::is_integral<decay_t<T>>::value;
+
+template <typename T>
+inline constexpr bool is_floating_v = std::is_floating_point<decay_t<T>>::value;
+
+template <typename T>
+inline constexpr bool is_arithmetic_v = std::is_arithmetic<decay_t<T>>::value;
+
+template <typename T>
+using enable_if_integral_t = std::enable_if_t<is_integral_v<T>, int>;
+
+template <typename T>
+using enable_if_arithmetic_t = std::enable_if_t<is_arithmetic_v<T>, int>;
+
+template <typename T>
+using enable_if_floating_t = std::enable_if_t<is_floating_v<T>, int>;
+
+// ============================================================
+// Selection / limit
+// ============================================================
+
+template <typename T>
+inline T MAX(const T &a, const T &b)
+{
+    return (a < b) ? b : a;
+}
+
+template <typename T, typename... Ts>
+inline T MAX(const T &a, const T &b, const Ts &...rest)
+{
+    return MAX(MAX(a, b), rest...);
+}
+
+template <typename T>
+inline T MIN(const T &a, const T &b)
+{
+    return (b < a) ? b : a;
+}
+
+template <typename T, typename... Ts>
+inline T MIN(const T &a, const T &b, const Ts &...rest)
+{
+    return MIN(MIN(a, b), rest...);
+}
+
+template <typename T>
+inline T LIMIT(const T &mn, const T &in, const T &mx)
+{
+    // IEC-style clamp: MIN(MAX(IN, MN), MX)
+    return MIN(MAX(in, mn), mx);
+}
+
+// ============================================================
+// Arithmetic
+// ============================================================
+
+template <typename T>
+inline T ADD(const T &a, const T &b)
+{
+    return a + b;
+}
+
+template <typename T, typename... Ts>
+inline T ADD(const T &a, const T &b, const Ts &...rest)
+{
+    return ADD(static_cast<T>(a + b), rest...);
+}
+
+template <typename T>
+inline T MUL(const T &a, const T &b)
+{
+    return a * b;
+}
+
+template <typename T, typename... Ts>
+inline T MUL(const T &a, const T &b, const Ts &...rest)
+{
+    return MUL(static_cast<T>(a * b), rest...);
+}
+
+template <typename T>
+inline T SUB(const T &a, const T &b)
+{
+    return a - b;
+}
+
+template <typename T>
+inline T DIV(const T &a, const T &b)
+{
+    return a / b;
+}
+
+template <typename T, enable_if_integral_t<T> = 0>
+inline T MOD(const T &a, const T &b)
+{
+    return a % b;
+}
+
+// Floating-point MOD variant (optional but useful)
+template <typename T, enable_if_floating_t<T> = 0>
+inline T MOD(const T &a, const T &b)
+{
+    return std::fmod(a, b);
+}
+
+template <typename T>
+inline T EXPT(const T &base, const T &exp)
+{
+    using R = decltype(std::pow(base, exp));
+    return static_cast<T>(std::pow(static_cast<R>(base), static_cast<R>(exp)));
+}
+
+// ============================================================
+// Math / transcendental
+// (Return type follows std::<fn> result type)
+// ============================================================
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto SIN(T x) -> decltype(std::sin(x))
+{
+    return std::sin(x);
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto COS(T x) -> decltype(std::cos(x))
+{
+    return std::cos(x);
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto TAN(T x) -> decltype(std::tan(x))
+{
+    return std::tan(x);
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto ASIN(T x) -> decltype(std::asin(x))
+{
+    return std::asin(x);
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto ACOS(T x) -> decltype(std::acos(x))
+{
+    return std::acos(x);
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto ATAN(T x) -> decltype(std::atan(x))
+{
+    return std::atan(x);
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto ABS(T x) -> decltype(std::abs(x))
+{
+    return std::abs(x);
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto SQRT(T x) -> decltype(std::sqrt(x))
+{
+    return std::sqrt(x);
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto LN(T x) -> decltype(std::log(x))
+{
+    return std::log(x); // natural log
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto LOG(T x) -> decltype(std::log10(x))
+{
+    return std::log10(x); // base-10 log
+}
+
+template <typename T, enable_if_arithmetic_t<T> = 0>
+inline auto EXP(T x) -> decltype(std::exp(x))
+{
+    return std::exp(x);
+}
+
+// ============================================================
+// Bit shifts / rotates
+// ============================================================
+
+// IEC SHL/SHR usually mean logical shifts on bit strings.
+// For signed inputs, behavior can be surprising; recommend unsigned IEC types.
+
+template <typename T, enable_if_integral_t<T> = 0>
+inline T SHL(T in, unsigned int n)
+{
+    constexpr unsigned W = std::numeric_limits<std::make_unsigned_t<T>>::digits;
+    if (W == 0)
+        return in;
+    if (n >= W)
+        return static_cast<T>(0);
+    using U = std::make_unsigned_t<T>;
+    return static_cast<T>(static_cast<U>(in) << n);
+}
+
+template <typename T, enable_if_integral_t<T> = 0>
+inline T SHR(T in, unsigned int n)
+{
+    constexpr unsigned W = std::numeric_limits<std::make_unsigned_t<T>>::digits;
+    if (W == 0)
+        return in;
+    if (n >= W)
+        return static_cast<T>(0);
+    using U = std::make_unsigned_t<T>;
+    return static_cast<T>(static_cast<U>(in) >> n); // logical shift right
+}
+
+// Rotate left
+template <typename T, enable_if_integral_t<T> = 0>
+inline T ROL(T in, unsigned int n)
+{
+    using U = std::make_unsigned_t<T>;
+    constexpr unsigned W = std::numeric_limits<U>::digits;
+    static_assert(W > 0, "Integral type width must be > 0");
+
+    U x = static_cast<U>(in);
+    n %= W;
+    if (n == 0)
+        return static_cast<T>(x);
+    return static_cast<T>((x << n) | (x >> (W - n)));
+}
+
+// Rotate right
+template <typename T, enable_if_integral_t<T> = 0>
+inline T ROR(T in, unsigned int n)
+{
+    using U = std::make_unsigned_t<T>;
+    constexpr unsigned W = std::numeric_limits<U>::digits;
+    static_assert(W > 0, "Integral type width must be > 0");
+
+    U x = static_cast<U>(in);
+    n %= W;
+    if (n == 0)
+        return static_cast<T>(x);
+    return static_cast<T>((x >> n) | (x << (W - n)));
+}
