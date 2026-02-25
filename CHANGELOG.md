@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.0.17] 2026-02-25
+- Added support for compilation of multiple ST files as a single project.
+- Added support for formal parameters.
+- Added all standard math, logic, comparison, and select functions.
+- Added support for type casting.
+- Tested to PLCOpen reliability standard.
+- Added support for Arduino targets.
+- Added File and SSH programmers.
+
 ## [1.0.16] - 2026-02-13
 
 - Fixed issues with compiling function blocks in jint.

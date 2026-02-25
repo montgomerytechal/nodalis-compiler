@@ -170,6 +170,7 @@ Choose the desired format via the CLI `--target`/`--outputType` flags.
 | `src/nodalis.js` | CLI entry point and core controller |
 | `src/compilers/CPPCompiler.js` | C++ backend implementation |
 | `src/compilers/JSCompiler.js` | Node.js backend implementation |
+| `src/compilers/ArduinoCompiler.js` | Arduino backend implementation |
 | `test/st/*.js` | Unit tests for compilers |
 | `examples/*.iec` | Example IEC programs |
 
