@@ -182,8 +182,18 @@ export class Nodalis {
 
 }
 
-// === CLI Entry Point ===
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+function isCliEntryPoint() {
+  try {
+    if (!process.argv[1]) return false;
+    const invokedPath = fs.realpathSync(process.argv[1]);
+    const modulePath = fs.realpathSync(fileURLToPath(import.meta.url));
+    return invokedPath === modulePath;
+  } catch {
+    return false;
+  }
+}
+
+if (isCliEntryPoint()) {
 
     if (process.argv.includes('--help') || process.argv.includes('-h')) {
   console.log(`
