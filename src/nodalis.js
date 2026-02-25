@@ -49,7 +49,17 @@ const availableProgrammers = [
   new ArduinoProgrammer()
 ];
 
-function validateFileExtension(language, sourcePath) {
+function validateFileExtension(language, sourcePath, resourceName) {
+  if (fs.existsSync(sourcePath) && fs.lstatSync(sourcePath).isDirectory()) {
+    if (String(language || '').toLowerCase() === 'st') {
+      if (typeof resourceName !== 'string' || resourceName.trim().length === 0) {
+        throw new Error("When sourcePath is a directory for language 'st', you must provide resourceName.");
+      }
+      return;
+    }
+    throw new Error(`Directory sourcePath is only supported for language 'st', got '${language}'.`);
+  }
+
   const ext = path.extname(sourcePath).toLowerCase();
   language = language.toLowerCase();
   if (language === 'st') {
@@ -124,7 +134,7 @@ export class Nodalis {
     codesysProjectFile,
     codesysPouName
   }) {
-    validateFileExtension(language, sourcePath);
+    validateFileExtension(language, sourcePath, resourceName);
 
     const compiler = this.getCompiler(target, outputType, language);
     if (!compiler) {

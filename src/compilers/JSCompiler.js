@@ -55,11 +55,24 @@ export class JSCompiler extends Compiler {
     }
 
     async compile() {
-        const { sourcePath, outputPath, target, outputType, resourceName } = this.options;
-        var sourceCode = fs.readFileSync(sourcePath, 'utf-8');
-        const filename = path.basename(sourcePath, path.extname(sourcePath));
+        const { sourcePath, outputPath, target, outputType, resourceName, language } = this.options;
+        const sourcePathStat = fs.lstatSync(sourcePath);
+        const sourceIsDirectory = sourcePathStat.isDirectory();
+        const isStructuredTextLanguage = String(language || '').toUpperCase() === IECLanguage.STRUCTURED_TEXT;
+        const directoryBundleMode = sourceIsDirectory && isStructuredTextLanguage && typeof resourceName === 'string' && resourceName.trim().length > 0;
+        const sourceName = directoryBundleMode ? resourceName : sourcePath;
+        const filename = path.basename(sourceName, path.extname(sourceName));
+        let sourceCode = '';
+        let bundleEntryProgram = '';
+        if (directoryBundleMode) {
+            const { combinedSource, entryProgramName } = this.loadStructuredTextBundle(sourcePath, resourceName);
+            sourceCode = combinedSource;
+            bundleEntryProgram = entryProgramName;
+        } else {
+            sourceCode = fs.readFileSync(sourcePath, 'utf-8');
+        }
         const jsFile = path.join(outputPath, `nodalisplc.js`);
-        const stFile = path.join(outputPath, `${filename}.st`);
+        const stFile = path.join(outputPath, directoryBundleMode ? 'nodalisplc.st' : `${filename}.st`);
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             if(typeof resourceName === "undefined" || resourceName === null || resourceName.length === 0){
                 throw new Error("You must provide the resourceName option for an IEC project file.");
@@ -151,6 +164,13 @@ export class JSCompiler extends Compiler {
 `;
             });
         }
+        else if (directoryBundleMode) {
+            if (target === "nodejs") {
+                taskCode = `setInterval(() => {\n${bundleEntryProgram}();\n}, 100);`;
+            } else {
+                taskCode = `${bundleEntryProgram}();\n`;
+            }
+        }
         else{
             if(target === "nodejs") taskCode = "setInterval(() => {\n";
             programs.forEach((p) => {
@@ -165,7 +185,15 @@ export class JSCompiler extends Compiler {
         TON, TOF, TP, R_TRIG, F_TRIG, CTU, CTD, CTUD,
         AND, OR, XOR, NOR, NAND, NOT, ASSIGNMENT,
         EQ, NE, LT, GT, GE, LE,
-        MOVE, SEL, MUX, MIN, MAX, LIMIT
+        MOVE, SEL, MUX, MIN, MAX, LIMIT,
+        INT_TO_DINT, INT_TO_UINT, INT_TO_UDINT, INT_TO_REAL, INT_TO_LREAL, INT_TO_WORD, INT_TO_DWORD,
+        DINT_TO_INT, DINT_TO_UINT, DINT_TO_UDINT, DINT_TO_REAL, DINT_TO_LREAL, DINT_TO_WORD, DINT_TO_DWORD,
+        UINT_TO_DINT, UINT_TO_INT, UINT_TO_UDINT, UINT_TO_REAL, UINT_TO_LREAL, UINT_TO_WORD, UINT_TO_DWORD,
+        UDINT_TO_DINT, UDINT_TO_INT, UDINT_TO_UINT, UDINT_TO_REAL, UDINT_TO_LREAL, UDINT_TO_WORD, UDINT_TO_DWORD,
+        REAL_TO_DINT, REAL_TO_INT, REAL_TO_UINT, REAL_TO_UDINT, REAL_TO_LREAL, REAL_TO_WORD, REAL_TO_DWORD,
+        LREAL_TO_DINT, LREAL_TO_INT, LREAL_TO_UINT, LREAL_TO_UDINT, LREAL_TO_REAL, LREAL_TO_WORD, LREAL_TO_DWORD,
+        WORD_TO_DINT, WORD_TO_INT, WORD_TO_UDINT, WORD_TO_REAL, WORD_TO_LREAL, WORD_TO_UINT, WORD_TO_DWORD,
+        DWORD_TO_DINT, DWORD_TO_INT, DWORD_TO_UINT, DWORD_TO_REAL, DWORD_TO_LREAL, DWORD_TO_WORD, DWORD_TO_UDINT
 } from "./nodalis.js";
  import {OPCServer} from "./opcua.js";`;
         if(target === "jint"){
@@ -196,7 +224,11 @@ export function run(){
         }
         fs.mkdirSync(outputPath, { recursive: true });
         fs.writeFileSync(jsFile, jsCode);
-        if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
+        const binDir = path.join(outputPath, 'bin');
+        if (outputType === 'executable') {
+            fs.mkdirSync(binDir, { recursive: true });
+        }
+        if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml") || directoryBundleMode){
             fs.writeFileSync(stFile, sourceCode);
         }
         if(target === "nodejs"){
@@ -214,6 +246,9 @@ export function run(){
             
             for (const file of coreFiles) {
                 fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
+            }
+            if (outputType === 'executable') {
+                fs.copyFileSync(jsFile, path.join(binDir, 'nodalisplc.js'));
             }
             writePackageJson(outputPath, plcname);
             installDependencies(outputPath);
@@ -263,10 +298,63 @@ export function run(){
                 }
 
             }
+
+            for (const platformDir of platforms) {
+                const platformName = path.basename(platformDir);
+                const platformBinDir = path.join(binDir, platformName);
+                fs.mkdirSync(platformBinDir, { recursive: true });
+                fs.cpSync(platformDir, platformBinDir, { recursive: true, force: true });
+            }
         }
     }
 
 }
+
+JSCompiler.prototype.loadStructuredTextBundle = function (sourcePath, resourceName) {
+    const stFiles = fs.readdirSync(sourcePath, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.st'))
+        .map((entry) => entry.name);
+
+    if (stFiles.length === 0) {
+        throw new Error(`No .st files found in source directory "${sourcePath}".`);
+    }
+
+    const normalizedResource = String(resourceName || '').trim();
+    const candidateNames = new Set([
+        normalizedResource,
+        normalizedResource.toLowerCase(),
+        normalizedResource.toLowerCase().endsWith('.st') ? normalizedResource.toLowerCase() : `${normalizedResource.toLowerCase()}.st`
+    ]);
+
+    const entryFile = stFiles.find((file) => {
+        const lower = file.toLowerCase();
+        return candidateNames.has(file) || candidateNames.has(lower);
+    });
+
+    if (!entryFile) {
+        throw new Error(`resourceName "${resourceName}" is not an .st file in "${sourcePath}".`);
+    }
+
+    const orderedFiles = [
+        ...stFiles.filter((file) => file !== entryFile).sort((a, b) => a.localeCompare(b)),
+        entryFile
+    ];
+
+    const combinedSource = orderedFiles
+        .map((file) => fs.readFileSync(path.join(sourcePath, file), 'utf-8').trim())
+        .filter((text) => text.length > 0)
+        .join('\n\n');
+
+    const entrySource = fs.readFileSync(path.join(sourcePath, entryFile), 'utf-8');
+    const entryProgramName = this.extractFirstProgramName(entrySource) || path.basename(entryFile, path.extname(entryFile));
+
+    return { combinedSource, entryProgramName };
+};
+
+JSCompiler.prototype.extractFirstProgramName = function (sourceCode) {
+    const match = String(sourceCode || '').match(/^\s*PROGRAM\s+([A-Za-z_]\w*)/im);
+    return match ? match[1] : null;
+};
 
 function writePackageJson(outputDir,plcname) {
   const pkg = {

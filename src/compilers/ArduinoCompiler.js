@@ -50,6 +50,12 @@ const UNSUPPORTED_ARDUINO_TARGET_ALIASES = {
 
 let CachedArduinoTargetTable = null;
 
+const getExecOutputText = (bufferOrString) => {
+    if (typeof bufferOrString === 'string') return bufferOrString.trim();
+    if (Buffer.isBuffer(bufferOrString)) return bufferOrString.toString('utf8').trim();
+    return '';
+};
+
 export class ArduinoCompiler extends Compiler {
     constructor(options) {
         super(options);
@@ -83,10 +89,14 @@ export class ArduinoCompiler extends Compiler {
     }
 
     async compile() {
-        const { sourcePath, outputPath, target, outputType, resourceName } = this.options;
+        const { sourcePath, outputPath, target, outputType, resourceName, language } = this.options;
+        const sourcePathStat = fs.lstatSync(sourcePath);
+        const sourceIsDirectory = sourcePathStat.isDirectory();
+        const isStructuredTextLanguage = String(language || '').toUpperCase() === IECLanguage.STRUCTURED_TEXT;
+        const directoryBundleMode = sourceIsDirectory && isStructuredTextLanguage && typeof resourceName === 'string' && resourceName.trim().length > 0;
         let compilerConfig = {};
 
-        const sourceDir = fs.lstatSync(sourcePath).isDirectory() ? sourcePath : path.dirname(sourcePath);
+        const sourceDir = sourceIsDirectory ? sourcePath : path.dirname(sourcePath);
         const toolchainConfigPath = path.join(sourceDir, 'toolchain.json');
         if (fs.existsSync(toolchainConfigPath)) {
             try {
@@ -100,11 +110,20 @@ export class ArduinoCompiler extends Compiler {
             }
         }
 
-        let sourceCode = fs.readFileSync(sourcePath, 'utf-8');
-        const filename = path.basename(sourcePath, path.extname(sourcePath));
+        const sourceName = directoryBundleMode ? resourceName : sourcePath;
+        let filename = path.basename(sourceName, path.extname(sourceName));
+        let sourceCode = '';
+        let bundleEntryProgram = '';
+        if (directoryBundleMode) {
+            const { combinedSource, entryProgramName } = this.loadStructuredTextBundle(sourcePath, resourceName);
+            sourceCode = combinedSource;
+            bundleEntryProgram = entryProgramName;
+        } else {
+            sourceCode = fs.readFileSync(sourcePath, 'utf-8');
+        }
         const sketchName = path.basename(path.resolve(outputPath));
         const inoFile = path.join(outputPath, `${sketchName}.ino`);
-        const stFile = path.join(outputPath, `${filename}.st`);
+        const stFile = path.join(outputPath, directoryBundleMode ? 'nodalisplc.st' : `${filename}.st`);
         if (sourcePath.toLowerCase().endsWith('.iec') || sourcePath.toLowerCase().endsWith('.xml')) {
             if (typeof resourceName === 'undefined' || resourceName === null || resourceName.length === 0) {
                 throw new Error('You must provide the resourceName option for an IEC project file.');
@@ -188,6 +207,9 @@ export class ArduinoCompiler extends Compiler {
                 taskCode += `\n    if(PROGRAM_COUNT % ${t.Interval} == 0){\n        ${progCode}\n    }\n`;
             });
         }
+        else if (directoryBundleMode) {
+            taskCode += `\n    if(PROGRAM_COUNT % 100 == 0){\n        ${bundleEntryProgram}();\n    }\n`;
+        }
         else {
             programs.forEach((p) => {
                 taskCode += p + '();\n';
@@ -220,7 +242,7 @@ void loop() {
 
         fs.mkdirSync(outputPath, { recursive: true });
         fs.writeFileSync(inoFile, inoCode);
-        if (sourcePath.toLowerCase().endsWith('.iec') || sourcePath.toLowerCase().endsWith('.xml')) {
+        if (sourcePath.toLowerCase().endsWith('.iec') || sourcePath.toLowerCase().endsWith('.xml') || directoryBundleMode) {
             fs.writeFileSync(stFile, sourceCode);
         }
 
@@ -244,14 +266,68 @@ void loop() {
             this.ensureArduinoCoreInstalled(arduinoCli, arduinoFqbn);
 
             const buildDir = path.join(outputPath, 'build');
+            const binDir = path.join(outputPath, 'bin');
             fs.mkdirSync(buildDir, { recursive: true });
-            const arduinoCompileCmd = `${arduinoCli} compile --fqbn "${arduinoFqbn}" "${outputPath}" --build-path "${buildDir}" --output-dir "${buildDir}" --export-binaries`;
+            fs.mkdirSync(binDir, { recursive: true });
+            const arduinoCompileCmd = `${arduinoCli} compile --fqbn "${arduinoFqbn}" "${outputPath}" --build-path "${buildDir}" --output-dir "${binDir}" --export-binaries`;
             try {
-                execSync(arduinoCompileCmd, { stdio: 'inherit' });
+                execSync(arduinoCompileCmd, { stdio: 'pipe' });
             } catch (err) {
-                throw new Error(`Arduino CLI build failed. Verify arduino-cli is installed and the board core for "${arduinoFqbn}" is available. Inner error: ${err.message}`);
+                const stderrText = getExecOutputText(err?.stderr);
+                const stdoutText = getExecOutputText(err?.stdout);
+                const compilerOutput = [stderrText, stdoutText].filter(Boolean).join('\n');
+                const details = compilerOutput || err.message;
+                throw new Error(
+                    `Arduino CLI build failed for "${arduinoFqbn}". Verify arduino-cli and board core availability.\n${details}`
+                );
             }
         }
+    }
+
+    loadStructuredTextBundle(sourcePath, resourceName) {
+        const stFiles = fs.readdirSync(sourcePath, { withFileTypes: true })
+            .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.st'))
+            .map((entry) => entry.name);
+
+        if (stFiles.length === 0) {
+            throw new Error(`No .st files found in source directory "${sourcePath}".`);
+        }
+
+        const normalizedResource = String(resourceName || '').trim();
+        const candidateNames = new Set([
+            normalizedResource,
+            normalizedResource.toLowerCase(),
+            normalizedResource.toLowerCase().endsWith('.st') ? normalizedResource.toLowerCase() : `${normalizedResource.toLowerCase()}.st`
+        ]);
+
+        const entryFile = stFiles.find((file) => {
+            const lower = file.toLowerCase();
+            return candidateNames.has(file) || candidateNames.has(lower);
+        });
+
+        if (!entryFile) {
+            throw new Error(`resourceName "${resourceName}" is not an .st file in "${sourcePath}".`);
+        }
+
+        const orderedFiles = [
+            ...stFiles.filter((file) => file !== entryFile).sort((a, b) => a.localeCompare(b)),
+            entryFile
+        ];
+
+        const combinedSource = orderedFiles
+            .map((file) => fs.readFileSync(path.join(sourcePath, file), 'utf-8').trim())
+            .filter((text) => text.length > 0)
+            .join('\n\n');
+
+        const entrySource = fs.readFileSync(path.join(sourcePath, entryFile), 'utf-8');
+        const entryProgramName = this.extractFirstProgramName(entrySource) || path.basename(entryFile, path.extname(entryFile));
+
+        return { combinedSource, entryProgramName };
+    }
+
+    extractFirstProgramName(sourceCode) {
+        const match = String(sourceCode || '').match(/^\s*PROGRAM\s+([A-Za-z_]\w*)/im);
+        return match ? match[1] : null;
     }
 
     resolveArduinoFqbn(target, compilerConfig = {}) {

@@ -40,6 +40,12 @@ const DEFAULT_TOOLCHAIN = {
 
 let ToolChain = { ...DEFAULT_TOOLCHAIN };
 
+const getExecOutputText = (bufferOrString) => {
+    if (typeof bufferOrString === 'string') return bufferOrString.trim();
+    if (Buffer.isBuffer(bufferOrString)) return bufferOrString.toString('utf8').trim();
+    return '';
+};
+
 export class CPPCompiler extends Compiler {
     constructor(options) {
         super(options);
@@ -67,10 +73,14 @@ export class CPPCompiler extends Compiler {
     }
 
     async compile() {
-        const { sourcePath, outputPath, target, outputType, resourceName } = this.options;
+        const { sourcePath, outputPath, target, outputType, resourceName, language } = this.options;
+        const sourcePathStat = fs.lstatSync(sourcePath);
+        const sourceIsDirectory = sourcePathStat.isDirectory();
+        const isStructuredTextLanguage = String(language || '').toUpperCase() === IECLanguage.STRUCTURED_TEXT;
+        const directoryBundleMode = sourceIsDirectory && isStructuredTextLanguage && typeof resourceName === 'string' && resourceName.trim().length > 0;
 
         ToolChain = { ...DEFAULT_TOOLCHAIN };
-        const sourceDir = fs.lstatSync(sourcePath).isDirectory() ? sourcePath : path.dirname(sourcePath);
+        const sourceDir = sourceIsDirectory ? sourcePath : path.dirname(sourcePath);
         const toolchainConfigPath = path.join(sourceDir, "toolchain.json");
         if (fs.existsSync(toolchainConfigPath)) {
             try {
@@ -87,10 +97,21 @@ export class CPPCompiler extends Compiler {
             fs.writeFileSync(toolchainConfigPath, JSON.stringify(ToolChain, null, 4));
         }
 
-        var sourceCode = fs.readFileSync(sourcePath, 'utf-8');
-        const filename = path.basename(sourcePath, path.extname(sourcePath));
+        const sourceName = directoryBundleMode ? resourceName : sourcePath;
+        let filename = path.basename(sourceName, path.extname(sourceName));
+        let sourceCode = '';
+        let bundleEntryProgram = '';
+
+        if (directoryBundleMode) {
+            const { combinedSource, entryProgramName } = this.loadStructuredTextBundle(sourcePath, resourceName);
+            sourceCode = combinedSource;
+            bundleEntryProgram = entryProgramName;
+        } else {
+            sourceCode = fs.readFileSync(sourcePath, 'utf-8');
+        }
+
         const cppFile = path.join(outputPath, `${filename}.cpp`);
-        const stFile = path.join(outputPath, `${filename}.st`);
+        const stFile = path.join(outputPath, directoryBundleMode ? 'nodalisplc.st' : `${filename}.st`);
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             if(typeof resourceName === "undefined" || resourceName === null || resourceName.length === 0){
                 throw new Error("You must provide the resourceName option for an IEC project file.");
@@ -182,6 +203,14 @@ export class CPPCompiler extends Compiler {
 `;
             });
         }
+        else if (directoryBundleMode) {
+            taskCode += 
+`
+    if(PROGRAM_COUNT % 100 == 0){
+        ${bundleEntryProgram}();
+    }
+`;
+        }
         else{
             programs.forEach((p) => {
                 taskCode += p + "();\n";
@@ -222,7 +251,7 @@ int main() {
 
         fs.mkdirSync(outputPath, { recursive: true });
         fs.writeFileSync(cppFile, cppCode);
-        if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
+        if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml") || directoryBundleMode){
             fs.writeFileSync(stFile, sourceCode);
         }
         const coreDir = path.resolve(__dirname + '/support/generic');
@@ -242,6 +271,8 @@ int main() {
             const archFlags = this.getArchFlags(targetInfo.os, targetInfo.arch, compiler);
             const formatFlags = (flags = []) => (flags.length ? `${flags.join(' ')} ` : '');
             const isWindowsTarget = targetInfo.os === 'windows';
+            const binDir = path.join(outputPath, 'bin');
+            fs.mkdirSync(binDir, { recursive: true });
 
             // Step 2: Compile open62541.c with C compiler
             //const open62541c = pathTo('open62541.c');
@@ -251,7 +282,7 @@ int main() {
 
 
             // Step 3: Compile C++ files with C++ compiler and link object
-            let exeFile = path.join(outputPath, "nodalisplc");
+            let exeFile = path.join(binDir, "nodalisplc");
             if (isWindowsTarget && !exeFile.endsWith('.exe')) {
                 exeFile += '.exe';
             }
@@ -278,8 +309,140 @@ int main() {
                 cppCompileCmd = `${compiler} ${cppFlagSegment}-std=c++17 -I${bacneti} -I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} -o "${exeFile}" ${inputs.join(' ')} ${archFlags.linker}`;
             }
 
-            execSync(cppCompileCmd, { stdio: 'inherit' });
+            try {
+                execSync(cppCompileCmd, { stdio: 'pipe' });
+                if (isWindowsTarget) {
+                    this.copyWindowsRuntimeDependencies(compiler, binDir);
+                }
+            } catch (err) {
+                const stderrText = getExecOutputText(err?.stderr);
+                const stdoutText = getExecOutputText(err?.stdout);
+                const compilerOutput = [stderrText, stdoutText].filter(Boolean).join('\n');
+                const details = compilerOutput || err.message;
+                throw new Error(`C++ compiler failed for target "${target}".\n${details}`);
+            }
         }
+    }
+
+    copyWindowsRuntimeDependencies(compiler, binDir) {
+        const compilerName = String(compiler || '').toLowerCase();
+        const isMingwToolchain = compilerName.includes('mingw') || compilerName.includes('w64');
+        if (!isMingwToolchain) return;
+
+        const dependencyNames = [
+            'libc++.dll',
+            'libunwind.dll',
+            'libstdc++-6.dll',
+            'libgcc_s_seh-1.dll',
+            'libwinpthread-1.dll'
+        ];
+
+        for (const dep of dependencyNames) {
+            try {
+                const resolved = this.resolveWindowsRuntimeDependencyPath(compiler, dep);
+                if (!resolved) continue;
+                const destination = path.join(binDir, path.basename(resolved));
+                fs.copyFileSync(resolved, destination);
+            } catch {
+                // Best-effort dependency copy; ignore unresolved runtimes.
+            }
+        }
+    }
+
+    resolveWindowsRuntimeDependencyPath(compiler, dependencyName) {
+        const directPath = execSync(`"${compiler}" -print-file-name=${dependencyName}`, { encoding: 'utf8' }).trim();
+        if (directPath && directPath !== dependencyName && fs.existsSync(directPath)) {
+            return directPath;
+        }
+
+        const searchDirs = new Set();
+        const searchDirsOutput = execSync(`"${compiler}" -print-search-dirs`, { encoding: 'utf8' });
+        const librariesLine = searchDirsOutput
+            .split('\n')
+            .find((line) => line.toLowerCase().startsWith('libraries:'));
+        if (librariesLine) {
+            const raw = librariesLine.substring(librariesLine.indexOf('=') + 1);
+            raw.split(path.delimiter)
+                .map((dir) => dir.trim())
+                .filter((dir) => dir.length > 0)
+                .forEach((dir) => searchDirs.add(dir));
+        }
+
+        const compilerPath = execSync(`which "${compiler}"`, { encoding: 'utf8' }).trim();
+        if (compilerPath) {
+            const compilerDir = path.dirname(compilerPath);
+            searchDirs.add(compilerDir);
+            searchDirs.add(path.resolve(compilerDir, '..', 'bin'));
+            try {
+                const targetTriple = execSync(`"${compiler}" -dumpmachine`, { encoding: 'utf8' }).trim();
+                if (targetTriple) {
+                    searchDirs.add(path.resolve(compilerDir, '..', targetTriple, 'bin'));
+                }
+            } catch {
+                // optional hint only
+            }
+        }
+
+        const expandedSearchDirs = new Set(searchDirs);
+        for (const dir of searchDirs) {
+            expandedSearchDirs.add(path.resolve(dir, 'bin'));
+            expandedSearchDirs.add(path.resolve(dir, '..', 'bin'));
+        }
+
+        for (const dir of expandedSearchDirs) {
+            const candidate = path.join(dir, dependencyName);
+            if (fs.existsSync(candidate)) {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    loadStructuredTextBundle(sourcePath, resourceName) {
+        const stFiles = fs.readdirSync(sourcePath, { withFileTypes: true })
+            .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.st'))
+            .map((entry) => entry.name);
+
+        if (stFiles.length === 0) {
+            throw new Error(`No .st files found in source directory "${sourcePath}".`);
+        }
+
+        const normalizedResource = String(resourceName || '').trim();
+        const candidateNames = new Set([
+            normalizedResource,
+            normalizedResource.toLowerCase(),
+            normalizedResource.toLowerCase().endsWith('.st') ? normalizedResource.toLowerCase() : `${normalizedResource.toLowerCase()}.st`
+        ]);
+
+        const entryFile = stFiles.find((file) => {
+            const lower = file.toLowerCase();
+            return candidateNames.has(file) || candidateNames.has(lower);
+        });
+
+        if (!entryFile) {
+            throw new Error(`resourceName "${resourceName}" is not an .st file in "${sourcePath}".`);
+        }
+
+        const orderedFiles = [
+            ...stFiles.filter((file) => file !== entryFile).sort((a, b) => a.localeCompare(b)),
+            entryFile
+        ];
+
+        const combinedSource = orderedFiles
+            .map((file) => fs.readFileSync(path.join(sourcePath, file), 'utf-8').trim())
+            .filter((text) => text.length > 0)
+            .join('\n\n');
+
+        const entrySource = fs.readFileSync(path.join(sourcePath, entryFile), 'utf-8');
+        const entryProgramName = this.extractFirstProgramName(entrySource) || path.basename(entryFile, path.extname(entryFile));
+
+        return { combinedSource, entryProgramName };
+    }
+
+    extractFirstProgramName(sourceCode) {
+        const match = String(sourceCode || '').match(/^\s*PROGRAM\s+([A-Za-z_]\w*)/im);
+        return match ? match[1] : null;
     }
 
     resolveTarget(target) {

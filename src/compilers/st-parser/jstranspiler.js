@@ -26,6 +26,7 @@ import { convertExpression, getWriteAddressExpression } from './expressionConver
 let fbVars = [];
 let refVars = [];
 let fbInstanceVars = [];
+let functionBlockTypeLookup = new Map();
 /**
  * Converts the tokenized ST code to Javascript.
  * @param {{body: {type: string, name: string, varSections: [], statements: []}}[]} ast The tokenized code.
@@ -33,6 +34,7 @@ let fbInstanceVars = [];
  */
 export function transpile(ast) {
   const lines = [];
+  functionBlockTypeLookup = buildFunctionBlockTypeLookup(ast);
 
   for (const block of ast.body) {
     switch (block.type) {
@@ -221,6 +223,7 @@ function declareVars(varSections, infb = false, blockName = "") {
     fbVars = [];
   }
   return varSections.map(v => {
+    const resolvedType = resolveFunctionBlockTypeName(v.type);
     const isFunctionBlock = !mapType(v.type) || mapType(v.type) === 'any';
     const decl = infb ? "this." : "let ";
     if(infb) fbVars.push(v.name);
@@ -233,8 +236,8 @@ function declareVars(varSections, infb = false, blockName = "") {
     const fullVarName = blockName ? `${blockName}.${v.name}` : v.name;
 
     const initValue = (v.initialValue !== undefined && v.initialValue !== null)
-      ? ` = ${v.initialValue}`
-      : isFunctionBlock ? ` = newStatic("${fullVarName}", ${v.type})` : infb ? " = null" : "";
+      ? ` = ${normalizeJsLiteral(v.initialValue)}`
+      : isFunctionBlock ? ` = newStatic("${fullVarName}", ${resolvedType})` : infb ? " = null" : "";
 
     return `${decl}${v.name}${initValue};`;
   });
@@ -267,6 +270,23 @@ function getFunctionBlockVarNames(varSections = []) {
 function isFunctionBlockInstance(name) {
   const root = String(name || '').split('.')[0];
   return fbInstanceVars.includes(root);
+}
+
+function buildFunctionBlockTypeLookup(ast) {
+  const map = new Map();
+  const blocks = Array.isArray(ast?.body) ? ast.body : [];
+  for (const block of blocks) {
+    if (block?.type === 'FunctionBlockDeclaration' && typeof block?.name === 'string') {
+      map.set(block.name.toLowerCase(), block.name);
+    }
+  }
+  return map;
+}
+
+function resolveFunctionBlockTypeName(typeName) {
+  const raw = String(typeName || '').trim();
+  if (!raw) return raw;
+  return functionBlockTypeLookup.get(raw.toLowerCase()) || raw;
 }
 
 function resolveCallTarget(name, infb) {
@@ -360,4 +380,15 @@ function mapType(type) {
     'WSTRING': 'string'
   };
   return jsTypes[type?.trim().toUpperCase()] || 'any';
+}
+
+function normalizeJsLiteral(value) {
+  if (typeof value !== 'string') return value;
+  return value
+    .replace(/\bBOOL#1\b/gi, 'true')
+    .replace(/\bBOOL#0\b/gi, 'false')
+    .replace(/\bBOOL#TRUE\b/gi, 'true')
+    .replace(/\bBOOL#FALSE\b/gi, 'false')
+    .replace(/\bTRUE\b/gi, 'true')
+    .replace(/\bFALSE\b/gi, 'false');
 }

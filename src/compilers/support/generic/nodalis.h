@@ -667,10 +667,10 @@ public:
 class R_TRIG {
 public:
     bool CLK = false;
-    bool OUT = false;
+    bool Q = false;
 
     void operator()() {
-        OUT = CLK && !lastCLK;
+        Q = CLK && !lastCLK;
         lastCLK = CLK;
     }
 
@@ -682,10 +682,10 @@ private:
 class F_TRIG {
 public:
     bool CLK = false;
-    bool OUT = false;
+    bool Q = false;
 
     void operator()() {
-        OUT = !CLK && lastCLK;
+        Q = !CLK && lastCLK;
         lastCLK = CLK;
     }
 
@@ -981,10 +981,16 @@ inline auto ATAN(T x) -> decltype(std::atan(x))
     return std::atan(x);
 }
 
-template <typename T, enable_if_arithmetic_t<T> = 0>
+template <typename T, std::enable_if_t<std::is_signed<T>::value, int> = 0>
 inline auto ABS(T x) -> decltype(std::abs(x))
 {
     return std::abs(x);
+}
+
+template <typename T, std::enable_if_t<std::is_unsigned<T>::value, int> = 0>
+inline T ABS(T x)
+{
+    return x;
 }
 
 template <typename T, enable_if_arithmetic_t<T> = 0>
@@ -1071,5 +1077,302 @@ inline T ROR(T in, unsigned int n)
         return static_cast<T>(x);
     return static_cast<T>((x >> n) | (x << (W - n)));
 }
+
+// Type conversion functions
+#pragma region "INT_TO..."
+inline int32_t INT_TO_DINT(int16_t v)
+{
+    return (int32_t)v;
+}
+
+inline uint16_t INT_TO_UINT(int16_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t INT_TO_UDINT(int16_t v)
+{
+    return (uint32_t)v;
+}
+
+inline float INT_TO_REAL(int16_t v)
+{
+    return (float)v;
+}
+
+inline double INT_TO_LREAL(int16_t v)
+{
+    return (double)v;
+}
+
+inline uint16_t INT_TO_WORD(int16_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t INT_TO_DWORD(int16_t v)
+{
+    return (uint32_t)v;
+}
+#pragma endregion
+
+#pragma region "DINT_TO..."
+inline int16_t DINT_TO_INT(int32_t v)
+{
+    return (int32_t)v;
+}
+
+inline uint16_t DINT_TO_UINT(int32_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t DINT_TO_UDINT(int32_t v)
+{
+    return (uint32_t)v;
+}
+
+inline float DINT_TO_REAL(int32_t v)
+{
+    return (float)v;
+}
+
+inline double DINT_TO_LREAL(int32_t v)
+{
+    return (double)v;
+}
+
+inline uint16_t DINT_TO_WORD(int32_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t DINT_TO_DWORD(int32_t v)
+{
+    return (uint32_t)v;
+}
+#pragma endregion
+
+#pragma region "UINT_TO..."
+inline int32_t UINT_TO_DINT(uint16_t v)
+{
+    return (int32_t)v;
+}
+
+inline int16_t UINT_TO_INT(uint16_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t UINT_TO_UDINT(int16_t v)
+{
+    return (uint32_t)v;
+}
+
+inline float UINT_TO_REAL(uint16_t v)
+{
+    return (float)v;
+}
+
+inline double UINT_TO_LREAL(uint16_t v)
+{
+    return (double)v;
+}
+
+inline uint16_t UINT_TO_WORD(uint16_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t UINT_TO_DWORD(uint16_t v)
+{
+    return (uint32_t)v;
+}
+#pragma endregion
+
+#pragma region "UDINT_TO..."
+inline int32_t UDINT_TO_DINT(uint32_t v)
+{
+    return (int32_t)v;
+}
+
+inline int16_t UDINT_TO_INT(uint32_t v)
+{
+    return (int16_t)v;
+}
+
+inline uint16_t UDINT_TO_UINT(uint32_t v)
+{
+    return (uint16_t)v;
+}
+
+inline float UDINT_TO_REAL(uint32_t v)
+{
+    return (float)v;
+}
+
+inline double UDINT_TO_LREAL(uint32_t v)
+{
+    return (double)v;
+}
+
+inline uint16_t UDINT_TO_WORD(uint32_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t UDINT_TO_DWORD(uint32_t v)
+{
+    return (uint32_t)v;
+}
+#pragma endregion
+
+#pragma region "REAL_TO..."
+inline int32_t REAL_TO_DINT(float v)
+{
+    return (int32_t)v;
+}
+
+inline int16_t REAL_TO_INT(float v)
+{
+    return (int16_t)v;
+}
+
+inline uint16_t REAL_TO_UINT(float v)
+{
+    return (uint16_t)v;
+}
+
+inline float REAL_TO_UDINT(float v)
+{
+    return (float)v;
+}
+
+inline double REAL_TO_LREAL(float v)
+{
+    return (double)v;
+}
+
+inline uint16_t REAL_TO_WORD(float v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t REAL_TO_DWORD(float v)
+{
+    return (uint32_t)v;
+}
+#pragma endregion
+
+#pragma region "LREAL_TO..."
+inline int32_t LREAL_TO_DINT(double v)
+{
+    return (int32_t)v;
+}
+
+inline int16_t LREAL_TO_INT(double v)
+{
+    return (int16_t)v;
+}
+
+inline uint16_t LREAL_TO_UINT(double v)
+{
+    return (uint16_t)v;
+}
+
+inline float LREAL_TO_UDINT(double v)
+{
+    return (float)v;
+}
+
+inline float LREAL_TO_REAL(double v)
+{
+    return (float)v;
+}
+
+inline uint16_t LREAL_TO_WORD(double v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t LREAL_TO_DWORD(double v)
+{
+    return (uint32_t)v;
+}
+#pragma endregion
+
+#pragma region "WORD_TO..."
+inline int32_t WORD_TO_DINT(uint16_t v)
+{
+    return (int32_t)v;
+}
+
+inline int16_t WORD_TO_INT(uint16_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t WORD_TO_UDINT(int16_t v)
+{
+    return (uint32_t)v;
+}
+
+inline float WORD_TO_REAL(uint16_t v)
+{
+    return (float)v;
+}
+
+inline double WORD_TO_LREAL(uint16_t v)
+{
+    return (double)v;
+}
+
+inline uint16_t WORD_TO_UINT(uint16_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t WORD_TO_DWORD(uint16_t v)
+{
+    return (uint32_t)v;
+}
+#pragma endregion
+
+#pragma region "DWORD_TO..."
+inline int32_t DWORD_TO_DINT(uint32_t v)
+{
+    return (int32_t)v;
+}
+
+inline int16_t DWORD_TO_INT(uint32_t v)
+{
+    return (int16_t)v;
+}
+
+inline uint16_t DWORD_TO_UINT(uint32_t v)
+{
+    return (uint16_t)v;
+}
+
+inline float DWORD_TO_REAL(uint32_t v)
+{
+    return (float)v;
+}
+
+inline double DWORD_TO_LREAL(uint32_t v)
+{
+    return (double)v;
+}
+
+inline uint16_t DWORD_TO_WORD(uint32_t v)
+{
+    return (uint16_t)v;
+}
+
+inline uint32_t DWORD_TO_UDINT(uint32_t v)
+{
+    return (uint32_t)v;
+}
+#pragma endregion
 
 #pragma endregion

@@ -28,11 +28,14 @@
  */
 const INTEGER_TYPE_PATTERN = '(?:BYTE|WORD|DWORD|LWORD|SINT|INT|DINT|LINT|USINT|UINT|UDINT|ULINT)';
 const REAL_TYPE_PATTERN = '(?:REAL|LREAL)';
-const REAL_LITERAL_PATTERN = '(?:(?:\\d+\\.\\d*|\\d*\\.\\d+)(?:[eE][+-]?\\d+)?|\\d+[eE][+-]?\\d+)';
-const TYPED_INTEGER_LITERAL_PATTERN = `(?:${INTEGER_TYPE_PATTERN}#(?:2#[01_]+|8#[0-7_]+|16#[0-9a-f_]+|[+-]?\\d+))`;
-const TYPED_REAL_LITERAL_PATTERN = `(?:${REAL_TYPE_PATTERN}#[+-]?(?:${REAL_LITERAL_PATTERN}|\\d+))`;
-const UNTYPED_LITERAL_PATTERN = `(?:2#[01_]+|8#[0-7_]+|16#[0-9a-f_]+|${REAL_LITERAL_PATTERN}|\\d+)`;
-const NUMBER_TOKEN_PATTERN = `(?:${TYPED_INTEGER_LITERAL_PATTERN}|${TYPED_REAL_LITERAL_PATTERN}|${UNTYPED_LITERAL_PATTERN})`;
+const BOOL_TYPE_PATTERN = '(?:BOOL)';
+const DECIMAL_DIGIT_SEQUENCE_PATTERN = '(?:\\d(?:_?\\d)*)';
+const REAL_LITERAL_PATTERN = `(?:(?:${DECIMAL_DIGIT_SEQUENCE_PATTERN}\\.${DECIMAL_DIGIT_SEQUENCE_PATTERN}?|${DECIMAL_DIGIT_SEQUENCE_PATTERN}?\\.${DECIMAL_DIGIT_SEQUENCE_PATTERN})(?:[eE][+-]?${DECIMAL_DIGIT_SEQUENCE_PATTERN})?|${DECIMAL_DIGIT_SEQUENCE_PATTERN}[eE][+-]?${DECIMAL_DIGIT_SEQUENCE_PATTERN})`;
+const TYPED_INTEGER_LITERAL_PATTERN = `(?:${INTEGER_TYPE_PATTERN}#(?:2#[01_]+|8#[0-7_]+|16#[0-9a-f_]+|[+-]?${DECIMAL_DIGIT_SEQUENCE_PATTERN}))`;
+const TYPED_REAL_LITERAL_PATTERN = `(?:${REAL_TYPE_PATTERN}#[+-]?(?:${REAL_LITERAL_PATTERN}|${DECIMAL_DIGIT_SEQUENCE_PATTERN}))`;
+const TYPED_BOOL_LITERAL_PATTERN = `(?:${BOOL_TYPE_PATTERN}#(?:TRUE|FALSE|1|0))`;
+const UNTYPED_LITERAL_PATTERN = `(?:2#[01_]+|8#[0-7_]+|16#[0-9a-f_]+|${REAL_LITERAL_PATTERN}|${DECIMAL_DIGIT_SEQUENCE_PATTERN})`;
+const NUMBER_TOKEN_PATTERN = `(?:${TYPED_INTEGER_LITERAL_PATTERN}|${TYPED_REAL_LITERAL_PATTERN}|${TYPED_BOOL_LITERAL_PATTERN}|${UNTYPED_LITERAL_PATTERN})`;
 
 export function tokenize(code) {
   const tokens = [];
@@ -44,7 +47,7 @@ export function tokenize(code) {
   code = code.replace(/\(\*[\s\S]*?\*\)/g, '');
 
   //const regex = /(%[IQM][A-Z]?[0-9]+(?:\.[0-9]+)?)|(:=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([:;()<>+\-*/=])/g;
-  const regex = new RegExp(`(%[IQM][A-Z]*\\d+(?:\\.\\d+)?)|(:=|=>|>=|<=|<>|!=)|([A-Za-z_]\\w*\\.\\d+)|([A-Za-z_]\\w*\\.\\w+)|(${NUMBER_TOKEN_PATTERN})|([A-Za-z_]\\w*)|([<>+\\-*/=;():,])`, 'gi');
+  const regex = new RegExp(`(%[IQM][A-Z]*\\d+(?:\\.\\d+)?)|(:=|=>|>=|<=|<>|!=|\\*\\*)|([A-Za-z_]\\w*\\.\\d+)|([A-Za-z_]\\w*\\.\\w+)|(${NUMBER_TOKEN_PATTERN})|([A-Za-z_]\\w*)|([<>+\\-*/=;():,&|^])`, 'gi');
 
 while ((match = regex.exec(code)) !== null) {
   const [_, address, compoundSymbol, bitIdentifier, propIdentifier, number, identifier, symbol] = match;
@@ -69,13 +72,20 @@ while ((match = regex.exec(code)) !== null) {
 }
 
 function normalizeNumericLiteral(value) {
+  const boolMatch = String(value).match(new RegExp(`^${BOOL_TYPE_PATTERN}#(TRUE|FALSE|1|0)$`, 'i'));
+  if (boolMatch) {
+    const boolLiteral = boolMatch[1].toUpperCase();
+    if (boolLiteral === 'TRUE' || boolLiteral === '1') return 'TRUE';
+    return 'FALSE';
+  }
+
   const typedValue = String(value).replace(
-    new RegExp(`^(?:${INTEGER_TYPE_PATTERN}|${REAL_TYPE_PATTERN})#`, 'i'),
+    new RegExp(`^(?:${INTEGER_TYPE_PATTERN}|${REAL_TYPE_PATTERN}|${BOOL_TYPE_PATTERN})#`, 'i'),
     ''
   );
 
   const match = typedValue.match(/^(2|8|16)#([0-9a-f_]+)$/i);
-  if (!match) return typedValue;
+  if (!match) return typedValue.replace(/_/g, '');
   const radix = match[1];
   const digits = match[2].replace(/_/g, '');
   if (radix === '2') return `0b${digits}`;
@@ -89,7 +99,7 @@ function getTokenType(value) {
     'END_FUNCTION_BLOCK', 'END_FUNCTION', 'END_PROGRAM'
   ]);
 
-  const symbols = new Set([':=', '=>', ';', ':', '(', ')', '+', '-', '*', '/', '>', '<', '=']);
+  const symbols = new Set([':=', '=>', ';', ':', '(', ')', '+', '-', '*', '**', '/', '>', '<', '=', '&', '|', '^']);
 
   if (keywords.has(value.toUpperCase())) return 'KEYWORD';
   if (symbols.has(value)) return 'SYMBOL';

@@ -382,11 +382,11 @@ export class R_TRIG extends FunctionBlock {
   constructor() {
     super();
     this.CLK = false;
-    this.OUT = false;
+    this.Q = false;
     this._lastCLK = false;
   }
   call() {
-    this.OUT = this.CLK && !this._lastCLK;
+    this.Q = this.CLK && !this._lastCLK;
     this._lastCLK = this.CLK;
   }
 }
@@ -395,11 +395,11 @@ export class F_TRIG extends FunctionBlock {
   constructor() {
     super();
     this.CLK = false;
-    this.OUT = false;
+    this.Q = false;
     this._lastCLK = false;
   }
   call() {
-    this.OUT = !this.CLK && this._lastCLK;
+    this.Q = !this.CLK && this._lastCLK;
     this._lastCLK = this.CLK;
   }
 }
@@ -603,6 +603,79 @@ export const ROR = (IN, N) => {
   IN = IN >>> 0; // force unsigned 32-bit
   return ((IN >>> N) | (IN << (32 - N))) >>> 0;
 };
+
+const asNumber = (v) => Number(resolve(v));
+const toInt16 = (v) => (asNumber(v) << 16) >> 16;
+const toUint16 = (v) => asNumber(v) & 0xFFFF;
+const toInt32 = (v) => asNumber(v) | 0;
+const toUint32 = (v) => asNumber(v) >>> 0;
+const toReal = (v) => Math.fround(asNumber(v));
+const toLReal = (v) => asNumber(v);
+
+// Type conversion functions
+export const INT_TO_DINT = (v) => toInt32(toInt16(v));
+export const INT_TO_UINT = (v) => toUint16(toInt16(v));
+export const INT_TO_UDINT = (v) => toUint32(toInt16(v));
+export const INT_TO_REAL = (v) => toReal(toInt16(v));
+export const INT_TO_LREAL = (v) => toLReal(toInt16(v));
+export const INT_TO_WORD = (v) => toUint16(toInt16(v));
+export const INT_TO_DWORD = (v) => toUint32(toInt16(v));
+
+export const DINT_TO_INT = (v) => toInt16(toInt32(v));
+export const DINT_TO_UINT = (v) => toUint16(toInt32(v));
+export const DINT_TO_UDINT = (v) => toUint32(toInt32(v));
+export const DINT_TO_REAL = (v) => toReal(toInt32(v));
+export const DINT_TO_LREAL = (v) => toLReal(toInt32(v));
+export const DINT_TO_WORD = (v) => toUint16(toInt32(v));
+export const DINT_TO_DWORD = (v) => toUint32(toInt32(v));
+
+export const UINT_TO_DINT = (v) => toInt32(toUint16(v));
+export const UINT_TO_INT = (v) => toInt16(toUint16(v));
+export const UINT_TO_UDINT = (v) => toUint32(toUint16(v));
+export const UINT_TO_REAL = (v) => toReal(toUint16(v));
+export const UINT_TO_LREAL = (v) => toLReal(toUint16(v));
+export const UINT_TO_WORD = (v) => toUint16(toUint16(v));
+export const UINT_TO_DWORD = (v) => toUint32(toUint16(v));
+
+export const UDINT_TO_DINT = (v) => toInt32(toUint32(v));
+export const UDINT_TO_INT = (v) => toInt16(toUint32(v));
+export const UDINT_TO_UINT = (v) => toUint16(toUint32(v));
+export const UDINT_TO_REAL = (v) => toReal(toUint32(v));
+export const UDINT_TO_LREAL = (v) => toLReal(toUint32(v));
+export const UDINT_TO_WORD = (v) => toUint16(toUint32(v));
+export const UDINT_TO_DWORD = (v) => toUint32(toUint32(v));
+
+export const REAL_TO_DINT = (v) => toInt32(toReal(v));
+export const REAL_TO_INT = (v) => toInt16(toReal(v));
+export const REAL_TO_UINT = (v) => toUint16(toReal(v));
+export const REAL_TO_UDINT = (v) => toUint32(toReal(v));
+export const REAL_TO_LREAL = (v) => toLReal(toReal(v));
+export const REAL_TO_WORD = (v) => toUint16(toReal(v));
+export const REAL_TO_DWORD = (v) => toUint32(toReal(v));
+
+export const LREAL_TO_DINT = (v) => toInt32(toLReal(v));
+export const LREAL_TO_INT = (v) => toInt16(toLReal(v));
+export const LREAL_TO_UINT = (v) => toUint16(toLReal(v));
+export const LREAL_TO_UDINT = (v) => toUint32(toLReal(v));
+export const LREAL_TO_REAL = (v) => toReal(toLReal(v));
+export const LREAL_TO_WORD = (v) => toUint16(toLReal(v));
+export const LREAL_TO_DWORD = (v) => toUint32(toLReal(v));
+
+export const WORD_TO_DINT = (v) => toInt32(toUint16(v));
+export const WORD_TO_INT = (v) => toInt16(toUint16(v));
+export const WORD_TO_UDINT = (v) => toUint32(toUint16(v));
+export const WORD_TO_REAL = (v) => toReal(toUint16(v));
+export const WORD_TO_LREAL = (v) => toLReal(toUint16(v));
+export const WORD_TO_UINT = (v) => toUint16(toUint16(v));
+export const WORD_TO_DWORD = (v) => toUint32(toUint16(v));
+
+export const DWORD_TO_DINT = (v) => toInt32(toUint32(v));
+export const DWORD_TO_INT = (v) => toInt16(toUint32(v));
+export const DWORD_TO_UINT = (v) => toUint16(toUint32(v));
+export const DWORD_TO_REAL = (v) => toReal(toUint32(v));
+export const DWORD_TO_LREAL = (v) => toLReal(toUint32(v));
+export const DWORD_TO_WORD = (v) => toUint16(toUint32(v));
+export const DWORD_TO_UDINT = (v) => toUint32(toUint32(v));
 
 
 const Clients = [];

@@ -91,7 +91,11 @@ export function parseStructuredText(code) {
 
       if (peek()?.value === ':=') {
         consume(); // consume ':='
-        initialValue = consume().value;
+        const initTokens = [];
+        while (peek() && peek().value !== ';' && peek().value.toUpperCase() !== 'END_VAR') {
+          initTokens.push(consume().value);
+        }
+        initialValue = initTokens.join('');
       }
       variables.push({ name, type, address, initialValue, sectionType: 'VAR_GLOBAL' });
       if (peek()?.value === ';') consume();
@@ -114,7 +118,11 @@ export function parseStructuredText(code) {
 
       if (peek()?.value === ':=') {
         consume(); // consume ':='
-        initialValue = consume().value;
+        const initTokens = [];
+        while (peek() && peek().value !== ';' && peek().value.toUpperCase() !== 'END_VAR') {
+          initTokens.push(consume().value);
+        }
+        initialValue = initTokens.join('');
       }
       variables.push({ name, type, initialValue, sectionType });
       if (peek()?.value === ';') consume();
@@ -236,12 +244,13 @@ function parseIf() {
 function parseStatementsUntil(endTokens) {
   const statements = [];
   while (peek() && !endTokens.includes(peek().value.toUpperCase())) {
+    const startPos = position;
     const stmt = parseStatement();
     if (stmt) {
       statements.push(stmt);
-    } else {
-      console.warn('⚠️ Unrecognized statement at token:', peek());
-      consume(); // prevent infinite loop
+    } else if (position === startPos) {
+      // Prevent infinite loops if a branch returns null without consuming.
+      consume();
     }
   }
   return statements;
@@ -298,14 +307,38 @@ function parseStatementsUntil(endTokens) {
     }
     expect('OF');
     const branches = [];
-    while (peek() && peek().value.toUpperCase() !== 'END_CASE') {
-      const label = consume().value;
+    while (peek() && !['ELSE', 'END_CASE'].includes(peek().value.toUpperCase())) {
+      const labels = [];
+      while (peek() && peek().value !== ':') {
+        const tk = consume().value;
+        if (tk !== ',') labels.push(tk);
+      }
       expect(':');
-      const body = parseStatements('ELSE');
-      branches.push({ label, body });
+      const body = [];
+      while (peek() && !isCaseBranchBoundary(peek())) {
+        const stmt = parseStatement();
+        if (stmt) body.push(stmt);
+      }
+      branches.push({ label: labels.join(','), body });
+    }
+    let elseBlock = null;
+    if (peek()?.value.toUpperCase() === 'ELSE') {
+      consume(); // ELSE
+      elseBlock = [];
+      while (peek() && peek().value.toUpperCase() !== 'END_CASE') {
+        const stmt = parseStatement();
+        if (stmt) elseBlock.push(stmt);
+      }
     }
     expect('END_CASE');
-    return { type: 'CASE', expression, branches };
+    return { type: 'CASE', expression, branches, elseBlock };
+  }
+
+  function isCaseBranchBoundary(token) {
+    if (!token) return true;
+    const upper = token.value.toUpperCase();
+    if (upper === 'ELSE' || upper === 'END_CASE') return true;
+    return peek(1)?.value === ':' || peek(1)?.value === ',';
   }
 
   function parseProgram() {

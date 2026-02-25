@@ -25,6 +25,7 @@
 import { convertExpression } from './expressionConverter.js';
 import { getWriteAddressExpression } from './expressionConverter.js';
 let fbInstanceVars = [];
+let functionBlockTypeLookup = new Map();
 
 /**
  * Converts the tokenized ST code to ANSCII C++.
@@ -33,6 +34,7 @@ let fbInstanceVars = [];
  */
 export function transpile(ast) {
   const lines = [];
+  functionBlockTypeLookup = buildFunctionBlockTypeLookup(ast);
 
   for (const block of ast.body) {
     switch (block.type) {
@@ -42,7 +44,7 @@ export function transpile(ast) {
         break;
       case 'ProgramDeclaration':
         lines.push(`void ${block.name}() { //PROGRAM:${block.name}`);
-        lines.push(...declareVars(block.varSections));
+        lines.push(...declareVars(block.varSections, false));
         fbInstanceVars = getFunctionBlockVarNames(block.varSections);
         lines.push(...transpileStatements(block.statements));
         lines.push('}');
@@ -50,7 +52,7 @@ export function transpile(ast) {
 
       case 'FunctionDeclaration':
         lines.push(`${mapType(block.returnType)} ${block.name}() { //FUNCTION:${block.name}`);
-        lines.push(...declareVars(block.varSections));
+        lines.push(...declareVars(block.varSections, false));
         fbInstanceVars = getFunctionBlockVarNames(block.varSections);
         lines.push(...transpileStatements(block.statements));
         lines.push('}');
@@ -68,7 +70,7 @@ export function transpile(ast) {
         lines.push(`class ${block.name} {//FUNCTION_BLOCK:${block.name}`);
         lines.push('public:');
         //for (const v of block.varSections) {
-          lines.push(...declareVars(block.varSections));
+          lines.push(...declareVars(block.varSections, true));
         //}
         lines.push('  void operator()() {');
         fbInstanceVars = getFunctionBlockVarNames(block.varSections);
@@ -138,7 +140,7 @@ function mapStatement(stmt){
 
         case 'FOR':
           return [
-            `for (int ${stmt.variable} = ${stmt.start}; ${stmt.variable} <= ${stmt.end}; ${stmt.variable} += ${stmt.step}) {`,
+            `for (int ${stmt.variable} = ${stmt.from}; ${stmt.variable} <= ${stmt.to}; ${stmt.variable} += ${stmt.step}) {`,
             ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
             `}`
           ];
@@ -200,9 +202,10 @@ function transpileStatements(statements) {
  * @param {{type: string, address: string, initialValue: string, sectionType: string}[]} varSections An array of variable tokens.
  * @returns {string[]} An array of declaration statements.
  */
-function declareVars(varSections) {
+function declareVars(varSections, inFunctionBlock = false) {
   return varSections.map(v => {
-    var cleanedType = v.type.trim().toUpperCase();
+    const rawType = v.type.trim();
+    var cleanedType = rawType.toUpperCase();
     var gv = "";
     const isFunctionBlockType = !mapType(cleanedType) || mapType(cleanedType) === 'auto';
     let init = "";
@@ -216,8 +219,10 @@ function declareVars(varSections) {
     else if (v.initialValue !== undefined && v.initialValue !== null) {
       init = ` = ${normalizeCppLiteral(v.initialValue)}`;
     }
-    if (v.sectionType==='VAR' && isFunctionBlockType) {
-      return `static ${v.type} ${v.name};`; // assume Function Block type
+    if (isFunctionBlockType) {
+      const functionBlockType = resolveFunctionBlockTypeName(rawType);
+      const storagePrefix = (!inFunctionBlock && v.sectionType === 'VAR') ? 'static ' : '';
+      return `${storagePrefix}class ${functionBlockType} ${v.name};`;
     }
     return `${cleanedType} ${v.name}${init};${gv}`;
   });
@@ -225,7 +230,14 @@ function declareVars(varSections) {
 
 function normalizeCppLiteral(value) {
   if (typeof value !== 'string') return value;
-  return value.replace(/\b0o([0-7]+)\b/gi, '0$1');
+  return value
+    .replace(/\bBOOL#1\b/gi, 'true')
+    .replace(/\bBOOL#0\b/gi, 'false')
+    .replace(/\bBOOL#TRUE\b/gi, 'true')
+    .replace(/\bBOOL#FALSE\b/gi, 'false')
+    .replace(/\bTRUE\b/gi, 'true')
+    .replace(/\bFALSE\b/gi, 'false')
+    .replace(/\b0o([0-7]+)\b/gi, '0$1');
 }
 
 /**
@@ -289,6 +301,23 @@ function getFunctionBlockVarNames(varSections = []) {
 function isFunctionBlockInstance(name) {
   const root = String(name || '').split('.')[0];
   return fbInstanceVars.includes(root);
+}
+
+function buildFunctionBlockTypeLookup(ast) {
+  const map = new Map();
+  const blocks = Array.isArray(ast?.body) ? ast.body : [];
+  for (const block of blocks) {
+    if (block?.type === 'FunctionBlockDeclaration' && typeof block?.name === 'string') {
+      map.set(block.name.toLowerCase(), block.name);
+    }
+  }
+  return map;
+}
+
+function resolveFunctionBlockTypeName(typeName) {
+  const raw = String(typeName || '').trim();
+  if (!raw) return raw;
+  return functionBlockTypeLookup.get(raw.toLowerCase()) || raw;
 }
 
 function resolveAssignmentTarget(expr) {

@@ -536,6 +536,13 @@ namespace Nodalis
 
         private static ulong AsUInt64(JsValue value) => value.IsBoolean() ? (value.AsBoolean() ? 1UL : 0UL) : (ulong)value.AsNumber();
         private static double AsDouble(JsValue value) => value.IsBoolean() ? (value.AsBoolean() ? 1.0 : 0.0) : value.AsNumber();
+        private static long AsInt64(JsValue value) => value.IsBoolean() ? (value.AsBoolean() ? 1L : 0L) : (long)value.AsNumber();
+        private static short AsInt16Cast(JsValue value) => unchecked((short)AsInt64(value));
+        private static ushort AsUInt16Cast(JsValue value) => unchecked((ushort)AsInt64(value));
+        private static int AsInt32Cast(JsValue value) => unchecked((int)AsInt64(value));
+        private static uint AsUInt32Cast(JsValue value) => unchecked((uint)AsInt64(value));
+        private static float AsRealCast(JsValue value) => unchecked((float)AsDouble(value));
+        private static double AsLRealCast(JsValue value) => AsDouble(value);
 
         private static bool AllBoolean(params JsValue[] args)
         {
@@ -1158,6 +1165,74 @@ namespace Nodalis
                 return JsValue.FromObject(JsEngine, productInt);
             }, 0, funcFlags));
 
+            void BindConversion(string name, Func<JsValue, object> convert) =>
+                JsEngine.SetValue(name, new ClrFunction(JsEngine, name, (thisObj, args) =>
+                    JsValue.FromObject(JsEngine, convert(args[0])), 1, funcFlags));
+
+            BindConversion("INT_TO_DINT", v => AsInt32Cast(v));
+            BindConversion("INT_TO_UINT", v => AsUInt16Cast(v));
+            BindConversion("INT_TO_UDINT", v => AsUInt32Cast(v));
+            BindConversion("INT_TO_REAL", v => AsRealCast(v));
+            BindConversion("INT_TO_LREAL", v => AsLRealCast(v));
+            BindConversion("INT_TO_WORD", v => AsUInt16Cast(v));
+            BindConversion("INT_TO_DWORD", v => AsUInt32Cast(v));
+
+            BindConversion("DINT_TO_INT", v => AsInt16Cast(v));
+            BindConversion("DINT_TO_UINT", v => AsUInt16Cast(v));
+            BindConversion("DINT_TO_UDINT", v => AsUInt32Cast(v));
+            BindConversion("DINT_TO_REAL", v => AsRealCast(v));
+            BindConversion("DINT_TO_LREAL", v => AsLRealCast(v));
+            BindConversion("DINT_TO_WORD", v => AsUInt16Cast(v));
+            BindConversion("DINT_TO_DWORD", v => AsUInt32Cast(v));
+
+            BindConversion("UINT_TO_DINT", v => AsInt32Cast(v));
+            BindConversion("UINT_TO_INT", v => AsInt16Cast(v));
+            BindConversion("UINT_TO_UDINT", v => AsUInt32Cast(v));
+            BindConversion("UINT_TO_REAL", v => AsRealCast(v));
+            BindConversion("UINT_TO_LREAL", v => AsLRealCast(v));
+            BindConversion("UINT_TO_WORD", v => AsUInt16Cast(v));
+            BindConversion("UINT_TO_DWORD", v => AsUInt32Cast(v));
+
+            BindConversion("UDINT_TO_DINT", v => AsInt32Cast(v));
+            BindConversion("UDINT_TO_INT", v => AsInt16Cast(v));
+            BindConversion("UDINT_TO_UINT", v => AsUInt16Cast(v));
+            BindConversion("UDINT_TO_REAL", v => AsRealCast(v));
+            BindConversion("UDINT_TO_LREAL", v => AsLRealCast(v));
+            BindConversion("UDINT_TO_WORD", v => AsUInt16Cast(v));
+            BindConversion("UDINT_TO_DWORD", v => AsUInt32Cast(v));
+
+            BindConversion("REAL_TO_DINT", v => AsInt32Cast(v));
+            BindConversion("REAL_TO_INT", v => AsInt16Cast(v));
+            BindConversion("REAL_TO_UINT", v => AsUInt16Cast(v));
+            BindConversion("REAL_TO_UDINT", v => AsUInt32Cast(v));
+            BindConversion("REAL_TO_LREAL", v => AsLRealCast(v));
+            BindConversion("REAL_TO_WORD", v => AsUInt16Cast(v));
+            BindConversion("REAL_TO_DWORD", v => AsUInt32Cast(v));
+
+            BindConversion("LREAL_TO_DINT", v => AsInt32Cast(v));
+            BindConversion("LREAL_TO_INT", v => AsInt16Cast(v));
+            BindConversion("LREAL_TO_UINT", v => AsUInt16Cast(v));
+            BindConversion("LREAL_TO_UDINT", v => AsUInt32Cast(v));
+            BindConversion("LREAL_TO_REAL", v => AsRealCast(v));
+            BindConversion("LREAL_TO_WORD", v => AsUInt16Cast(v));
+            BindConversion("LREAL_TO_DWORD", v => AsUInt32Cast(v));
+
+            BindConversion("WORD_TO_DINT", v => AsInt32Cast(v));
+            BindConversion("WORD_TO_INT", v => AsInt16Cast(v));
+            BindConversion("WORD_TO_UDINT", v => AsUInt32Cast(v));
+            BindConversion("WORD_TO_REAL", v => AsRealCast(v));
+            BindConversion("WORD_TO_LREAL", v => AsLRealCast(v));
+            BindConversion("WORD_TO_UINT", v => AsUInt16Cast(v));
+            BindConversion("WORD_TO_DWORD", v => AsUInt32Cast(v));
+
+            BindConversion("DWORD_TO_DINT", v => AsInt32Cast(v));
+            BindConversion("DWORD_TO_INT", v => AsInt16Cast(v));
+            BindConversion("DWORD_TO_UINT", v => AsUInt16Cast(v));
+            BindConversion("DWORD_TO_REAL", v => AsRealCast(v));
+            BindConversion("DWORD_TO_LREAL", v => AsLRealCast(v));
+            BindConversion("DWORD_TO_WORD", v => AsUInt16Cast(v));
+            BindConversion("DWORD_TO_UDINT", v => AsUInt32Cast(v));
+
             var types = new[] {
                 typeof(TON), typeof(TOF), typeof(TP), typeof(SR), typeof(RS), typeof(R_TRIG), typeof(F_TRIG),
                 typeof(CTU), typeof(CTD), typeof(CTUD)
@@ -1429,11 +1504,11 @@ namespace Nodalis
     public class R_TRIG
     {
         public bool CLK;
-        public bool OUT;
+        public bool Q;
         private bool last;
         public void call()
         {
-            OUT = CLK && !last;
+            Q = CLK && !last;
             last = CLK;
         }
     }
@@ -1443,11 +1518,11 @@ namespace Nodalis
     public class F_TRIG
     {
         public bool CLK;
-        public bool OUT;
+        public bool Q;
         private bool last;
         public void call()
         {
-            OUT = !CLK && last;
+            Q = !CLK && last;
             last = CLK;
         }
     }
