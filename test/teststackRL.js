@@ -9,7 +9,7 @@ fs.rmSync(outputPath, { recursive: true, force: true });
 
 
 await nodalis.compile({
-    target: "windows-x64",
+    target: "nodejs",
     sourcePath:sourceDir,
     language: "ST",
     outputType: "executable",

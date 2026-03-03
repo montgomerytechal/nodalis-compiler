@@ -72,25 +72,36 @@ while ((match = regex.exec(code)) !== null) {
 }
 
 function normalizeNumericLiteral(value) {
-  const boolMatch = String(value).match(new RegExp(`^${BOOL_TYPE_PATTERN}#(TRUE|FALSE|1|0)$`, 'i'));
+  const literal = String(value);
+  const boolMatch = literal.match(new RegExp(`^${BOOL_TYPE_PATTERN}#(TRUE|FALSE|1|0)$`, 'i'));
   if (boolMatch) {
     const boolLiteral = boolMatch[1].toUpperCase();
     if (boolLiteral === 'TRUE' || boolLiteral === '1') return 'TRUE';
     return 'FALSE';
   }
 
-  const typedValue = String(value).replace(
+  const typedValue = literal.replace(
     new RegExp(`^(?:${INTEGER_TYPE_PATTERN}|${REAL_TYPE_PATTERN}|${BOOL_TYPE_PATTERN})#`, 'i'),
     ''
   );
 
   const match = typedValue.match(/^(2|8|16)#([0-9a-f_]+)$/i);
-  if (!match) return typedValue.replace(/_/g, '');
+  if (!match) {
+    const normalized = typedValue.replace(/_/g, '');
+    if (/^[+-]?\d+$/.test(normalized)) return normalizeDecimalIntegerLiteral(normalized);
+    return normalized;
+  }
   const radix = match[1];
   const digits = match[2].replace(/_/g, '');
   if (radix === '2') return `0b${digits}`;
   if (radix === '8') return `0o${digits}`;
   return `0x${digits}`;
+}
+
+function normalizeDecimalIntegerLiteral(value) {
+  const sign = value.startsWith('-') ? '-' : '';
+  const digits = value.replace(/^[+-]?/, '').replace(/^0+(?=\d)/, '');
+  return `${sign}${digits || '0'}`;
 }
 
 function getTokenType(value) {

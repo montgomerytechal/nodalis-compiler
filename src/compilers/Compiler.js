@@ -14,6 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import fs from 'fs';
 import path from 'path';
 
 export const IECLanguage = Object.freeze({
@@ -68,6 +69,26 @@ export class Compiler {
 
   getExecutableOutputPath() {
     return path.join(this.options.outputPath, 'bin');
+  }
+
+  getStructuredTextBundleArtifactName() {
+    return 'nodalisplc.st';
+  }
+
+  cleanupStructuredTextBundleArtifacts(sourcePath) {
+    const artifactPath = path.join(sourcePath, this.getStructuredTextBundleArtifactName());
+    if (fs.existsSync(artifactPath) && fs.lstatSync(artifactPath).isFile()) {
+      fs.rmSync(artifactPath, { force: true });
+    }
+  }
+
+  listStructuredTextBundleFiles(sourcePath) {
+    const bundleArtifactName = this.getStructuredTextBundleArtifactName().toLowerCase();
+    return fs.readdirSync(sourcePath, { withFileTypes: true })
+      .filter((entry) => entry.isFile()
+        && entry.name.toLowerCase().endsWith('.st')
+        && entry.name.toLowerCase() !== bundleArtifactName)
+      .map((entry) => entry.name);
   }
 
   /** @returns {string[]} */

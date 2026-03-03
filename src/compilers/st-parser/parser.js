@@ -292,9 +292,10 @@ function parseStatementsUntil(endTokens) {
     const body = parseStatements('UNTIL');
     expect('UNTIL');
     const condition = [];
-    while (peek() && peek().value !== ';') {
+    while (peek() && peek().value.toUpperCase() !== 'END_REPEAT') {
       condition.push(consume().value);
     }
+    expect('END_REPEAT');
     if (peek()?.value === ';') consume();
     return { type: 'REPEAT', condition, body };
   }

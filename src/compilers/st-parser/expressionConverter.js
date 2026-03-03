@@ -127,7 +127,7 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
     if (/^%[IQM][XBWDL]?\d+(\.\d+)?$/i.test(e)) return getReadAddressExpression(e);
 
     // Don't wrap literals or operators
-    if (/^(true|false|null|[+-]?\d+|[+-]?(?:(?:\d+\.\d*|\d*\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)|0[bB][01]+|0[oO][0-7]+|0[xX][0-9a-f]+|!|&&|\|\||==|!=|[<>=+\-*/(),&|^])$/i.test(e)) return e;
+    if (/^(true|false|null|[+-]?\d+|[+-]?(?:(?:\d+\.\d*|\d*\.\d+)(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)|0[bB][01]+|0[oO][0-7]+|0[xX][0-9a-f]+|!|&&|\|\||==|!=|>=|<=|>|<|=|\+|-|\*|\/|%|\(|\)|,|&|\||\^)$/i.test(e)) return e;
 
     // Don't wrap known function expressions (e.g., getBit)
     if (/^getBit\(/.test(e)) return e;

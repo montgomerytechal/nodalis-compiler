@@ -115,6 +115,7 @@ export class ArduinoCompiler extends Compiler {
         let sourceCode = '';
         let bundleEntryProgram = '';
         if (directoryBundleMode) {
+            this.cleanupStructuredTextBundleArtifacts(sourcePath);
             const { combinedSource, entryProgramName } = this.loadStructuredTextBundle(sourcePath, resourceName);
             sourceCode = combinedSource;
             bundleEntryProgram = entryProgramName;
@@ -285,9 +286,7 @@ void loop() {
     }
 
     loadStructuredTextBundle(sourcePath, resourceName) {
-        const stFiles = fs.readdirSync(sourcePath, { withFileTypes: true })
-            .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.st'))
-            .map((entry) => entry.name);
+        const stFiles = this.listStructuredTextBundleFiles(sourcePath);
 
         if (stFiles.length === 0) {
             throw new Error(`No .st files found in source directory "${sourcePath}".`);
