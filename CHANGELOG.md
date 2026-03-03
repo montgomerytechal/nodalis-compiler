@@ -1,7 +1,8 @@
 # Changelog
 
-## [1.0.19] 2026-03-03
+## [1.0.20] 2026-03-03
 - Changed IEC parser to interpret Function Blocks that are actually standard functions to a formal function call.
+- Fixed nodejs/jint compiles to put executables in a bin folder.
 
 ## [1.0.17] 2026-02-25
 - Added support for compilation of multiple ST files as a single project.

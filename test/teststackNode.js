@@ -17,7 +17,7 @@ await nodalis.compile({
 
 await nodalis.program({
     target: "FILE",
-    source: outputPath,
+    source: path.join(outputPath, "bin"),
     destination: `${outputPath}/deploy`,
 
 });
@@ -35,7 +35,7 @@ await nodalis.compile({
     resourceName: "PLC1"
 });
 
-const jintpath = path.join(outputPath, "publish", "linux-arm64");
+const jintpath = path.join(outputPath, "bin", "linux-arm64");
 await nodalis.program({
     target: "FILE",
     source: jintpath,

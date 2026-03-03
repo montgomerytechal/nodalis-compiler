@@ -260,7 +260,7 @@ int main() {
         const pathTo = name => path.join(outputPath, name);
         const targetInfo = this.resolveTarget(target);
 
-        if (outputType === 'executable') {
+        if (this.isExecutableOutput()) {
             const requestedTarget = target ?? `${targetInfo.os}-${targetInfo.arch}`;
             const hostOs = this.getHostOS();
             const hostArch = this.getHostArch();
@@ -271,7 +271,7 @@ int main() {
             const archFlags = this.getArchFlags(targetInfo.os, targetInfo.arch, compiler);
             const formatFlags = (flags = []) => (flags.length ? `${flags.join(' ')} ` : '');
             const isWindowsTarget = targetInfo.os === 'windows';
-            const binDir = path.join(outputPath, 'bin');
+            const binDir = this.getExecutableOutputPath();
             fs.mkdirSync(binDir, { recursive: true });
 
             // Step 2: Compile open62541.c with C compiler

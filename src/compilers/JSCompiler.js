@@ -224,8 +224,8 @@ export function run(){
         }
         fs.mkdirSync(outputPath, { recursive: true });
         fs.writeFileSync(jsFile, jsCode);
-        const binDir = path.join(outputPath, 'bin');
-        if (outputType === 'executable') {
+        const binDir = this.getExecutableOutputPath();
+        if (this.isExecutableOutput()) {
             fs.mkdirSync(binDir, { recursive: true });
         }
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml") || directoryBundleMode){
@@ -243,34 +243,37 @@ export function run(){
             ];
 
             let coreDir = path.resolve(__dirname + '/support/nodejs');
+            const runtimeOutputDir = this.isExecutableOutput() ? binDir : outputPath;
             
             for (const file of coreFiles) {
-                fs.copyFileSync(path.join(coreDir, file), path.join(outputPath, file));
+                fs.copyFileSync(path.join(coreDir, file), path.join(runtimeOutputDir, file));
             }
-            if (outputType === 'executable') {
-                fs.copyFileSync(jsFile, path.join(binDir, 'nodalisplc.js'));
+            if (this.isExecutableOutput()) {
+                fs.copyFileSync(jsFile, path.join(runtimeOutputDir, 'nodalisplc.js'));
             }
-            writePackageJson(outputPath, plcname);
-            installDependencies(outputPath);
+            writePackageJson(runtimeOutputDir, plcname);
+            installDependencies(runtimeOutputDir);
         }
         
 
-        if (target === "jint" && outputType === "executable") {
+        if (target === "jint" && this.isExecutableOutput()) {
             const supportDir = path.resolve(__dirname, "support/jint/Nodalis");
             const buildScript = os.platform() === "win32" ? "build.bat" : "build.sh";
+            const projectOutputDir = outputPath;
+            const runtimeOutputDir = binDir;
 
-            // 1. Copy all files from support/jint/nodalis to the output directory
-            fs.cpSync(supportDir, outputPath, { recursive: true });
+            // Keep the Jint project sources in the main output directory.
+            fs.cpSync(supportDir, projectOutputDir, { recursive: true, force: true });
 
-            // 2. Run the build script inside the output directory
-            const buildPath = path.resolve(path.join(outputPath, buildScript));
+            // Build from the main output directory, then move publish artifacts under bin.
+            const buildPath = path.resolve(path.join(projectOutputDir, buildScript));
             if(buildPath.endsWith(".sh")){
                 fs.chmodSync(buildPath, 0o755); // make executable
             }
-            execSync(buildPath, { cwd: path.resolve(outputPath), stdio: "inherit", shell: true });
+            execSync(buildPath, { cwd: path.resolve(projectOutputDir), stdio: "inherit", shell: true });
 
             // 3. Copy the generated JS file to each publish folder
-            const publishRoot = path.join(outputPath, "publish");
+            const publishRoot = path.join(projectOutputDir, "publish");
             
             const platforms = fs.readdirSync(publishRoot, { withFileTypes: true })
                 .filter(d => d.isDirectory())
@@ -301,7 +304,7 @@ export function run(){
 
             for (const platformDir of platforms) {
                 const platformName = path.basename(platformDir);
-                const platformBinDir = path.join(binDir, platformName);
+                const platformBinDir = path.join(runtimeOutputDir, platformName);
                 fs.mkdirSync(platformBinDir, { recursive: true });
                 fs.cpSync(platformDir, platformBinDir, { recursive: true, force: true });
             }

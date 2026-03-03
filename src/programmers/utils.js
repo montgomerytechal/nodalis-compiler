@@ -235,24 +235,41 @@ export async function inferEntryPoint(sourcePath, runtime = 'auto', providedEntr
   }
 
   const candidates = ['nodalisplc', 'nodalisplc.exe', 'nodalisplc.js'];
-  for (const candidate of candidates) {
-    if (await exists(path.join(sourcePath, candidate))) {
-      return candidate;
+  const candidateDirectories = ['bin', ''];
+  for (const directory of candidateDirectories) {
+    for (const candidate of candidates) {
+      const relativeCandidate = directory ? path.join(directory, candidate) : candidate;
+      if (await exists(path.join(sourcePath, relativeCandidate))) {
+        return toPosixPath(relativeCandidate);
+      }
     }
-  }
-
-  const entries = await fs.readdir(sourcePath, { withFileTypes: true });
-  const files = entries.filter(entry => entry.isFile()).map(entry => entry.name);
-  if (files.length === 0) {
-    throw new Error(`Could not infer entry point for source directory: ${sourcePath}`);
   }
 
   const inferredRuntime = inferRuntime('', runtime);
   if (inferredRuntime === 'node') {
+    const binNodeEntry = path.join('bin', 'nodalisplc.js');
+    if (await exists(path.join(sourcePath, binNodeEntry))) {
+      return toPosixPath(binNodeEntry);
+    }
     return "nodalisplc.js"
   }
 
-  return files[0];
+  const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+  const files = entries.filter(entry => entry.isFile()).map(entry => entry.name);
+  if (files.length > 0) {
+    return files[0];
+  }
+
+  const binEntriesPath = path.join(sourcePath, 'bin');
+  if (await exists(binEntriesPath)) {
+    const binEntries = await fs.readdir(binEntriesPath, { withFileTypes: true });
+    const binFiles = binEntries.filter(entry => entry.isFile()).map(entry => entry.name);
+    if (binFiles.length > 0) {
+      return toPosixPath(path.join('bin', binFiles[0]));
+    }
+  }
+
+  throw new Error(`Could not infer entry point for source directory: ${sourcePath}`);
 }
 
 export function quoteForPosixSingle(value) {

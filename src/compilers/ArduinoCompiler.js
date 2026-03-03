@@ -255,7 +255,7 @@ void loop() {
         fs.cpSync(path.join(supportDir, 'gpio.cpp'), path.join(outputPath, 'gpio.cpp'), { force: true });
         fs.cpSync(path.join(supportDir, 'json.hpp'), path.join(outputPath, 'json.hpp'), { force: true });
 
-        if (outputType === 'executable') {
+        if (this.isExecutableOutput()) {
             const arduinoCli = compilerConfig.arduino_cli || compilerConfig.arduinoCli || 'arduino-cli';
             const arduinoFqbn = this.resolveArduinoFqbn(target, compilerConfig);
             if (!arduinoFqbn) {
@@ -266,7 +266,7 @@ void loop() {
             this.ensureArduinoCoreInstalled(arduinoCli, arduinoFqbn);
 
             const buildDir = path.join(outputPath, 'build');
-            const binDir = path.join(outputPath, 'bin');
+            const binDir = this.getExecutableOutputPath();
             fs.mkdirSync(buildDir, { recursive: true });
             fs.mkdirSync(binDir, { recursive: true });
             const arduinoCompileCmd = `${arduinoCli} compile --fqbn "${arduinoFqbn}" "${outputPath}" --build-path "${buildDir}" --output-dir "${binDir}" --export-binaries`;

@@ -14,6 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import path from 'path';
+
 export const IECLanguage = Object.freeze({
   LADDER_DIAGRAM: 'LD',
   STRUCTURED_TEXT: 'ST',
@@ -58,6 +60,14 @@ export class Compiler {
     }
 
     this.options = options;
+  }
+
+  isExecutableOutput() {
+    return this.options?.outputType === OutputType.EXECUTABLE;
+  }
+
+  getExecutableOutputPath() {
+    return path.join(this.options.outputPath, 'bin');
   }
 
   /** @returns {string[]} */
