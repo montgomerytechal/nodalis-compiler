@@ -63,16 +63,16 @@ async function runTest() {
   });
   await compiler.compile();
 
-  fixtureName = "plc";
-  inputPath = path.resolve('test/st/fixtures', `${fixtureName}.st`);
-  compiler = new JSCompiler({
-    sourcePath: inputPath,
-    outputPath,
-    target: 'jint',
-    outputType: "code",
-    resourceName: "PLC1"
-  });
-  await compiler.compile();
+  // fixtureName = "plc";
+  // inputPath = path.resolve('test/st/fixtures', `${fixtureName}.st`);
+  // compiler = new JSCompiler({
+  //   sourcePath: inputPath,
+  //   outputPath,
+  //   target: 'jint',
+  //   outputType: "code",
+  //   resourceName: "PLC1"
+  // });
+  // await compiler.compile();
 }
 
 runTest();

@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1771947571067" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1772552256520" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -405,6 +405,141 @@
                     
                     
                 </FbdObject>
+
+                </Rung>
+<Rung evaluationOrder="6">
+                    <LdObject xsi:type="LeftPowerRail" >
+                    <RelPosition x="2" y="408"/>
+                    <ConnectionPointOut connectionPointOutId="1">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<LdObject xsi:type="RightPowerRail" >
+                    <RelPosition x="800" y="408"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="6"/>
+
+                </ConnectionPointIn>
+
+                </LdObject>
+<LdObject xsi:type="Contact"  operand="SW1R" edge="none" negated="false">
+                    <RelPosition x="94.95385426601595" y="407.3668471230139"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="1"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="2">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<FbdObject xsi:type="Block" identifier="MUX" typeName="MUX" instanceName="MUX">
+                    <RelPosition x="285.4132515878975" y="504.2392373018933"/>
+                    <InputVariables>
+                    <InputVariable parameterName="K" negated="false">
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="2"/>
+<Connection refConnectionPointOutId="7"/>
+
+                </ConnectionPointIn>
+                </InputVariable>
+<InputVariable parameterName="IN0" negated="false">
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="4"/>
+
+                </ConnectionPointIn>
+                </InputVariable>
+<InputVariable parameterName="IN1" negated="false">
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="5"/>
+
+                </ConnectionPointIn>
+                </InputVariable>
+                </InputVariables>
+                    <OutputVariables>
+                    <OutputVariable parameterName="OUT">
+                    <ConnectionPointOut connectionPointOutId="3">
+                    
+                </ConnectionPointOut>
+                </OutputVariable>
+                </OutputVariables>
+                    
+                    
+                </FbdObject>
+<FbdObject xsi:type="DataSource" identifier="1" typeName="" instanceName="1">
+                    <RelPosition x="206.02610099814783" y="546.9672519330587"/>
+                    <InputVariables>
+                    
+                </InputVariables>
+                    <OutputVariables>
+                    
+                </OutputVariables>
+                    
+                    <ConnectionPointOut connectionPointOutId="4">
+                    
+                </ConnectionPointOut>
+
+                </FbdObject>
+<FbdObject xsi:type="DataSource" identifier="2" typeName="" instanceName="2">
+                    <RelPosition x="206.65738511840746" y="582.2039189487408"/>
+                    <InputVariables>
+                    
+                </InputVariables>
+                    <OutputVariables>
+                    
+                </OutputVariables>
+                    
+                    <ConnectionPointOut connectionPointOutId="5">
+                    
+                </ConnectionPointOut>
+
+                </FbdObject>
+<FbdObject xsi:type="DataSink" identifier="CU" typeName="" instanceName="CU">
+                    <RelPosition x="500.7447803577589" y="524.5001293654498"/>
+                    <InputVariables>
+                    
+                </InputVariables>
+                    <OutputVariables>
+                    
+                </OutputVariables>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="3"/>
+
+                </ConnectionPointIn>
+
+                    
+                </FbdObject>
+<LdObject xsi:type="Coil"  operand="SW1R" edge="none" negated="false" latch="none">
+                    <RelPosition x="709.6256791686113" y="407.3668471230139"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="2"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="6">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
+<LdObject xsi:type="Contact"  operand="SW1" edge="none" negated="false">
+                    <RelPosition x="95.58700714300208" y="463.7174531747803"/>
+                    <ConnectionPointIn>
+                    
+                    <Connection refConnectionPointOutId="1"/>
+
+                </ConnectionPointIn>
+<ConnectionPointOut connectionPointOutId="7">
+                    
+                </ConnectionPointOut>
+
+                </LdObject>
 
                 </Rung>
 

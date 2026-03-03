@@ -128,11 +128,7 @@ export class Nodalis {
     outputPath,
     resourceName,
     sourcePath,
-    language,
-    codesysCommand,
-    codesysCommandTemplate,
-    codesysProjectFile,
-    codesysPouName
+    language
   }) {
     validateFileExtension(language, sourcePath, resourceName);
 
@@ -147,11 +143,7 @@ export class Nodalis {
       resourceName,
       target,
       outputType,
-      language,
-      codesysCommand,
-      codesysCommandTemplate,
-      codesysProjectFile,
-      codesysPouName
+      language
     };
 
     await compiler.compile();
@@ -203,6 +195,9 @@ Usage:
 Actions:
   --action list-compilers
       Lists all available compilers and their supported targets, languages, protocols, and versions.
+  
+  --action list-programmers
+      Lists all available programmers and their supported targets.
 
   --action compile
       Required options:
@@ -212,10 +207,6 @@ Actions:
         --resourceName  Resource name (used for .iec projects)
         --sourcePath    Path to source file (.st or .iec)
         --language      st (Structured Text) or ld (Ladder Diagram)
-        --codesysCommand Optional CODESYS executable/command for --target codesys
-        --codesysCommandTemplate Optional shell template for --target codesys executable builds
-        --codesysProjectFile Optional .project path for CODESYS automation (defaults to <output>/<resource>.project)
-        --codesysPouName Optional POU name to create/update in CODESYS project
 
   --action deploy  Programs a device based on a protocol.
     --target        The device/protocol targeted for programming.
@@ -261,6 +252,11 @@ Examples:
       console.log(JSON.stringify(list, null, 2));
       break;
     }
+    case 'list-programmers': {
+      const list = app.listProgrammers();
+      console.log(JSON.stringify(list, null, 2));
+      break;
+    }
 
     case 'compile': {
       app.compile({
@@ -269,11 +265,7 @@ Examples:
         outputPath: argMap.outputPath,
         resourceName: argMap.resourceName,
         sourcePath: argMap.sourcePath,
-        language: argMap.language,
-        codesysCommand: argMap.codesysCommand,
-        codesysCommandTemplate: argMap.codesysCommandTemplate,
-        codesysProjectFile: argMap.codesysProjectFile,
-        codesysPouName: argMap.codesysPouName
+        language: argMap.language
       }).then(() => {
         console.log('Compilation completed.');
       }).catch(err => {
@@ -306,7 +298,7 @@ Examples:
 
     default: {
       console.error(`Unknown or missing action: ${argMap.action}`);
-      console.error(`Valid actions: list-compilers, compile, deploy`);
+      console.error(`Valid actions: list-compilers, list-programmers, compile, deploy`);
       break;
     }
   }

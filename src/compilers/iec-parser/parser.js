@@ -1846,6 +1846,35 @@ export class Rung extends Serializable {
     }
 
     /**
+     * Finds the object with the referenced output point ID.
+     * @param {string} refID The ID of the output point to use in searching for the object.
+     * @returns {FbdObject|LdObject} Returns the object with the output, or null if there is no object with that ID.
+     */
+    findObjectWithOutput(refID) {
+        return this.Objects.find(
+            /**
+             * 
+             * @param {FbdObject|LdObject|CommonObject} o 
+             */
+            (o) => {
+                if (o.Type === "Block") {
+                    const v = o.OutputVariables.Variables.find(
+                        /**
+                         * 
+                         * @param {OutputVariable} ov 
+                         */
+                        (ov) => {
+                            return ov.OutputPoint.ID === refID;
+                        });
+                    return typeof ov !== "undefined";
+                }
+                else if (o.Type !== "Comment") {
+                    return typeof o.Outputs.find(op => op.ID === refID) !== "undefined";
+                }
+            });
+    }
+
+    /**
      * 
      * @param {LdObject | FbdObject} obj The ladder logic object from which to find connections.
      * @param {boolean} outputs Determines whether to search for objects that are connected to this object's outputs or inputs.
@@ -2084,19 +2113,65 @@ export class Rung extends Serializable {
                 if(expression.length > 0){
                     expression += " OR ";
                 }
-                if(con instanceof FbdObject){
-                    var v = con.OutputVariables.Variables.find(iv => start.hasInput(iv.OutputPoint.ID));
-                    if(isValid(v)){
-                        expression += con.toST(v.ParameterName);
+                if (con instanceof FbdObject) {
+                    const sb = FbdObject.getStandardBlock(con.TypeName);
+                    if (sb && sb.Style === "F") { //this is a function, not a function block.
+                        let fcall = con.TypeName + "(";
+                        forEachElem(con.InputVariables.Variables,
+                            /**
+                             * 
+                             * @param {InputVariable} v 
+                             */
+                            (v) => {
+                                if (v.InputPoint.Connections.length > 0) {
+                                    let assign = "";
+                                    forEachElem(v.InputPoint.Connections,
+                                        /**
+                                         * 
+                                         * @param {Connection} c 
+                                         */
+                                        (c) => {
+                                            const o = this.findObjectWithOutput(c.RefID);
+                                            if (o) {
+                                                if (assign.length > 0) {
+                                                    assign += " OR ";
+                                                }
+                                                assign += this.#buildExpression(o);
+                                            }
+                                        }
+                                    );
+                                    if (v.Negated === "true") {
+                                        assign = "NOT " + assign;
+                                    }
+                                    if (!fcall.endsWith("(")) {
+                                        fcall += ", ";
+                                    }
+                                    fcall += `${v.ParameterName} := ${assign}`;
+                                }
+                            });
+                        expression += `${fcall})`;
                     }
+                    else {
+                        var v = con.OutputVariables.Variables.find(iv => start.hasInput(iv.OutputPoint.ID));
+                        if (isValid(v)) {
+                            expression += con.toST(v.ParameterName);
+                        }
+                    }
+
                 }
                 else if(con.Type !== "LeftPowerRail"){
                     expression += `(${this.#buildExpression(con)})`;
                 }
             }
         );
-        if(start.Type !== "Coil"){
-            expression = `${start.toST()}${expression.length > 0 ? " AND (" + expression + ")" : ""}`;
+        if (start.Type !== "Coil") {
+            if (start.Type === "DataSink") {
+                expression = start.toST("", expression);
+            }
+            else {
+
+                expression = `${start.toST()}${expression.length > 0 ? " AND (" + expression + ")" : ""}`;
+            }
         }
         return expression;  
     }
@@ -2124,6 +2199,34 @@ export class Rung extends Serializable {
                 (block) => {
                     if(done.includes(block.ID)) return;
                     done.push(block.ID);
+                    const sb = FbdObject.getStandardBlock(block.TypeName);
+                    if (typeof sb !== "undefined" && sb.Style === "F") {
+                        //if this is a function and connects with standard ladder logic, then we wait and deal with this in the next step.
+                        //If it doesn't connect with the rest of the rung, then we need to deal with it here.
+                        if (this.findConnections(block, true).find(o => o.Type === "Contact" || o.Type === "CompareContact" || o.Type === "Coil" || o.Type === "RightPowerRail")) {
+                            return;
+                        }
+                        else {
+                            forEachElem(block.OutputVariables.Variables,
+                                /**
+                             * 
+                             * @param {OutputVariable} outvar 
+                             */
+                                (outvar) => {
+
+
+                                    var inobj = this.Objects.find(o => o.hasInput(outvar.OutputPoint.ID));
+                                    if (isValid(inobj)) {
+                                        if (inobj.Type === "DataSink") {
+                                            st += this.#buildExpression(inobj) + ";\n";
+                                        }
+                                    }
+
+                                }
+                            );
+                            return;
+                        }
+                    }
                     forEachElem(block.InputVariables.Variables, 
                         /**
                          * 
@@ -2898,7 +3001,7 @@ export class Connection extends Serializable{
 export class FbdObject extends Serializable {
 
     /**
-     * @type {{TypeName: string, InputVariables: string[], OutputVariables: string[]}[]}
+     * @type {{TypeName: string, InputVariables: string[], OutputVariables: string[], Style: string}[]}
      */
     static StandardBlocks = [
         {
