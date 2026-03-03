@@ -56,6 +56,7 @@ Usage:
 Actions:
   --action list-compilers
   --action compile
+  --action get-toolchains
 ```
 
 ---
@@ -67,6 +68,18 @@ Actions:
 ```bash
 nodalis --action list-compilers
 ```
+
+### ✔ Install managed C/C++ toolchains
+
+```bash
+nodalis --action get-toolchains
+```
+
+This installs:
+- Managed Zig-based C/C++ cross-compilers
+- Managed `arduino-cli`
+- Default Arduino board cores for the built-in Nodalis FQBN targets
+- Required Arduino libraries for the built-in Nodalis Arduino runtime, including `ArduinoModbus`
 
 ---
 
@@ -113,23 +126,34 @@ await app.compile({
 
 #### Dependencies
 
-- Uses a default cross-compiler profile tuned for macOS-style Clang/LLVM toolchains when no overrides are provided.
+- Uses managed Zig-based toolchain wrappers under `~/.nodalis/toolchains` when no overrides are provided.
+- Install those toolchains with `nodalis --action get-toolchains`.
+- `get-toolchains` also installs a managed `arduino-cli` plus the default Nodalis Arduino board cores.
+- `get-toolchains` also installs the default Arduino libraries required by the built-in runtime support.
+- On Windows hosts, the managed toolchain installs wrappers for all Linux and Windows targets.
+- On macOS hosts, the managed toolchain installs wrappers for all Linux, Windows, and macOS targets.
 - Supply a `toolchain.json` file beside your source to describe a custom toolchain. Example:
 
 ```json
 {
-    "linux-arm": "arm-linux-gnueabi-g++",
-    "linux-arm64": "aarch64-linux-gnu-g++",
-    "linux-x64": "x86_64-linux-gnu-g++",
-    "macos-arm64": "clang++",
-    "macos-x64": "clang++",
-    "windows-x64": "x86_64-w64-mingw32-g++",
-    "windows-arm64": "/opt/llvm-mingw/bin/aarch64-w64-mingw32-g++"
+    "linux-arm": "/Users/you/.nodalis/toolchains/zig/0.15.2/wrappers/zig-linux-arm-c++",
+    "linux-arm64": "/Users/you/.nodalis/toolchains/zig/0.15.2/wrappers/zig-linux-arm64-c++",
+    "linux-x64": "/Users/you/.nodalis/toolchains/zig/0.15.2/wrappers/zig-linux-x64-c++",
+    "windows-x64": "/Users/you/.nodalis/toolchains/zig/0.15.2/wrappers/zig-windows-x64-c++",
+    "windows-arm64": "/Users/you/.nodalis/toolchains/zig/0.15.2/wrappers/zig-windows-arm64-c++",
+    "macos-x64": "/Users/you/.nodalis/toolchains/zig/0.15.2/wrappers/zig-macos-x64-c++",
+    "macos-arm64": "/Users/you/.nodalis/toolchains/zig/0.15.2/wrappers/zig-macos-arm64-c++"
 }
 ```
 
-- Without an explicit file Nodalis falls back to the default compiler for the host OS (`clang++` on macOS, `g++` on Linux, and `cl.exe` or MinGW-w64 `g++` on Windows).
-- Common cross-compiler sources: Homebrew packages (`brew install armmbed/formulae/arm-none-eabi-gcc`) and osxcross for macOS targeting, MinGW-w64/MSYS2 or Visual Studio Build Tools for Windows, and distro packages such as `gcc-arm-linux-gnueabihf` or `x86_64-w64-mingw32-g++` on Linux.
+- The managed installer skips macOS targets on non-macOS hosts.
+- `toolchain.json` remains the escape hatch for unsupported or custom compiler setups.
+
+### Arduino
+
+Nodalis uses a managed `arduino-cli` by default when present under `~/.nodalis/toolchains/arduino-cli`.
+Running `nodalis --action get-toolchains` also installs the default board cores required by the built-in Arduino FQBN targets, currently including `arduino:mbed_opta:opta`.
+It also installs the default Arduino libraries required by the shipped support code, currently including `ArduinoModbus`.
 
 #### Variations
 

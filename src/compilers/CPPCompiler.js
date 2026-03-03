@@ -24,19 +24,12 @@ import { parseStructuredText } from './st-parser/parser.js';
 import { transpile } from './st-parser/gcctranspiler.js';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
+import { getDefaultToolchain, getToolchainRoot, isManagedZigCompiler } from '../toolchains.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const DEFAULT_TOOLCHAIN = {
-    "linux-arm": "arm-linux-gnueabi-g++",
-    "linux-arm64": "aarch64-linux-gnu-g++",
-    "linux-x64": "x86_64-linux-gnu-g++",
-    "macos-arm64": "clang++",
-    "macos-x64": "clang++",
-    "windows-x64": "x86_64-w64-mingw32-g++",
-    "windows-arm64": "/opt/llvm-mingw/bin/aarch64-w64-mingw32-g++"
-};
+const DEFAULT_TOOLCHAIN = getDefaultToolchain();
 
 let ToolChain = { ...DEFAULT_TOOLCHAIN };
 
@@ -79,7 +72,7 @@ export class CPPCompiler extends Compiler {
         const isStructuredTextLanguage = String(language || '').toUpperCase() === IECLanguage.STRUCTURED_TEXT;
         const directoryBundleMode = sourceIsDirectory && isStructuredTextLanguage && typeof resourceName === 'string' && resourceName.trim().length > 0;
 
-        ToolChain = { ...DEFAULT_TOOLCHAIN };
+        ToolChain = { ...getDefaultToolchain() };
         const sourceDir = sourceIsDirectory ? sourcePath : path.dirname(sourcePath);
         const toolchainConfigPath = path.join(sourceDir, "toolchain.json");
         if (fs.existsSync(toolchainConfigPath)) {
@@ -369,7 +362,12 @@ int main() {
                 .forEach((dir) => searchDirs.add(dir));
         }
 
-        const compilerPath = execSync(`which "${compiler}"`, { encoding: 'utf8' }).trim();
+        const compilerPath = path.isAbsolute(compiler)
+            ? compiler
+            : execSync(process.platform === 'win32' ? `where "${compiler}"` : `which "${compiler}"`, { encoding: 'utf8' })
+                .split(/\r?\n/)
+                .map((line) => line.trim())
+                .find(Boolean);
         if (compilerPath) {
             const compilerDir = path.dirname(compilerPath);
             searchDirs.add(compilerDir);
@@ -500,44 +498,28 @@ int main() {
     }
 
     detectCompiler(hostOs, hostArch, targetOs, targetArch) {
-        const hostDefaults = {
-            linux: "g++",
-            macos: "clang++",
-            windows: "cl.exe"
-        };
-        const hostKey = `${hostOs}-${hostArch}`;
         const targetKey = `${targetOs}-${targetArch}`;
 
         const ensureCompilerAvailable = (compilerName, message) => {
-            const versionCommand = compilerName === "cl.exe" ? compilerName : `${compilerName} --version`;
             try {
-                execSync(versionCommand, { stdio: "ignore" });
+                execSync(`"${compilerName}" --version`, { stdio: 'ignore' });
             } catch {
                 throw new Error(message);
             }
         };
 
-        if (targetKey === hostKey) {
-            const defaultCompiler = hostDefaults[hostOs];
-            if (!defaultCompiler) {
-                throw new Error(`No default compiler configured for host platform ${hostOs}.`);
-            }
-            ensureCompilerAvailable(
-                defaultCompiler,
-                `The default compiler "${defaultCompiler}" is not available. Install it using your package manager (e.g., brew install ${defaultCompiler} or apt install ${defaultCompiler}).
-                You can also create a file called "toolchain.json" in your source directory which will supply the path to the gnu c compiler for each platform. See the README file for more details.`
-            );
-            return defaultCompiler;
-        }
-
         const configuredCompiler = ToolChain[targetKey];
         if (!configuredCompiler) {
-            throw new Error(`No cross-compiler is configured for target ${targetKey}. Add it to toolchain.json or update the ToolChain defaults.`);
+            throw new Error(
+                `No toolchain is configured for target ${targetKey} on host ${hostOs}-${hostArch}. ` +
+                `Run "nodalis --action get-toolchains" or add an override in toolchain.json.`
+            );
         }
         ensureCompilerAvailable(
             configuredCompiler,
-            `Cross-compiler "${configuredCompiler}" for target ${targetKey} is not available. Install it via your package manager (e.g., brew install ${configuredCompiler} or apt install ${configuredCompiler}).
-                You can also create a file called "toolchain.json" in your source directory which will supply the path to the gnu c compiler for each platform. See the README file for more details.`
+            `Toolchain "${configuredCompiler}" for target ${targetKey} is not available. ` +
+            `Run "nodalis --action get-toolchains" to install managed toolchains under ${getToolchainRoot()}, ` +
+            `or add a custom compiler path in toolchain.json.`
         );
         return configuredCompiler;
     }
@@ -561,7 +543,7 @@ int main() {
         if (compiler === 'cl.exe') {
             return { c: [], cpp: [] };
         }
-        let flags = { //default flags are for macos clang
+        let flags = { // default flags are for managed/native clang wrappers
             'linux-x64': [],
             'linux-arm64': [],
             'linux-arm': [],
@@ -581,7 +563,18 @@ int main() {
             "macos-arm64": "",
         }
 
-        if (!compiler.includes("clang")) {
+        if (isManagedZigCompiler(compiler)) {
+            flags = {
+                'linux-x64': [],
+                'linux-arm64': [],
+                'linux-arm': [],
+                'macos-x64': [],
+                'macos-arm64': [],
+                'windows-x64': [],
+                'windows-arm64': []
+            };
+        }
+        else if (!compiler.includes("clang")) {
             flags = {
                 'linux-x64': ["-D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -pthread"],
                 'linux-arm64': ["-D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE -pthread"],

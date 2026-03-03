@@ -16,6 +16,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { Programmer } from './Programmer.js';
 import { runCommand } from './utils.js';
+import { getManagedArduinoCliExecOptions, getManagedArduinoCliPath } from '../toolchains.js';
 
 export class ArduinoProgrammer extends Programmer {
   constructor(options) {
@@ -58,7 +59,11 @@ export class ArduinoProgrammer extends Programmer {
       }
     }
 
-    const { stdout, stderr } = await runCommand('arduino-cli', args);
+    const { stdout, stderr } = await runCommand(
+      getManagedArduinoCliPath(),
+      args,
+      getManagedArduinoCliExecOptions()
+    );
     if (stdout) {
       console.log(stdout.trim());
     }

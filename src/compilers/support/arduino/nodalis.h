@@ -671,19 +671,12 @@ template <typename T, typename... Ts>
 inline T MUX(std::size_t K, T in0, Ts... rest)
 {
     constexpr std::size_t N = 1 + sizeof...(Ts);
+    T values[N] = {in0, static_cast<T>(rest)...};
     if (K >= N)
     {
-        throw std::out_of_range("MUX selector out of range");
+        return values[0];
     }
-
-    auto values = std::tuple<T, Ts...>(in0, rest...);
-    return std::apply(
-        [K](auto... elems) -> T
-        {
-            T arr[] = {elems...};
-            return arr[K];
-        },
-        values);
+    return values[K];
 };
 
 // ============================================================

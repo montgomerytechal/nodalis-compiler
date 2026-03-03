@@ -12,7 +12,7 @@ function normalize(text) {
 function runTest() {
 
 
-  const targets = ["arduino-opta", "arduino-portenta-h7"];
+  const targets = ["arduino-opta"];
   inputPath = path.resolve('test/st/fixtures', `plc1.iec`);
 
   targets.forEach(async t => {

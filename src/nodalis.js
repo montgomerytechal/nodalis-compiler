@@ -30,6 +30,7 @@ import { FileProgrammer } from './programmers/FileProgrammer.js';
 import { SSHProgrammer } from './programmers/SSHProgrammer.js';
 import { ArduinoProgrammer } from './programmers/ArduinoProgrammer.js';
 import { CompileList } from "mticp-npm"
+import { getToolchainRoot, installDefaultToolchains } from './toolchains.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -172,6 +173,10 @@ export class Nodalis {
     }
   }
 
+  async getToolchains() {
+    return installDefaultToolchains();
+  }
+
 }
 
 function isCliEntryPoint() {
@@ -221,6 +226,11 @@ Actions:
     --sshPort       Optional SSH port for SSH deployment.
     --arduinoFqbn   Required for Arduino target if --target Arduino.
 
+  --action get-toolchains
+      Detects the host OS/arch and installs managed C/C++ toolchains,
+      arduino-cli, and default Arduino board cores under:
+      ${getToolchainRoot()}
+
 Examples:
   node nodalis.js --action list-compilers
 
@@ -231,6 +241,8 @@ Examples:
     --resourceName MyPLC \\
     --sourcePath ./examples/pump.iec \\
     --language st
+
+  node nodalis.js --action get-toolchains
   `);
   process.exit(0);
 }
@@ -296,9 +308,18 @@ Examples:
       break;
     }
 
+    case 'get-toolchains': {
+      app.getToolchains().then((result) => {
+        console.log(JSON.stringify(result, null, 2));
+      }).catch(err => {
+        console.error(`Toolchain installation failed: ${err.message}`);
+      });
+      break;
+    }
+
     default: {
       console.error(`Unknown or missing action: ${argMap.action}`);
-      console.error(`Valid actions: list-compilers, list-programmers, compile, deploy`);
+      console.error(`Valid actions: list-compilers, list-programmers, compile, deploy, get-toolchains`);
       break;
     }
   }

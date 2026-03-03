@@ -23,13 +23,11 @@ import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Comp
 import * as iec from './iec-parser/parser.js';
 import { parseStructuredText } from './st-parser/parser.js';
 import { transpile } from './st-parser/gcctranspiler.js';
+import { DEFAULT_ARDUINO_FQBN } from './arduinoDefaults.js';
+import { getManagedArduinoCliPath, getManagedArduinoCliExecOptions } from '../toolchains.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-const DEFAULT_ARDUINO_FQBN = {
-    'arduino-opta': 'arduino:mbed_opta:opta'
-};
 
 const MODBUS_ARDUINO_CORE_IDS = new Set([
     'arduino:megaavr',
@@ -257,7 +255,7 @@ void loop() {
         fs.cpSync(path.join(supportDir, 'json.hpp'), path.join(outputPath, 'json.hpp'), { force: true });
 
         if (this.isExecutableOutput()) {
-            const arduinoCli = compilerConfig.arduino_cli || compilerConfig.arduinoCli || 'arduino-cli';
+            const arduinoCli = compilerConfig.arduino_cli || compilerConfig.arduinoCli || getManagedArduinoCliPath();
             const arduinoFqbn = this.resolveArduinoFqbn(target, compilerConfig);
             if (!arduinoFqbn) {
                 throw new Error(`No Arduino FQBN configured for target "${target}". Use an explicit FQBN target (e.g. arduino:mbed_opta:opta) or add "arduino_fqbn" to toolchain.json.`);
@@ -272,14 +270,18 @@ void loop() {
             fs.mkdirSync(binDir, { recursive: true });
             const arduinoCompileCmd = `${arduinoCli} compile --fqbn "${arduinoFqbn}" "${outputPath}" --build-path "${buildDir}" --output-dir "${binDir}" --export-binaries`;
             try {
-                execSync(arduinoCompileCmd, { stdio: 'pipe' });
+                execSync(arduinoCompileCmd, getManagedArduinoCliExecOptions({ stdio: 'pipe' }));
             } catch (err) {
                 const stderrText = getExecOutputText(err?.stderr);
                 const stdoutText = getExecOutputText(err?.stdout);
                 const compilerOutput = [stderrText, stdoutText].filter(Boolean).join('\n');
+                const missingArduinoLibrary = compilerOutput.includes('ArduinoModbus.h') || compilerOutput.includes('No such file or directory');
                 const details = compilerOutput || err.message;
                 throw new Error(
-                    `Arduino CLI build failed for "${arduinoFqbn}". Verify arduino-cli and board core availability.\n${details}`
+                    `Arduino CLI build failed for "${arduinoFqbn}". ` +
+                    `${missingArduinoLibrary
+                        ? 'Run "nodalis --action get-toolchains" to install the managed Arduino cores and libraries.'
+                        : 'Verify arduino-cli, board core, and library availability.'}\n${details}`
                 );
             }
         }
@@ -353,7 +355,7 @@ void loop() {
 
         let coreList = '';
         try {
-            coreList = execSync(`${arduinoCli} core list`, { encoding: 'utf8' });
+            coreList = execSync(`${arduinoCli} core list`, getManagedArduinoCliExecOptions({ encoding: 'utf8' }));
         } catch (err) {
             throw new Error(`Failed to query installed Arduino cores using "${arduinoCli}". ${err.message}`);
         }
@@ -362,8 +364,8 @@ void loop() {
         }
 
         try {
-            execSync(`${arduinoCli} core update-index`, { stdio: 'inherit' });
-            execSync(`${arduinoCli} core install ${coreId}`, { stdio: 'inherit' });
+            execSync(`${arduinoCli} core update-index`, getManagedArduinoCliExecOptions({ stdio: 'inherit' }));
+            execSync(`${arduinoCli} core install ${coreId}`, getManagedArduinoCliExecOptions({ stdio: 'inherit' }));
         } catch (err) {
             throw new Error(`Failed to install Arduino core "${coreId}" required for ${arduinoFqbn}. ${err.message}`);
         }
@@ -387,7 +389,10 @@ void loop() {
         const targets = Object.keys(DEFAULT_ARDUINO_FQBN);
 
         try {
-            const boardListRaw = execSync('arduino-cli board listall --format json', { encoding: 'utf8' });
+            const boardListRaw = execSync(
+                `${getManagedArduinoCliPath()} board listall --format json`,
+                getManagedArduinoCliExecOptions({ encoding: 'utf8' })
+            );
             const boardList = JSON.parse(boardListRaw);
             const boards = Array.isArray(boardList.boards) ? boardList.boards : [];
 
