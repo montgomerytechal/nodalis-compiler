@@ -37,6 +37,7 @@ export class SSHProgrammer extends Programmer {
     super(options);
     this.name = 'SSHProgrammer';
     this.target = 'SSH';
+    this.required = ["username", "password"];
   }
 
   async program() {

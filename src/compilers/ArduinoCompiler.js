@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Compiler.js';
 import * as iec from './iec-parser/parser.js';
-import { parseStructuredText } from './st-parser/parser.js';
+import { parseStructuredText, buildCompilerMetadataDirectives } from './st-parser/parser.js';
 import { transpile } from './st-parser/gcctranspiler.js';
 import { DEFAULT_ARDUINO_FQBN } from './arduinoDefaults.js';
 import { getManagedArduinoCliPath, getManagedArduinoCliExecOptions } from '../toolchains.js';
@@ -161,7 +161,9 @@ export class ArduinoCompiler extends Compiler {
         let taskCode = '';
         let mapCode = '';
 
-        const lines = sourceCode.split('\n');
+        const metadataDirectives = buildCompilerMetadataDirectives(parsed);
+        const metadataAwareSource = metadataDirectives.length > 0 ? `${metadataDirectives}${sourceCode}` : sourceCode;
+        const lines = metadataAwareSource.split('\n');
         lines.forEach((line) => {
             if (line.trim().startsWith('//Task=')) {
                 const task = JSON.parse(line.substring(line.indexOf('=') + 1).trim());

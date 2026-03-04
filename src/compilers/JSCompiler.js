@@ -19,7 +19,7 @@ import os from "os";
 import path from "path";
 import { Compiler, IECLanguage, OutputType, CommunicationProtocol } from './Compiler.js';
 import * as iec from "./iec-parser/parser.js";
-import { parseStructuredText } from './st-parser/parser.js';
+import { parseStructuredText, buildCompilerMetadataDirectives } from './st-parser/parser.js';
 import { transpile } from './st-parser/jstranspiler.js';
 import which from "which";
 import { fileURLToPath } from "url";
@@ -114,7 +114,9 @@ export class JSCompiler extends Compiler {
         if(typeof resourceName !== "undefined" && resourceName !== null){
             plcname = resourceName;
         }
-        const lines = sourceCode.split("\n");
+        const metadataDirectives = buildCompilerMetadataDirectives(parsed);
+        const metadataAwareSource = metadataDirectives.length > 0 ? `${metadataDirectives}${sourceCode}` : sourceCode;
+        const lines = metadataAwareSource.split("\n");
         lines.forEach((line) => {
             if(line.trim().startsWith("//Task=")){
                 var task = JSON.parse(line.substring(line.indexOf("=") + 1).trim());

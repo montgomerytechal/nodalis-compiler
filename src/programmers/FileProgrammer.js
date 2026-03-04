@@ -32,6 +32,7 @@ export class FileProgrammer extends Programmer {
     super(options);
     this.name = 'FileProgrammer';
     this.target = 'FILE';
+    this.required = [];
   }
 
   async program() {

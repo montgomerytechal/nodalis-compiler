@@ -104,7 +104,8 @@ export class Nodalis {
   listProgrammers() {
     return this.programmers.map(p => ({
       name: p.name,
-      target: p.target
+      target: p.target,
+      required: p.required
     }));
   }
 

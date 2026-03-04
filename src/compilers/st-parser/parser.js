@@ -32,6 +32,15 @@ import { tokenize } from './tokenizer.js';
 export function parseStructuredText(code) {
   const tokens = tokenize(code);
   let position = 0;
+  const TOP_LEVEL_STARTERS = new Set([
+    'PROGRAM',
+    'FUNCTION',
+    'FUNCTION_BLOCK',
+    'VAR_GLOBAL',
+    'CONFIGURATION',
+    'RESOURCE',
+    'TASK'
+  ]);
 
   function peek(offset = 0) {
     return tokens[position + offset];
@@ -55,17 +64,99 @@ export function parseStructuredText(code) {
 
     switch (token.value.toUpperCase()) {
       case 'PROGRAM':
-        return parseProgram();
+        return parseProgramOrInstance();
       case 'FUNCTION':
         return parseFunction();
       case 'FUNCTION_BLOCK':
         return parseFunctionBlock();
       case 'VAR_GLOBAL':
         return parseGlobalVarSection();
+      case 'TASK':
+        return parseTask();
+      case 'CONFIGURATION':
+        return parseContainer('CONFIGURATION', 'END_CONFIGURATION');
+      case 'RESOURCE':
+        return parseContainer('RESOURCE', 'END_RESOURCE');
       default:
         consume();
         return null;
     }
+  }
+
+  function parseContainer(startKeyword, endKeyword) {
+    expect(startKeyword);
+    const blocks = [];
+
+    while (peek() && peek().value.toUpperCase() !== endKeyword) {
+      const upper = peek().value.toUpperCase();
+      if (TOP_LEVEL_STARTERS.has(upper)) {
+        const block = parseBlock();
+        if (Array.isArray(block)) blocks.push(...block);
+        else if (block) blocks.push(block);
+      } else {
+        consume();
+      }
+    }
+
+    expect(endKeyword);
+    return blocks;
+  }
+
+  function parseTask() {
+    expect('TASK');
+    const name = consume().value;
+    let interval = '1000';
+    let priority = '1';
+
+    if (peek()?.value === '(') {
+      consume();
+      while (peek() && peek().value !== ')') {
+        const key = consume().value.toUpperCase();
+        if (peek()?.value === ':=') consume();
+
+        const valueTokens = [];
+        while (peek() && peek().value !== ',' && peek().value !== ')') {
+          valueTokens.push(consume().value);
+        }
+        const value = valueTokens.join('');
+
+        if (key === 'INTERVAL') interval = normalizeTaskInterval(value);
+        else if (key === 'PRIORITY') priority = normalizeNumericString(value, '1');
+
+        if (peek()?.value === ',') consume();
+      }
+      expect(')');
+    }
+
+    if (peek()?.value === ';') consume();
+    return { type: 'TaskDeclaration', name, interval, priority };
+  }
+
+  function normalizeNumericString(value, fallback) {
+    const match = String(value || '').match(/-?\d+/);
+    return match ? match[0] : fallback;
+  }
+
+  function normalizeTaskInterval(value) {
+    const text = String(value || '').trim();
+    if (!text) return '1000';
+
+    if (/^-?\d+$/.test(text)) return text;
+
+    const duration = text.match(/^T#?([+-]?\d+(?:\.\d+)?)(MS|S|M|H|D)?$/i);
+    if (!duration) return normalizeNumericString(text, '1000');
+
+    const amount = Number(duration[1]);
+    const unit = (duration[2] || 'MS').toUpperCase();
+    const multipliers = {
+      MS: 1,
+      S: 1000,
+      M: 60000,
+      H: 3600000,
+      D: 86400000
+    };
+    const ms = Math.round(amount * (multipliers[unit] || 1));
+    return String(ms);
   }
 
   function parseGlobalVarSection() {
@@ -342,9 +433,22 @@ function parseStatementsUntil(endTokens) {
     return peek(1)?.value === ':' || peek(1)?.value === ',';
   }
 
-  function parseProgram() {
+  function parseProgramOrInstance() {
     expect('PROGRAM');
     const name = consume().value;
+
+    if (peek()?.value?.toUpperCase() === 'WITH' || peek()?.value === ':') {
+      let associatedTaskName = '';
+      if (peek()?.value?.toUpperCase() === 'WITH') {
+        consume();
+        associatedTaskName = consume().value;
+      }
+      expect(':');
+      const typeName = consume().value;
+      if (peek()?.value === ';') consume();
+      return { type: 'ProgramInstanceDeclaration', name, typeName, associatedTaskName };
+    }
+
     const vars = [];
     const stmts = [];
 
@@ -395,8 +499,21 @@ function parseStatementsUntil(endTokens) {
   const body = [];
   while (position < tokens.length) {
     const block = parseBlock();
-    if (block) body.push(block);
+    if (Array.isArray(block)) body.push(...block);
+    else if (block) body.push(block);
   }
 
   return { type: 'Program', body };
+}
+
+export function buildCompilerMetadataDirectives(ast) {
+  const lines = [];
+  for (const block of ast?.body || []) {
+    if (block?.type === 'TaskDeclaration') {
+      lines.push(`//Task={"Name":"${block.name}", "Interval":"${block.interval}", "Priority":"${block.priority}"}`);
+    } else if (block?.type === 'ProgramInstanceDeclaration') {
+      lines.push(`//Instance={"TypeName":"${block.typeName}", "Name":"${block.name}", "AssociatedTaskName":"${block.associatedTaskName || ''}"}`);
+    }
+  }
+  return lines.join('\n') + (lines.length > 0 ? '\n' : '');
 }

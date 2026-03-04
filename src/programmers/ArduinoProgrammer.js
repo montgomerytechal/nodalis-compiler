@@ -23,6 +23,7 @@ export class ArduinoProgrammer extends Programmer {
     super(options);
     this.name = 'ArduinoProgrammer';
     this.target = 'arduino';
+    this.required = ["fqbn"];
   }
 
   async program() {

@@ -26,6 +26,7 @@ export class MTIProgrammer extends Programmer {
         super(options);
         this.name = "MTIProgrammer";
         this.target = "MTI";
+        this.required = [];
     }
 
     async program() {
