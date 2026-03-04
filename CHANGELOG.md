@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.24] 2026-03-04
+- Added support for CONFIGURATION, RESOURCE, TASK, and PROGRAM (instance) keywords in ST.
+- Added "required" arrays to programmers for communicating required parameters beyond the base params when calling program.
+
 ## [1.0.23] 2026-03-03
 - Changed IEC parser to interpret Function Blocks that are actually standard functions to a formal function call.
 - Fixed nodejs/jint compiles to put executables in a bin folder.
