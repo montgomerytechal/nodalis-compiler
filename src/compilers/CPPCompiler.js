@@ -559,8 +559,8 @@ int main() {
             "windows-x64": " -lws2_32 -lcrypt32 -lwsock32 -lole32 -liphlpapi",
             "windows-arm64": " -lws2_32 -lcrypt32 -lwsock32 -lole32 -liphlpapi",
             "linux-x64": "",
-            "linux-arm64": "",
-            "linux-arm": "",
+            "linux-arm64": " -latomic",
+            "linux-arm": " -latomic",
             "macos-x64": "",
             "macos-arm64": "",
         }

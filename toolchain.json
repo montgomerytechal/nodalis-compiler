@@ -1,0 +1,9 @@
+{
+    "linux-arm": "/Users/nathanskipper/.nodalis/toolchains/zig/0.15.2/wrappers/zig-linux-arm-c++",
+    "linux-arm64": "/Users/nathanskipper/.nodalis/toolchains/zig/0.15.2/wrappers/zig-linux-arm64-c++",
+    "linux-x64": "/Users/nathanskipper/.nodalis/toolchains/zig/0.15.2/wrappers/zig-linux-x64-c++",
+    "windows-arm64": "/Users/nathanskipper/.nodalis/toolchains/zig/0.15.2/wrappers/zig-windows-arm64-c++",
+    "windows-x64": "/Users/nathanskipper/.nodalis/toolchains/zig/0.15.2/wrappers/zig-windows-x64-c++",
+    "macos-arm64": "/Users/nathanskipper/.nodalis/toolchains/zig/0.15.2/wrappers/zig-macos-arm64-c++",
+    "macos-x64": "/Users/nathanskipper/.nodalis/toolchains/zig/0.15.2/wrappers/zig-macos-x64-c++"
+}

@@ -179,13 +179,12 @@ function mapStatement(stmt){
         return [`${stmt.name}();`];
       }
         default:
-          return [`// unsupported: ${stmt.type}`];
+          throw createTranspileError(`Unsupported statement type '${stmt.type}'`, stmt);
       }
   }
   catch(e){
-    console.error(e + "\n" + JSON.stringify(stmt));
+    throw enrichTranspileError(e, stmt);
   }
-  return "// uncompilable statement " + JSON.stringify(stmt);
 }
 
 /**
@@ -195,6 +194,22 @@ function mapStatement(stmt){
  */
 function transpileStatements(statements) {
   return statements?.flatMap(mapStatement);
+}
+
+function createTranspileError(message, node) {
+  const line = node?.loc?.line ?? 1;
+  const column = node?.loc?.column ?? 1;
+  const error = new Error(`${message} at line ${line}, column ${column}`);
+  error.line = line;
+  error.column = column;
+  error.sourceLocation = { line, column };
+  return error;
+}
+
+function enrichTranspileError(error, node) {
+  if (error?.line) return error;
+  const message = error?.message || String(error);
+  return createTranspileError(message, node);
 }
 
 /**

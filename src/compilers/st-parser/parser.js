@@ -46,14 +46,33 @@ export function parseStructuredText(code) {
     return tokens[position + offset];
   }
 
+  function previous() {
+    return tokens[position - 1];
+  }
+
   function consume() {
     return tokens[position++];
+  }
+
+  function withLoc(node, token) {
+    if (!node || !token) return node;
+    return { ...node, loc: { line: token.line, column: token.column } };
+  }
+
+  function createSourceError(message, token = peek() || previous()) {
+    const line = token?.line ?? 1;
+    const column = token?.column ?? 1;
+    const error = new Error(`${message} at line ${line}, column ${column}`);
+    error.line = line;
+    error.column = column;
+    error.sourceLocation = { line, column };
+    return error;
   }
 
   function expect(value) {
     const token = consume();
     if (!token || token.value.toUpperCase() !== value.toUpperCase()) {
-      throw new Error(`Expected '${value}', but got '${token?.value}'`);
+      throw createSourceError(`Expected '${value}', but got '${token?.value ?? 'EOF'}'`, token || previous());
     }
     return token;
   }
@@ -129,7 +148,7 @@ export function parseStructuredText(code) {
     }
 
     if (peek()?.value === ';') consume();
-    return { type: 'TaskDeclaration', name, interval, priority };
+    return withLoc({ type: 'TaskDeclaration', name, interval, priority }, tokens[position - 1]);
   }
 
   function normalizeNumericString(value, fallback) {
@@ -173,7 +192,7 @@ export function parseStructuredText(code) {
         if (addrToken?.type === 'ADDRESS' || addrToken?.type === 'IDENTIFIER') {
           address = addrToken.value;
         } else {
-          throw new Error(`Expected address after AT, got '${addrToken?.value}'`);
+          throw createSourceError(`Expected address after AT, got '${addrToken?.value ?? 'EOF'}'`, addrToken || previous());
         }
       }
       expect(':');
@@ -188,12 +207,12 @@ export function parseStructuredText(code) {
         }
         initialValue = initTokens.join('');
       }
-      variables.push({ name, type, address, initialValue, sectionType: 'VAR_GLOBAL' });
+      variables.push(withLoc({ name, type, address, initialValue, sectionType: 'VAR_GLOBAL' }, tokens[position - 1]));
       if (peek()?.value === ';') consume();
     }
 
     expect('END_VAR');
-    return { type: 'GlobalVars', variables };
+    return withLoc({ type: 'GlobalVars', variables }, variables[0]?.loc ? { line: variables[0].loc.line, column: variables[0].loc.column } : previous());
   }
 
 
@@ -202,6 +221,7 @@ export function parseStructuredText(code) {
     const sectionType = consume().value.toUpperCase();
 
     while (peek() && peek().value.toUpperCase() !== 'END_VAR') {
+      const startToken = peek();
       const name = consume().value;
       expect(':');
       const type = consume().value;
@@ -215,7 +235,7 @@ export function parseStructuredText(code) {
         }
         initialValue = initTokens.join('');
       }
-      variables.push({ name, type, initialValue, sectionType });
+      variables.push(withLoc({ name, type, initialValue, sectionType }, startToken));
       if (peek()?.value === ';') consume();
     }
     expect('END_VAR');
@@ -234,6 +254,10 @@ export function parseStructuredText(code) {
 function parseStatement() {
   const token = peek();
   if (!token) return null;
+  if (token.value === ';') {
+    consume();
+    return null;
+  }
 
   if (token.value.toUpperCase() === 'IF') return parseIf();
   if (token.value.toUpperCase() === 'WHILE') return parseWhile();
@@ -261,7 +285,7 @@ function parseStatement() {
     // optional semicolon
     if (peek()?.value === ';') consume();
 
-    return { type: 'CALL', name, args };
+    return withLoc({ type: 'CALL', name, args }, token);
   }
 
   // Assignment: x := y;
@@ -280,16 +304,15 @@ if (peek(i)?.value === ':=') {
     right.push(consume().value);
   }
   if (peek()?.value === ';') consume();
-  return { type: 'ASSIGN', left: lhs, right };
+  return withLoc({ type: 'ASSIGN', left: lhs, right }, lhsTokens[0]);
 }
 
-  consume(); // Skip unknown
-  return null;
+  throw createSourceError(`Unexpected token '${token.value}'`, token);
 }
 
 
 function parseIf() {
-  consume(); // IF
+  const startToken = consume(); // IF
 
   // Collect condition tokens until THEN
   const conditionTokens = [];
@@ -322,13 +345,13 @@ function parseIf() {
     consume(); // END_IF
   }
 
-  return {
+  return withLoc({
     type: 'IF',
     condition: conditionTokens,
     thenBlock,
     elseIfBlocks,
     elseBlock
-  };
+  }, startToken);
 }
 
 
@@ -349,7 +372,7 @@ function parseStatementsUntil(endTokens) {
 
 
   function parseWhile() {
-    consume(); // WHILE
+    const startToken = consume(); // WHILE
     const condition = [];
     while (peek() && peek().value.toUpperCase() !== 'DO') {
       condition.push(consume().value);
@@ -357,11 +380,11 @@ function parseStatementsUntil(endTokens) {
     expect('DO');
     const body = parseStatements('END_WHILE');
     expect('END_WHILE');
-    return { type: 'WHILE', condition, body };
+    return withLoc({ type: 'WHILE', condition, body }, startToken);
   }
 
   function parseFor() {
-    consume(); // FOR
+    const startToken = consume(); // FOR
     const variable = consume().value;
     expect(':=');
     const from = consume().value;
@@ -375,11 +398,11 @@ function parseStatementsUntil(endTokens) {
     expect('DO');
     const body = parseStatements('END_FOR');
     expect('END_FOR');
-    return { type: 'FOR', variable, from, to, step, body };
+    return withLoc({ type: 'FOR', variable, from, to, step, body }, startToken);
   }
 
   function parseRepeat() {
-    consume(); // REPEAT
+    const startToken = consume(); // REPEAT
     const body = parseStatements('UNTIL');
     expect('UNTIL');
     const condition = [];
@@ -388,11 +411,11 @@ function parseStatementsUntil(endTokens) {
     }
     expect('END_REPEAT');
     if (peek()?.value === ';') consume();
-    return { type: 'REPEAT', condition, body };
+    return withLoc({ type: 'REPEAT', condition, body }, startToken);
   }
 
   function parseCase() {
-    consume(); // CASE
+    const startToken = consume(); // CASE
     const expression = [];
     while (peek() && peek().value.toUpperCase() !== 'OF') {
       expression.push(consume().value);
@@ -411,7 +434,7 @@ function parseStatementsUntil(endTokens) {
         const stmt = parseStatement();
         if (stmt) body.push(stmt);
       }
-      branches.push({ label: labels.join(','), body });
+      branches.push(withLoc({ label: labels.join(','), body }, peek(-1)));
     }
     let elseBlock = null;
     if (peek()?.value.toUpperCase() === 'ELSE') {
@@ -423,7 +446,7 @@ function parseStatementsUntil(endTokens) {
       }
     }
     expect('END_CASE');
-    return { type: 'CASE', expression, branches, elseBlock };
+    return withLoc({ type: 'CASE', expression, branches, elseBlock }, startToken);
   }
 
   function isCaseBranchBoundary(token) {
@@ -434,7 +457,7 @@ function parseStatementsUntil(endTokens) {
   }
 
   function parseProgramOrInstance() {
-    expect('PROGRAM');
+    const startToken = expect('PROGRAM');
     const name = consume().value;
 
     if (peek()?.value?.toUpperCase() === 'WITH' || peek()?.value === ':') {
@@ -446,7 +469,7 @@ function parseStatementsUntil(endTokens) {
       expect(':');
       const typeName = consume().value;
       if (peek()?.value === ';') consume();
-      return { type: 'ProgramInstanceDeclaration', name, typeName, associatedTaskName };
+      return withLoc({ type: 'ProgramInstanceDeclaration', name, typeName, associatedTaskName }, startToken);
     }
 
     const vars = [];
@@ -459,11 +482,11 @@ function parseStatementsUntil(endTokens) {
     stmts.push(...parseStatements('END_PROGRAM'));
     expect('END_PROGRAM');
 
-    return { type: 'ProgramDeclaration', name, varSections: vars, statements: stmts };
+    return withLoc({ type: 'ProgramDeclaration', name, varSections: vars, statements: stmts }, startToken);
   }
 
   function parseFunction() {
-    expect('FUNCTION');
+    const startToken = expect('FUNCTION');
     const name = consume().value;
     expect(':');
     const returnType = consume().value;
@@ -477,11 +500,11 @@ function parseStatementsUntil(endTokens) {
     stmts.push(...parseStatements('END_FUNCTION'));
     expect('END_FUNCTION');
 
-    return { type: 'FunctionDeclaration', name, returnType, varSections: vars, statements: stmts };
+    return withLoc({ type: 'FunctionDeclaration', name, returnType, varSections: vars, statements: stmts }, startToken);
   }
 
   function parseFunctionBlock() {
-    expect('FUNCTION_BLOCK');
+    const startToken = expect('FUNCTION_BLOCK');
     const name = consume().value;
     const vars = [];
     const stmts = [];
@@ -493,7 +516,7 @@ function parseStatementsUntil(endTokens) {
     stmts.push(...parseStatements('END_FUNCTION_BLOCK'));
     expect('END_FUNCTION_BLOCK');
 
-    return { type: 'FunctionBlockDeclaration', name, varSections: vars, statements: stmts };
+    return withLoc({ type: 'FunctionBlockDeclaration', name, varSections: vars, statements: stmts }, startToken);
   }
 
   const body = [];

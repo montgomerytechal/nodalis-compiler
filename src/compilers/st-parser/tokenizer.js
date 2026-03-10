@@ -24,7 +24,7 @@
 /**
  * Tokenizes a block of structured text into their types and values.
  * @param {string} code A block of structured text code.
- * @returns {{type: string, value: string}[]} An array of tokens.
+ * @returns {{type: string, value: string, line: number, column: number}[]} An array of tokens.
  */
 const INTEGER_TYPE_PATTERN = '(?:BYTE|WORD|DWORD|LWORD|SINT|INT|DINT|LINT|USINT|UINT|UDINT|ULINT)';
 const REAL_TYPE_PATTERN = '(?:REAL|LREAL)';
@@ -40,35 +40,64 @@ const NUMBER_TOKEN_PATTERN = `(?:${TYPED_INTEGER_LITERAL_PATTERN}|${TYPED_REAL_L
 export function tokenize(code) {
   const tokens = [];
   let match;
-  // Remove single-line comments (//...)
-  code = code.replace(/\/\/.*$/gm, '');
-
-  // Remove multi-line comments ((*...*))
-  code = code.replace(/\(\*[\s\S]*?\*\)/g, '');
+  const sanitizedCode = stripCommentsPreservePositions(code);
+  const lineStarts = buildLineStarts(sanitizedCode);
 
   //const regex = /(%[IQM][A-Z]?[0-9]+(?:\.[0-9]+)?)|(:=)|([A-Za-z_]\w*\.\d+)|([A-Za-z_]\w*\.\w+)|([A-Za-z_]\w*)|(\d+)|([:;()<>+\-*/=])/g;
   const regex = new RegExp(`(%[IQM][A-Z]*\\d+(?:\\.\\d+)?)|(:=|=>|>=|<=|<>|!=|\\*\\*)|([A-Za-z_]\\w*\\.\\d+)|([A-Za-z_]\\w*\\.\\w+)|(${NUMBER_TOKEN_PATTERN})|([A-Za-z_]\\w*)|([<>+\\-*/=;():,&|^])`, 'gi');
 
-while ((match = regex.exec(code)) !== null) {
+while ((match = regex.exec(sanitizedCode)) !== null) {
   const [_, address, compoundSymbol, bitIdentifier, propIdentifier, number, identifier, symbol] = match;
+  const location = getLineColumn(lineStarts, match.index);
 
   if (address) 
-    tokens.push({ type: 'ADDRESS', value: address });
+    tokens.push({ type: 'ADDRESS', value: address, ...location });
   else if (compoundSymbol)
-    tokens.push({ type: 'SYMBOL', value: compoundSymbol });
+    tokens.push({ type: 'SYMBOL', value: compoundSymbol, ...location });
   else if (bitIdentifier)
-    tokens.push({ type: 'IDENTIFIER', value: bitIdentifier });
+    tokens.push({ type: 'IDENTIFIER', value: bitIdentifier, ...location });
   else if (propIdentifier)
-    tokens.push({ type: 'IDENTIFIER', value: propIdentifier });
+    tokens.push({ type: 'IDENTIFIER', value: propIdentifier, ...location });
   else if (identifier)
-    tokens.push({ type: 'IDENTIFIER', value: identifier });
+    tokens.push({ type: 'IDENTIFIER', value: identifier, ...location });
   else if (number)
-    tokens.push({ type: 'NUMBER', value: normalizeNumericLiteral(number) });
+    tokens.push({ type: 'NUMBER', value: normalizeNumericLiteral(number), ...location });
   else if (symbol)
-    tokens.push({ type: 'SYMBOL', value: symbol });
+    tokens.push({ type: 'SYMBOL', value: symbol, ...location });
 
   }
   return tokens;
+}
+
+function stripCommentsPreservePositions(code) {
+  return String(code || '')
+    .replace(/\/\/.*$/gm, (comment) => ' '.repeat(comment.length))
+    .replace(/\(\*[\s\S]*?\*\)/g, (comment) => comment.replace(/[^\n]/g, ' '));
+}
+
+function buildLineStarts(text) {
+  const starts = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '\n') starts.push(i + 1);
+  }
+  return starts;
+}
+
+function getLineColumn(lineStarts, index) {
+  let low = 0;
+  let high = lineStarts.length - 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    if (lineStarts[mid] <= index) low = mid + 1;
+    else high = mid - 1;
+  }
+
+  const lineIndex = Math.max(0, high);
+  return {
+    line: lineIndex + 1,
+    column: (index - lineStarts[lineIndex]) + 1
+  };
 }
 
 function normalizeNumericLiteral(value) {

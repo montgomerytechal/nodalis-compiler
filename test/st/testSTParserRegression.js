@@ -1,6 +1,7 @@
 import assert from 'assert';
 import { parseStructuredText } from '../../src/compilers/st-parser/parser.js';
 import { transpile } from '../../src/compilers/st-parser/jstranspiler.js';
+import { transpile as transpileCpp } from '../../src/compilers/st-parser/gcctranspiler.js';
 
 const source = `
 PROGRAM Test
@@ -34,3 +35,39 @@ assert.match(output, /\} while \(!\(resolve\(iI\) == 10\)\);/);
 assert.doesNotMatch(output, /END_REPEAT/);
 
 console.log('ST parser/transpiler regression checks passed.');
+
+assert.throws(
+  () => parseStructuredText(`
+PROGRAM Broken
+VAR
+  Value BOOL;
+END_VAR
+END_PROGRAM
+`),
+  (err) => {
+    assert.match(err.message, /line 4, column 9/);
+    assert.match(err.message, /Expected ':'/);
+    return true;
+  }
+);
+
+assert.throws(
+  () => transpileCpp(parseStructuredText(`
+PROGRAM BrokenCpp
+VAR
+  i : INT;
+END_VAR
+REPEAT
+  i := i + 1;
+UNTIL i = 10
+END_REPEAT;
+END_PROGRAM
+`)),
+  (err) => {
+    assert.match(err.message, /Unsupported statement type 'REPEAT'/);
+    assert.match(err.message, /line 6, column 1/);
+    return true;
+  }
+);
+
+console.log('Line-aware error reporting regression checks passed.');

@@ -196,11 +196,10 @@ function mapStatement(stmt, infb = false) {
         return [`${stmt.name}();`];
       }
       default:
-        return [`// Unsupported statement type: ${stmt.type}`];
+        throw createTranspileError(`Unsupported statement type '${stmt.type}'`, stmt);
     }
   } catch (e) {
-    console.error("Error transpiling statement", stmt, e);
-    return [`// Failed to transpile: ${JSON.stringify(stmt)}`];
+    throw enrichTranspileError(e, stmt);
   }
 }
 
@@ -211,6 +210,22 @@ function mapStatement(stmt, infb = false) {
  */
 function transpileStatements(statements, infb=false) {
   return statements?.flatMap((stmt) => mapStatement(stmt, infb));
+}
+
+function createTranspileError(message, node) {
+  const line = node?.loc?.line ?? 1;
+  const column = node?.loc?.column ?? 1;
+  const error = new Error(`${message} at line ${line}, column ${column}`);
+  error.line = line;
+  error.column = column;
+  error.sourceLocation = { line, column };
+  return error;
+}
+
+function enrichTranspileError(error, node) {
+  if (error?.line) return error;
+  const message = error?.message || String(error);
+  return createTranspileError(message, node);
 }
 
 /**
