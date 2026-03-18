@@ -428,6 +428,7 @@ bool BACNETClient::resolveRemote(const std::string& remote, BACnetRemotePoint& p
 bool BACNETClient::parseRemoteDefinition(const IOMap &map, BACnetRemotePoint &point)
 {
     json config = nullptr;
+    point.objectInstance = static_cast<uint32_t>(std::stoll(map.remoteAddress));
     if (map.additionalProperties.is_string())
     {
         std::cout << "BACNET-IP Additional Properties is a string.\n";
@@ -438,6 +439,7 @@ bool BACNETClient::parseRemoteDefinition(const IOMap &map, BACnetRemotePoint &po
         config = map.additionalProperties;
         std::cout << "BACNET-IP Additional Properties is an object.\n";
     }
+
     if (parseJsonRemote(config, point))
     {
         return true;
@@ -464,10 +466,6 @@ bool BACNETClient::parseJsonRemote(const json& config, BACnetRemotePoint& point)
     if (extractNumber(config, "objectInstance", instance) ||
         extractNumber(config, "ObjectInstance", instance)) {
         point.objectInstance = instance;
-    }
-    else
-    {
-        std::cout << "BACNET-IP no object instance\n";
     }
 
     auto propertyToken = extractString(config, "propertyId");

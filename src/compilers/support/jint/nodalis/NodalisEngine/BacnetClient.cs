@@ -226,12 +226,13 @@ namespace Nodalis
             // Required numeric fields.
             if (!TryGetUInt(props, "objectType", out var objType) && !TryGetUInt(props, "ObjectType", out objType))
                 return false;
-            if (!TryGetUInt(props, "objectInstance", out var objInst) && !TryGetUInt(props, "ObjectInstance", out objInst))
-                return false;
             if (!TryGetUInt(props, "propertyId", out var propId) && !TryGetUInt(props, "PropertyId", out propId))
+                return false;
+            if (!uint.TryParse(remoteAddress, out var objInst))
                 return false;
 
             point.ObjectType = (BacnetObjectTypes)objType;
+
             point.ObjectInstance = objInst;
             point.PropertyId = (BacnetPropertyIds)propId;
 

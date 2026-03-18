@@ -253,13 +253,12 @@ export class BacnetClient extends IOClient {
     const stringRemote = parseRemoteString(map.remoteAddress);
 
     const objectTypeRaw = config.objectType ?? config.ObjectType ?? stringRemote?.objectType ?? 0;
-    const objectInstanceRaw = config.objectInstance ?? config.ObjectInstance ?? stringRemote?.objectInstance ?? 0;
     const propertyIdRaw = config.propertyId ?? config.PropertyId ?? stringRemote?.propertyId ?? 85;
     const arrayIndexRaw = config.arrayIndex ?? config.ArrayIndex ?? stringRemote?.arrayIndex ?? null;
     const valueType = String(config.valueType ?? config.ValueType ?? "e").toLowerCase();
 
     const objectType = resolveEnumValue(this.bacnet?.enum?.ObjectType, objectTypeRaw, parseInteger(objectTypeRaw, 0));
-    const objectInstance = parseInteger(objectInstanceRaw, 0);
+    const objectInstance = parseInteger(map.remoteAddress, null);
     const propertyId = resolveEnumValue(this.bacnet?.enum?.PropertyIdentifier, propertyIdRaw, parseInteger(propertyIdRaw, 85));
     const arrayIndex = parseInteger(arrayIndexRaw, null);
 
