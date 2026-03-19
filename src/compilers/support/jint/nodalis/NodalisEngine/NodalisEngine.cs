@@ -727,7 +727,6 @@ namespace Nodalis
             JsEngine.SetValue("elapsed", new Func<long>(() => ElapsedMilliseconds));
             JsEngine.SetValue("mapIO", new Action<string>(MapIO));
             JsEngine.SetValue("superviseIO", new Action(SuperviseIO));
-            JsEngine.SetValue("writeDWord", new Action<string, uint>(WriteDWord));
             JsEngine.SetValue("log", new Action<string>(Console.WriteLine));
             JsEngine.SetValue("error", new Action<string>(Console.Error.WriteLine));
 

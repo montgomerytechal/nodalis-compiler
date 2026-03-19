@@ -1,4 +1,6 @@
 # Changelog
+## [1.0.26] 2026-03-19
+- Improved error handling on programming.
 
 ## [1.0.25] 2026-03-18
 - Added line number errors to compilers.

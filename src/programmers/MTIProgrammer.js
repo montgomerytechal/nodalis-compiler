@@ -32,7 +32,7 @@ export class MTIProgrammer extends Programmer {
     async program() {
         let result = true;
         try {
-            runMticp([
+            await runMticp([
                 "action=sendxml",
                 `src=${this.options.source}`,
                 `dst=${this.options.destination}`
@@ -43,6 +43,7 @@ export class MTIProgrammer extends Programmer {
             })
             .catch(err => {
                 // Print any error from the binary and exit non-zero
+                result = false;
                 console.error(err.message || err);
             });
         }
