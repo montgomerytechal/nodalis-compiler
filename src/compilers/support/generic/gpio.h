@@ -40,6 +40,7 @@ private:
     bool readIntFile(const std::string &path, int &value) const;
     bool writeTextFile(const std::string &path, const std::string &value) const;
     bool ensureExported(int globalPin) const;
+    bool ensureActiveLow(int globalPin) const;
     bool ensureDirection(int globalPin, const std::string &direction) const;
     bool resolveGlobalPin(const IOMap &map, int &globalPin) const;
     bool resolveRemotePin(const std::string &remote, int &globalPin) const;

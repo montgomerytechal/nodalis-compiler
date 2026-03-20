@@ -74,6 +74,9 @@ export class GPIOClient extends IOClient {
       if (!this.ensureExported(pin)) {
         return;
       }
+      if (!writeTextFile(`/sys/class/gpio/gpio${pin}/active_low`, "1")) {
+        return;
+      }
       if (!writeTextFile(`/sys/class/gpio/gpio${pin}/direction`, direction)) {
         return;
       }

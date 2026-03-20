@@ -134,6 +134,13 @@ export class SSHProgrammer extends Programmer {
         '-p',
         sshPort,
         `${credentials.username}@${host}`,
+        this.#buildSudoCommand(credentials.password, this.#buildStopProgramCommand(remoteProgramPath, runtime))
+      ]);
+
+      await this.#runSsh(credentials.password, [
+        '-p',
+        sshPort,
+        `${credentials.username}@${host}`,
         this.#buildSudoCommand(credentials.password, installCommand)
       ]);
 
@@ -256,6 +263,48 @@ export class SSHProgrammer extends Programmer {
     return `sudo sh -lc ${quoteForPosixSingle(command)}`;
   }
 
+  #buildStopProgramCommand(remoteProgramPath, runtime) {
+    const quotedPath = quoteForPosixSingle(remoteProgramPath);
+    const quotedProgramName = quoteForPosixSingle(path.posix.basename(remoteProgramPath));
+    return `
+if command -v pgrep >/dev/null 2>&1; then
+  if [ ${quoteForPosixSingle(runtime)} = 'node' ]; then
+    pids=$(ps -eo pid=,args= | awk '
+      index($0, ${quotedPath}) > 0 && $1 != "'$$'" && $1 != "'"$PPID"'" { print $1 }
+    ' 2>/dev/null || true)
+  else
+    pids=$(pgrep -x -- ${quotedProgramName} 2>/dev/null || true)
+  fi
+
+  target_pids=""
+  for pid in $pids; do
+    if [ "$pid" = "$$" ] || [ "$pid" = "$PPID" ]; then
+      continue
+    fi
+    target_pids="$target_pids $pid"
+  done
+
+  if [ -n "$target_pids" ]; then
+    kill $target_pids >/dev/null 2>&1 || true
+    for _ in 1 2 3 4 5; do
+      sleep 1
+      remaining=""
+      for pid in $target_pids; do
+        if kill -0 "$pid" >/dev/null 2>&1; then
+          remaining="$remaining $pid"
+        fi
+      done
+      if [ -z "$remaining" ]; then
+        exit 0
+      fi
+      target_pids="$remaining"
+    done
+    kill -9 $target_pids >/dev/null 2>&1 || true
+  fi
+fi
+`.trim();
+  }
+
   async #cleanupRemoteStaging(credentials, host, sshPort, remoteStagingPath) {
     if (!remoteStagingPath) {
       return;
@@ -286,8 +335,7 @@ export class SSHProgrammer extends Programmer {
           SSH_ASKPASS: askPassPath,
           SSH_ASKPASS_REQUIRE: 'force',
           DISPLAY: process.env.DISPLAY || 'nodalis:0'
-        },
-        stdio: ['ignore', 'inherit', 'inherit']
+        }
       });
     }
     finally {

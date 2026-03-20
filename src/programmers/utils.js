@@ -65,10 +65,30 @@ export async function runCommand(command, args = [], options = {}) {
 
 export async function runCommandInteractive(command, args = [], options = {}) {
   return new Promise((resolve, reject) => {
+    const childStdio = options.stdio ?? ['inherit', 'pipe', 'pipe'];
     const child = spawn(command, args, {
-      stdio: 'inherit',
+      stdio: childStdio,
       ...options
     });
+
+    let stdout = '';
+    let stderr = '';
+
+    if (child.stdout) {
+      child.stdout.on('data', data => {
+        const text = data.toString();
+        stdout += text;
+        process.stdout.write(text);
+      });
+    }
+
+    if (child.stderr) {
+      child.stderr.on('data', data => {
+        const text = data.toString();
+        stderr += text;
+        process.stderr.write(text);
+      });
+    }
 
     child.on('error', reject);
     child.on('close', code => {
@@ -76,7 +96,12 @@ export async function runCommandInteractive(command, args = [], options = {}) {
         resolve({ code });
         return;
       }
-      reject(new Error(`Command failed (${command} ${args.join(' ')}) with exit code ${code}`));
+      const detail = (stderr || stdout).trim();
+      reject(new Error(
+        detail
+          ? `Command failed (${command} ${args.join(' ')}) with exit code ${code}: ${detail}`
+          : `Command failed (${command} ${args.join(' ')}) with exit code ${code}`
+      ));
     });
   });
 }

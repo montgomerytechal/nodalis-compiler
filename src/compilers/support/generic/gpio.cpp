@@ -40,6 +40,10 @@ void GPIOClient::onMappingAdded(const IOMap &map)
         {
             return;
         }
+        if (!ensureActiveLow(pin))
+        {
+            return;
+        }
         if (!ensureDirection(pin, direction))
         {
             return;
@@ -362,6 +366,11 @@ bool GPIOClient::ensureExported(int globalPin) const
 bool GPIOClient::ensureDirection(int globalPin, const std::string &direction) const
 {
     return writeTextFile("/sys/class/gpio/gpio" + std::to_string(globalPin) + "/direction", direction);
+}
+
+bool GPIOClient::ensureActiveLow(int globalPin) const
+{
+    return writeTextFile("/sys/class/gpio/gpio" + std::to_string(globalPin) + "/active_low", "1");
 }
 
 bool GPIOClient::resolveGlobalPin(const IOMap &map, int &globalPin) const
