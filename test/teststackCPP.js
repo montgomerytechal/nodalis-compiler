@@ -15,8 +15,10 @@ await nodalis.compile({
 });
 
 await nodalis.program({
-    target: "FILE",
+    target: "SSH",
     source: outputPath,
-    destination: "./test/st/output/linux-arm64/deploy",
+    destination: "192.168.9.160",
+    username: "mti",
+    password: "MTI-System"
 
 });

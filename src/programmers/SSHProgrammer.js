@@ -73,6 +73,7 @@ export class SSHProgrammer extends Programmer {
     const launchCommand = runtime === 'node'
       ? `node ${quoteForPosixSingle(remoteProgramPath)}`
       : quoteForPosixSingle(remoteProgramPath);
+    const remoteStagingPath = `/tmp/${packageName}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
     let payloadTempRoot = '';
     let transferSourcePath = sourcePath;
@@ -94,7 +95,17 @@ export class SSHProgrammer extends Programmer {
         '-p',
         sshPort,
         `${credentials.username}@${host}`,
-        `mkdir -p ${quoteForPosixSingle(remotePath)}`
+        `mkdir -p ${quoteForPosixSingle(remoteStagingPath)}`
+      ]);
+
+      await this.#runSsh(credentials.password, [
+        '-p',
+        sshPort,
+        `${credentials.username}@${host}`,
+        this.#buildSudoCommand(
+          credentials.password,
+          `mkdir -p ${quoteForPosixSingle(remotePath)}`
+        )
       ]);
 
       if (sourceStat.isDirectory()) {
@@ -103,7 +114,7 @@ export class SSHProgrammer extends Programmer {
           sshPort,
           '-r',
           `${transferSourcePath}/.`,
-          `${credentials.username}@${host}:${remotePath}/`
+          `${credentials.username}@${host}:${remoteStagingPath}/`
         ]);
       }
       else {
@@ -111,21 +122,40 @@ export class SSHProgrammer extends Programmer {
           '-P',
           sshPort,
           sourcePath,
-          `${credentials.username}@${host}:${remotePath}/`
+          `${credentials.username}@${host}:${remoteStagingPath}/`
         ]);
       }
 
-      const cronLine = `@reboot ${launchCommand}`;
-      const remoteScript = `CRON_LINE=${quoteForPosixSingle(cronLine)}; (crontab -l 2>/dev/null | grep -F -v \"${'$'}CRON_LINE\"; echo \"${'$'}CRON_LINE\") | crontab -`;
+      const installCommand = sourceStat.isDirectory()
+        ? `cp -a ${quoteForPosixSingle(`${remoteStagingPath}/.`)} ${quoteForPosixSingle(`${remotePath}/`)}`
+        : `cp -a ${quoteForPosixSingle(path.posix.join(remoteStagingPath, path.basename(sourcePath)))} ${quoteForPosixSingle(`${remotePath}/`)}`;
 
       await this.#runSsh(credentials.password, [
         '-p',
         sshPort,
         `${credentials.username}@${host}`,
-        `sh -lc ${quoteForPosixSingle(remoteScript)}`
+        this.#buildSudoCommand(credentials.password, installCommand)
+      ]);
+
+      const cronLine = `@reboot ${launchCommand}`;
+      const remoteScript = `CRON_LINE=${quoteForPosixSingle(cronLine)}; (crontab -l 2>/dev/null | grep -F -v "${'$'}CRON_LINE"; echo "${'$'}CRON_LINE") | crontab -`;
+
+      await this.#runSsh(credentials.password, [
+        '-p',
+        sshPort,
+        `${credentials.username}@${host}`,
+        this.#buildSudoCommand(credentials.password, remoteScript)
+      ]);
+
+      await this.#runSsh(credentials.password, [
+        '-p',
+        sshPort,
+        `${credentials.username}@${host}`,
+        this.#buildSudoCommand(credentials.password, 'reboot')
       ]);
     }
     finally {
+      await this.#cleanupRemoteStaging(credentials, host, sshPort, remoteStagingPath);
       if (payloadTempRoot) {
         await fs.rm(payloadTempRoot, { recursive: true, force: true });
       }
@@ -189,8 +219,13 @@ export class SSHProgrammer extends Programmer {
   }
 
   async #runScp(password, args) {
-    if (password && await this.#commandExists('sshpass')) {
-      await runCommandInteractive('sshpass', ['-p', password, 'scp', ...args]);
+    if (password) {
+      if (await this.#commandExists('sshpass')) {
+        await runCommandInteractive('sshpass', ['-p', password, 'scp', ...args]);
+        return;
+      }
+
+      await this.#runWithSshAskPass('scp', args, password);
       return;
     }
 
@@ -198,11 +233,65 @@ export class SSHProgrammer extends Programmer {
   }
 
   async #runSsh(password, args) {
-    if (password && await this.#commandExists('sshpass')) {
-      await runCommandInteractive('sshpass', ['-p', password, 'ssh', ...args]);
+    const sshArgs = ['-tt', ...args];
+
+    if (password) {
+      if (await this.#commandExists('sshpass')) {
+        await runCommandInteractive('sshpass', ['-p', password, 'ssh', ...sshArgs]);
+        return;
+      }
+
+      await this.#runWithSshAskPass('ssh', sshArgs, password);
       return;
     }
 
-    await runCommandInteractive('ssh', args);
+    await runCommandInteractive('ssh', sshArgs);
+  }
+
+  #buildSudoCommand(password, command) {
+    if (password) {
+      return `echo ${quoteForPosixSingle(password)} | sudo -S -p '' sh -lc ${quoteForPosixSingle(command)}`;
+    }
+
+    return `sudo sh -lc ${quoteForPosixSingle(command)}`;
+  }
+
+  async #cleanupRemoteStaging(credentials, host, sshPort, remoteStagingPath) {
+    if (!remoteStagingPath) {
+      return;
+    }
+
+    try {
+      await this.#runSsh(credentials.password, [
+        '-p',
+        sshPort,
+        `${credentials.username}@${host}`,
+        `rm -rf ${quoteForPosixSingle(remoteStagingPath)}`
+      ]);
+    }
+    catch {
+      // Cleanup is best effort; deployment already succeeded or failed for another reason.
+    }
+  }
+
+  async #runWithSshAskPass(command, args, password) {
+    const askPassPath = path.join(os.tmpdir(), `nodalis-askpass-${process.pid}-${Date.now()}.sh`);
+
+    try {
+      await fs.writeFile(askPassPath, `#!/bin/sh\necho ${quoteForPosixSingle(password)}\n`, 'utf8');
+      await fs.chmod(askPassPath, 0o700);
+      await runCommandInteractive(command, args, {
+        env: {
+          ...process.env,
+          SSH_ASKPASS: askPassPath,
+          SSH_ASKPASS_REQUIRE: 'force',
+          DISPLAY: process.env.DISPLAY || 'nodalis:0'
+        },
+        stdio: ['ignore', 'inherit', 'inherit']
+      });
+    }
+    finally {
+      await fs.rm(askPassPath, { force: true });
+    }
   }
 }
