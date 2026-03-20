@@ -1,4 +1,8 @@
 # Changelog
+
+## [1.0.27] 2026-03-20
+- Corrected issues with SSH Programmer.
+
 ## [1.0.26] 2026-03-19
 - Improved error handling on programming.
 
