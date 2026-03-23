@@ -19,6 +19,7 @@ void NodalisGPIOClient::onMappingAdded(const IOMap &map)
     uint8_t startPin = 0;
     if (!parsePin(map.remoteAddress, startPin))
     {
+        logErrorThrottled("Invalid GPIO pin mapping " + describeMapping(map));
         return;
     }
 

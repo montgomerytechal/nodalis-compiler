@@ -55,7 +55,7 @@ ModbusResponse NodalisModbusServer::handleRequest(const ModbusRequest &request)
 NodalisModbusClient::NodalisModbusClient(const std::string &ip, uint16_t port, uint8_t unitId)
     : IOClient("MODBUS-TCP"),
       ip(ip),
-      port(port == 0 ? 502 : port),
+      port(port),
       modbusTcpClient(tcpClient),
       deviceAddress(unitId == 0 ? 1 : unitId),
       serverResolved(false)
@@ -63,6 +63,10 @@ NodalisModbusClient::NodalisModbusClient(const std::string &ip, uint16_t port, u
     if (!ip.empty())
     {
         serverResolved = parseIp(ip, serverIp);
+        if (!serverResolved)
+        {
+            logErrorThrottled("Invalid remote IP " + ip);
+        }
     }
 }
 
@@ -109,7 +113,7 @@ void NodalisModbusClient::onMappingAdded(const IOMap &map)
     {
         ip = map.moduleID;
     }
-    if (port == 0 && !map.modulePort.empty())
+    if (!map.modulePort.empty())
     {
         port = static_cast<uint16_t>(std::atoi(map.modulePort.c_str()));
     }
@@ -126,6 +130,10 @@ void NodalisModbusClient::connect()
     if (!ip.empty() && !serverResolved)
     {
         serverResolved = parseIp(ip, serverIp);
+        if (!serverResolved)
+        {
+            logErrorThrottled("Could not parse target IP " + ip);
+        }
     }
     connected = ensureConnected();
 }
@@ -133,7 +141,7 @@ void NodalisModbusClient::connect()
 bool NodalisModbusClient::connectTCP(const std::string &newIp, uint16_t newPort)
 {
     ip = newIp;
-    port = (newPort == 0) ? 502 : newPort;
+    port = newPort;
     serverResolved = parseIp(ip, serverIp);
     connected = ensureConnected();
     return connected;
@@ -143,13 +151,20 @@ bool NodalisModbusClient::ensureConnected()
 {
     if (!serverResolved)
     {
+        logErrorThrottled("Server IP is unresolved");
         return false;
     }
     if (modbusTcpClient.connected())
     {
         return true;
     }
-    return modbusTcpClient.begin(serverIp, port) == 1;
+    const uint16_t effectivePort = (port == 0) ? 502 : port;
+    const bool started = modbusTcpClient.begin(serverIp, effectivePort) == 1;
+    if (!started)
+    {
+        logErrorThrottled("TCP connect failed to " + ip + ":" + std::to_string(effectivePort));
+    }
+    return started;
 }
 
 void NodalisModbusClient::disconnect()
@@ -183,15 +198,16 @@ bool NodalisModbusClient::sendRequest(const ModbusRequest &request, ModbusRespon
     return false;
 }
 
-uint16_t NodalisModbusClient::parseRemoteAddress(const std::string &remote) const
+bool NodalisModbusClient::parseRemoteAddress(const std::string &remote, uint16_t &address) const
 {
     char *endPtr = nullptr;
     const long parsed = std::strtol(remote.c_str(), &endPtr, 10);
-    if (endPtr == remote.c_str() || parsed < 0)
+    if (endPtr == remote.c_str() || *endPtr != '\0' || parsed < 0 || parsed > 65535)
     {
-        return 0;
+        return false;
     }
-    return static_cast<uint16_t>(parsed & 0xFFFF);
+    address = static_cast<uint16_t>(parsed & 0xFFFF);
+    return true;
 }
 
 bool NodalisModbusClient::readBit(const std::string &remote, int &result)
@@ -200,10 +216,17 @@ bool NodalisModbusClient::readBit(const std::string &remote, int &result)
     {
         return false;
     }
-    const uint16_t addr = parseRemoteAddress(remote);
-    const long val = modbusTcpClient.coilRead(deviceAddress, addr);
+    uint16_t addr = 0;
+    if (!parseRemoteAddress(remote, addr))
+    {
+        logErrorThrottled("Invalid remote bit address \"" + remote + "\"");
+        return false;
+    }
+    const long val = modbusTcpClient.discreteInputRead(deviceAddress, addr);
     if (val < 0)
     {
+        logErrorThrottled("Discrete input read failed remote=\"" + remote + "\" parsed=" + std::to_string(addr) +
+                          " unit=" + std::to_string(deviceAddress) + ": " + modbusTcpClient.lastError());
         return false;
     }
     result = (val == 0) ? 0 : 1;
@@ -216,8 +239,20 @@ bool NodalisModbusClient::writeBit(const std::string &remote, int value)
     {
         return false;
     }
-    const uint16_t addr = parseRemoteAddress(remote);
-    return modbusTcpClient.coilWrite(deviceAddress, addr, value != 0) == 1;
+    uint16_t addr = 0;
+    if (!parseRemoteAddress(remote, addr))
+    {
+        logErrorThrottled("Invalid remote bit address \"" + remote + "\"");
+        return false;
+    }
+    const int rc = modbusTcpClient.coilWrite(deviceAddress, addr, value != 0);
+    if (rc != 1)
+    {
+        logErrorThrottled("Coil write failed remote=\"" + remote + "\" parsed=" + std::to_string(addr) +
+                          " unit=" + std::to_string(deviceAddress) + ": " + modbusTcpClient.lastError());
+        return false;
+    }
+    return true;
 }
 
 bool NodalisModbusClient::readByte(const std::string &remote, uint8_t &result)
@@ -242,10 +277,17 @@ bool NodalisModbusClient::readWord(const std::string &remote, uint16_t &result)
     {
         return false;
     }
-    const uint16_t addr = parseRemoteAddress(remote);
+    uint16_t addr = 0;
+    if (!parseRemoteAddress(remote, addr))
+    {
+        logErrorThrottled("Invalid remote register address \"" + remote + "\"");
+        return false;
+    }
     const long val = modbusTcpClient.holdingRegisterRead(deviceAddress, addr);
     if (val < 0)
     {
+        logErrorThrottled("Holding register read failed remote=\"" + remote + "\" parsed=" + std::to_string(addr) +
+                          " unit=" + std::to_string(deviceAddress) + ": " + modbusTcpClient.lastError());
         return false;
     }
     result = static_cast<uint16_t>(val & 0xFFFF);
@@ -258,15 +300,32 @@ bool NodalisModbusClient::writeWord(const std::string &remote, uint16_t value)
     {
         return false;
     }
-    const uint16_t addr = parseRemoteAddress(remote);
-    return modbusTcpClient.holdingRegisterWrite(deviceAddress, addr, value) == 1;
+    uint16_t addr = 0;
+    if (!parseRemoteAddress(remote, addr))
+    {
+        logErrorThrottled("Invalid remote register address \"" + remote + "\"");
+        return false;
+    }
+    const int rc = modbusTcpClient.holdingRegisterWrite(deviceAddress, addr, value);
+    if (rc != 1)
+    {
+        logErrorThrottled("Holding register write failed remote=\"" + remote + "\" parsed=" + std::to_string(addr) +
+                          " unit=" + std::to_string(deviceAddress) + ": " + modbusTcpClient.lastError());
+        return false;
+    }
+    return true;
 }
 
 bool NodalisModbusClient::readDWord(const std::string &remote, uint32_t &result)
 {
     uint16_t hi = 0;
     uint16_t lo = 0;
-    const uint16_t addr = parseRemoteAddress(remote);
+    uint16_t addr = 0;
+    if (!parseRemoteAddress(remote, addr))
+    {
+        logErrorThrottled("Invalid remote register address \"" + remote + "\"");
+        return false;
+    }
 
     if (!readWord(std::to_string(addr), hi))
     {
@@ -283,7 +342,12 @@ bool NodalisModbusClient::readDWord(const std::string &remote, uint32_t &result)
 
 bool NodalisModbusClient::writeDWord(const std::string &remote, uint32_t value)
 {
-    const uint16_t addr = parseRemoteAddress(remote);
+    uint16_t addr = 0;
+    if (!parseRemoteAddress(remote, addr))
+    {
+        logErrorThrottled("Invalid remote register address \"" + remote + "\"");
+        return false;
+    }
     const uint16_t hi = static_cast<uint16_t>((value >> 16) & 0xFFFF);
     const uint16_t lo = static_cast<uint16_t>(value & 0xFFFF);
 
@@ -296,7 +360,12 @@ bool NodalisModbusClient::writeDWord(const std::string &remote, uint32_t value)
 
 bool NodalisModbusClient::readLWord(const std::string &remote, uint64_t &result)
 {
-    const uint16_t addr = parseRemoteAddress(remote);
+    uint16_t addr = 0;
+    if (!parseRemoteAddress(remote, addr))
+    {
+        logErrorThrottled("Invalid remote register address \"" + remote + "\"");
+        return false;
+    }
     uint16_t regs[4] = {0, 0, 0, 0};
 
     for (uint16_t i = 0; i < 4; ++i)
@@ -316,7 +385,12 @@ bool NodalisModbusClient::readLWord(const std::string &remote, uint64_t &result)
 
 bool NodalisModbusClient::writeLWord(const std::string &remote, uint64_t value)
 {
-    const uint16_t addr = parseRemoteAddress(remote);
+    uint16_t addr = 0;
+    if (!parseRemoteAddress(remote, addr))
+    {
+        logErrorThrottled("Invalid remote register address \"" + remote + "\"");
+        return false;
+    }
     const uint16_t regs[4] = {
         static_cast<uint16_t>((value >> 48) & 0xFFFF),
         static_cast<uint16_t>((value >> 32) & 0xFFFF),
@@ -404,6 +478,7 @@ bool NodalisModbusTcpServer::start(uint8_t serverId)
 
     if (modbusServer.begin(serverId) != 1)
     {
+        nodalisLogError("Failed to start Modbus TCP server");
         return false;
     }
 
@@ -418,6 +493,7 @@ bool NodalisModbusTcpServer::start(uint8_t serverId)
 
     tcpServer.begin();
     started = true;
+    nodalisLogInfo("Modbus TCP server started");
 
     for (size_t i = 0; i < globals.size(); ++i)
     {
@@ -441,6 +517,7 @@ void NodalisModbusTcpServer::poll()
     EthernetClient client = tcpServer.available();
     if (client)
     {
+        nodalisLogInfo("Accepted Modbus TCP client");
         modbusServer.accept(client);
     }
     modbusServer.poll();

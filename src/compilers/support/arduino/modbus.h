@@ -108,7 +108,7 @@ private:
     uint8_t deviceAddress;
     bool serverResolved;
 
-    uint16_t parseRemoteAddress(const std::string &remote) const;
+    bool parseRemoteAddress(const std::string &remote, uint16_t &address) const;
     uint8_t parseUnitId(const IOMap &map) const;
     bool ensureConnected();
     bool parseIp(const std::string &value, IPAddress &out) const;

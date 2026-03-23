@@ -7,7 +7,7 @@
                     productName="Some PADT" productVersion="Edition1"
                     productRelease="2018"/>
                     <ContentHeader name="Test Project" version="1.0" creationDateTime="2017-06-14T09:00:00Z"
-                    modificationDateTime="1774044073836" organization="MTI" author="Nathan" language="En">
+                    modificationDateTime="1774295843591" organization="MTI" author="Nathan" language="En">
                 </ContentHeader>
                     <Types>
                     <GlobalNamespace>
@@ -797,7 +797,7 @@ VULINT := 2;]]></ST>
                 </Instances>
                     <MappingTable>
                     <Map ModuleID="192.168.9.17" ModulePort="5502" Protocol="MODBUS-TCP" RemoteAddress="16" RemoteSize="1" InternalAddress="%QX0.0" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
-<Map ModuleID="569" ModulePort="" Protocol="GPIO" RemoteAddress="5" RemoteSize="1" InternalAddress="%IX0.0" Resource="PLC1" PollTime="100" ProtocolProperties="{}"></Map>
+<Map ModuleID="192.168.9.17" ModulePort="5502" Protocol="MODBUS-TCP" RemoteAddress="0" RemoteSize="1" InternalAddress="%IX0.0" Resource="PLC1" PollTime="500" ProtocolProperties="{}"></Map>
 
                 </MappingTable>
                 </Project>

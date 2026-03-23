@@ -11,6 +11,31 @@ uint64_t elapsed()
     return static_cast<uint64_t>(millis());
 }
 
+bool nodalisSerialReady()
+{
+    return static_cast<bool>(Serial);
+}
+
+static void nodalisLog(const char *level, const String &message)
+{
+    if (!nodalisSerialReady())
+        return;
+    Serial.print("[Nodalis][");
+    Serial.print(level);
+    Serial.print("] ");
+    Serial.println(message);
+}
+
+void nodalisLogInfo(const String &message)
+{
+    nodalisLog("INFO", message);
+}
+
+void nodalisLogError(const String &message)
+{
+    nodalisLog("ERROR", message);
+}
+
 static bool validAddressParts(const std::vector<int> &parts, int expectedWidth, bool allowBit)
 {
     if (parts.size() != 4)
@@ -196,6 +221,11 @@ void IOClient::addMapping(const IOMap &map)
             moduleID = map.moduleID;
         mappings.push_back(map);
         onMappingAdded(mappings.back());
+        logInfo("Added map " + describeMapping(mappings.back()));
+    }
+    else
+    {
+        logInfo("Skipping duplicate map " + describeMapping(map));
     }
 }
 
@@ -209,8 +239,42 @@ bool IOClient::hasMapping(std::string localAddress)
     return false;
 }
 
+void IOClient::dumpMappings() const
+{
+    nodalisLogInfo(String(protocol.c_str()) + ": mapping dump begin");
+    for (size_t i = 0; i < mappings.size(); ++i)
+    {
+        nodalisLogInfo(String(protocol.c_str()) + ": " + describeMapping(mappings[i]).c_str());
+    }
+    nodalisLogInfo(String(protocol.c_str()) + ": mapping dump end");
+}
+
 const std::string &IOClient::getProtocol() const { return protocol; }
 const std::string &IOClient::getModuleID() const { return moduleID; }
+
+void IOClient::logInfo(const std::string &message) const
+{
+    nodalisLogInfo(String(protocol.c_str()) + ": " + message.c_str());
+}
+
+void IOClient::logErrorThrottled(const std::string &message)
+{
+    const uint64_t now = elapsed();
+    if (now - lastErrorReport < 2000)
+        return;
+    lastErrorReport = now;
+    nodalisLogError(String(protocol.c_str()) + ": " + message.c_str());
+}
+
+std::string IOClient::describeMapping(const IOMap &map) const
+{
+    std::string text = map.localAddress + " <= " + map.remoteAddress + " [" + map.protocol + "]";
+    if (!map.moduleID.empty())
+        text += " module=" + map.moduleID;
+    if (!map.modulePort.empty())
+        text += ":" + map.modulePort;
+    return text;
+}
 
 void IOClient::poll()
 {
@@ -219,7 +283,12 @@ void IOClient::poll()
         if (elapsed() - lastAttempt >= 15000)
         {
             lastAttempt = elapsed();
+            logInfo("Attempting connection");
             connect();
+            if (connected)
+                logInfo("Connection ready");
+            else
+                logErrorThrottled("Connection attempt failed");
         }
         return;
     }
@@ -232,71 +301,84 @@ void IOClient::poll()
 
         if (map.direction == IOType::Output)
         {
+            bool success = true;
             switch (map.width)
             {
             case 1:
-                writeBit(map.remoteAddress, ::readBit(map.localAddress) ? 1 : 0);
+                success = writeBit(map.remoteAddress, ::readBit(map.localAddress) ? 1 : 0);
                 break;
             case 8:
-                writeByte(map.remoteAddress, ::readByte(map.localAddress));
+                success = writeByte(map.remoteAddress, ::readByte(map.localAddress));
                 break;
             case 16:
-                writeWord(map.remoteAddress, ::readWord(map.localAddress));
+                success = writeWord(map.remoteAddress, ::readWord(map.localAddress));
                 break;
             case 32:
-                writeDWord(map.remoteAddress, ::readDWord(map.localAddress));
+                success = writeDWord(map.remoteAddress, ::readDWord(map.localAddress));
                 break;
             case 64:
-                writeLWord(map.remoteAddress, ::readLWord(map.localAddress));
+                success = writeLWord(map.remoteAddress, ::readLWord(map.localAddress));
                 break;
             default:
+                success = false;
                 break;
             }
+            if (!success)
+                logErrorThrottled("Write failed for " + describeMapping(map));
             continue;
         }
 
         if (map.direction == IOType::Input)
         {
+            bool success = true;
             switch (map.width)
             {
             case 1:
             {
                 int val = 0;
-                if (readBit(map.remoteAddress, val))
-                    writeBit(map.localAddress, val != 0);
+                success = readBit(map.remoteAddress, val);
+                if (success)
+                    ::writeBit(map.localAddress, val != 0);
                 break;
             }
             case 8:
             {
                 uint8_t val = 0;
-                if (readByte(map.remoteAddress, val))
-                    writeByte(map.localAddress, val);
+                success = readByte(map.remoteAddress, val);
+                if (success)
+                    ::writeByte(map.localAddress, val);
                 break;
             }
             case 16:
             {
                 uint16_t val = 0;
-                if (readWord(map.remoteAddress, val))
-                    writeWord(map.localAddress, val);
+                success = readWord(map.remoteAddress, val);
+                if (success)
+                    ::writeWord(map.localAddress, val);
                 break;
             }
             case 32:
             {
                 uint32_t val = 0;
-                if (readDWord(map.remoteAddress, val))
-                    writeDWord(map.localAddress, val);
+                success = readDWord(map.remoteAddress, val);
+                if (success)
+                    ::writeDWord(map.localAddress, val);
                 break;
             }
             case 64:
             {
                 uint64_t val = 0;
-                if (readLWord(map.remoteAddress, val))
-                    writeLWord(map.localAddress, val);
+                success = readLWord(map.remoteAddress, val);
+                if (success)
+                    ::writeLWord(map.localAddress, val);
                 break;
             }
             default:
+                success = false;
                 break;
             }
+            if (!success)
+                logErrorThrottled("Read failed for " + describeMapping(map));
         }
     }
 }
@@ -337,12 +419,20 @@ std::unique_ptr<IOClient> createClient(IOMap &map)
 void mapIO(std::string map)
 {
     IOMap newMap(map);
+    nodalisLogInfo(String("Loading map: ") + newMap.localAddress.c_str() + " <= " + newMap.remoteAddress.c_str() + " [" + newMap.protocol.c_str() + "]");
     IOClient *existing = findClient(newMap);
     if (!existing)
     {
         std::unique_ptr<IOClient> client = createClient(newMap);
         if (client)
+        {
+            nodalisLogInfo(String("Created IO client for protocol ") + newMap.protocol.c_str());
             Clients.push_back(std::move(client));
+        }
+        else
+        {
+            nodalisLogError(String("Unsupported IO protocol: ") + newMap.protocol.c_str());
+        }
     }
 }
 
@@ -351,5 +441,19 @@ void superviseIO()
     for (size_t i = 0; i < Clients.size(); ++i)
     {
         Clients[i]->poll();
+    }
+}
+
+void nodalisDumpMappings()
+{
+    if (Clients.empty())
+    {
+        nodalisLogInfo("No IO clients loaded");
+        return;
+    }
+
+    for (size_t i = 0; i < Clients.size(); ++i)
+    {
+        Clients[i]->dumpMappings();
     }
 }

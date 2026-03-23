@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.28] 2026-03-23
+- Improved support for Arduino, fully tested Arduino compile -> program stack.
+- Added a command line interface for nodalis on Arduino to use in setting IP, read/write of bits, and map info.
+
 ## [1.0.27] 2026-03-20
 - Corrected issues with SSH Programmer.
 

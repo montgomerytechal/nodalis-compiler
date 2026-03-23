@@ -18,6 +18,36 @@ import { Programmer } from './Programmer.js';
 import { runCommand } from './utils.js';
 import { getManagedArduinoCliExecOptions, getManagedArduinoCliPath } from '../toolchains.js';
 
+const ARDUINO_UPLOAD_NON_FATAL_STDERR_PATTERNS = [
+  /dfu-util:\s*Warning:\s*Invalid DFU suffix signature/i,
+  /dfu-util:\s*A valid DFU suffix will be required in a future dfu-util release/i
+];
+
+function classifyUploadStderr(stderrText) {
+  const lines = String(stderrText || '')
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return { fatal: [], nonFatal: [] };
+  }
+
+  const fatal = [];
+  const nonFatal = [];
+
+  for (const line of lines) {
+    const isKnownNonFatal = ARDUINO_UPLOAD_NON_FATAL_STDERR_PATTERNS.some(pattern => pattern.test(line));
+    if (isKnownNonFatal) {
+      nonFatal.push(line);
+      continue;
+    }
+    fatal.push(line);
+  }
+
+  return { fatal, nonFatal };
+}
+
 export class ArduinoProgrammer extends Programmer {
   constructor(options) {
     super(options);
@@ -69,7 +99,13 @@ export class ArduinoProgrammer extends Programmer {
       console.log(stdout.trim());
     }
     if (stderr) {
-      console.error(stderr.trim());
+      const { fatal, nonFatal } = classifyUploadStderr(stderr);
+      if (nonFatal.length > 0) {
+        console.log(nonFatal.join('\n'));
+      }
+      if (fatal.length > 0) {
+        console.error(fatal.join('\n'));
+      }
     }
 
     return true;

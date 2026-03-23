@@ -219,20 +219,62 @@ export class ArduinoCompiler extends Compiler {
 
         const inoCode = `#include "nodalis.h"
 #include <stdint.h>
+#include <Ethernet.h>
 #include "modbus.h"
+#include "network_config.h"
 
 NodalisModbusTcpServer modbusServer;
+IPAddress localIp;
+
+#if defined(LEDR)
+const int NODALIS_HEARTBEAT_LED_PIN = LEDR;
+#elif defined(LED_BUILTIN)
+const int NODALIS_HEARTBEAT_LED_PIN = LED_BUILTIN;
+#else
+const int NODALIS_HEARTBEAT_LED_PIN = -1;
+#endif
+
+void nodalisHeartbeatTask() {
+  if (NODALIS_HEARTBEAT_LED_PIN < 0) {
+    return;
+  }
+
+  static uint64_t lastToggle = 0;
+  static bool ledState = false;
+  const uint64_t now = elapsed();
+  if (now - lastToggle < 500) {
+    return;
+  }
+
+  lastToggle = now;
+  ledState = !ledState;
+  digitalWrite(NODALIS_HEARTBEAT_LED_PIN, ledState ? HIGH : LOW);
+}
 ${transpiledCode}
 
 void setup() {
+  Serial.begin(115200);
+  nodalisLogInfo("Setup starting");
+  if (NODALIS_HEARTBEAT_LED_PIN >= 0) {
+    pinMode(NODALIS_HEARTBEAT_LED_PIN, OUTPUT);
+    digitalWrite(NODALIS_HEARTBEAT_LED_PIN, LOW);
+  }
+  localIp = nodalisLoadIpAddress();
+  nodalisBeginEthernet(localIp);
+  nodalisLogInfo("Ethernet initialized");
   ${globals.join('\n')}
-  modbusServer.start();
+  if (!modbusServer.start()) {
+    nodalisLogError("Modbus server start failed");
+  }
   ${mapCode}
+  nodalisLogInfo("Setup complete");
 }
 
 void loop() {
+  nodalisPollSerialIpConfig(localIp);
   modbusServer.poll();
   superviseIO();
+  nodalisHeartbeatTask();
   ${taskCode}
   delay(1);
   PROGRAM_COUNT++;
@@ -254,6 +296,8 @@ void loop() {
         fs.cpSync(path.join(supportDir, 'modbus.cpp'), path.join(outputPath, 'modbus.cpp'), { force: true });
         fs.cpSync(path.join(supportDir, 'gpio.h'), path.join(outputPath, 'gpio.h'), { force: true });
         fs.cpSync(path.join(supportDir, 'gpio.cpp'), path.join(outputPath, 'gpio.cpp'), { force: true });
+        fs.cpSync(path.join(supportDir, 'network_config.h'), path.join(outputPath, 'network_config.h'), { force: true });
+        fs.cpSync(path.join(supportDir, 'network_config.cpp'), path.join(outputPath, 'network_config.cpp'), { force: true });
         fs.cpSync(path.join(supportDir, 'json.hpp'), path.join(outputPath, 'json.hpp'), { force: true });
 
         if (this.isExecutableOutput()) {

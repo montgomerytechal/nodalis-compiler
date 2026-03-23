@@ -46,6 +46,9 @@ extern uint64_t PROGRAM_COUNT;
 extern uint64_t MEMORY[64][16];
 
 uint64_t elapsed();
+bool nodalisSerialReady();
+void nodalisLogInfo(const String &message);
+void nodalisLogError(const String &message);
 
 inline std::string toLowerCase(const std::string &input)
 {
@@ -264,6 +267,7 @@ void setBit(RefVar<T> &var, int bit, bool value)
 }
 
 void superviseIO();
+void nodalisDumpMappings();
 
 enum class IOType
 {
@@ -300,6 +304,7 @@ public:
     void addMapping(const IOMap &map);
     bool hasMapping(std::string localAddress);
     void poll();
+    void dumpMappings() const;
 
     const std::string &getProtocol() const;
     const std::string &getModuleID() const;
@@ -309,6 +314,7 @@ protected:
     std::string moduleID;
     std::vector<IOMap> mappings;
     uint64_t lastAttempt = 0;
+    uint64_t lastErrorReport = 0;
 
     virtual bool readBit(const std::string &remote, int &result) = 0;
     virtual bool writeBit(const std::string &remote, int value) = 0;
@@ -325,6 +331,10 @@ protected:
     {
         (void)map;
     }
+
+    void logInfo(const std::string &message) const;
+    void logErrorThrottled(const std::string &message);
+    std::string describeMapping(const IOMap &map) const;
 };
 
 extern std::vector<std::unique_ptr<IOClient>> Clients;
