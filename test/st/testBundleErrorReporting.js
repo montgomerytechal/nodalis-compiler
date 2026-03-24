@@ -1,0 +1,65 @@
+import assert from 'assert';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { JSCompiler } from '../../src/compilers/JSCompiler.js';
+
+const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'nodalis-bundle-errors-'));
+const sourceDir = path.join(tempRoot, 'src');
+const outputDir = path.join(tempRoot, 'out');
+
+fs.mkdirSync(sourceDir, { recursive: true });
+fs.mkdirSync(outputDir, { recursive: true });
+
+fs.writeFileSync(path.join(sourceDir, 'A_Helper.st'), `
+FUNCTION_BLOCK Helper
+VAR
+  Value : INT;
+END_VAR
+Value := 1;
+END_FUNCTION_BLOCK
+`.trim());
+
+fs.writeFileSync(path.join(sourceDir, 'B_Helper.st'), `
+FUNCTION_BLOCK HelperTwo
+VAR
+  Value : INT;
+END_VAR
+Value := 2;
+END_FUNCTION_BLOCK
+`.trim());
+
+fs.writeFileSync(path.join(sourceDir, 'T_MAIN.st'), `
+PROGRAM T_MAIN
+VAR
+  value : INT;
+END_VAR
+UnexpectedTokenMain
+END_PROGRAM
+`.trim());
+
+const compiler = new JSCompiler({
+  sourcePath: sourceDir,
+  outputPath: outputDir,
+  target: 'jint',
+  outputType: 'code',
+  language: 'ST',
+  resourceName: 'T_MAIN'
+});
+
+await assert.rejects(
+  () => compiler.compile(),
+  (err) => {
+    assert.match(err.message, /Unexpected token 'UnexpectedTokenMain'/);
+    assert.match(err.message, /T_MAIN\.st/);
+    assert.match(err.message, /line 5, column 1/);
+    assert.match(err.message, /bundle line 19/);
+    return true;
+  }
+);
+
+const bundledSt = fs.readFileSync(path.join(outputDir, 'nodalisplc.st'), 'utf-8');
+assert.match(bundledSt, /FUNCTION_BLOCK Helper/);
+assert.match(bundledSt, /PROGRAM T_MAIN/);
+
+console.log('Bundle error reporting regression checks passed.');

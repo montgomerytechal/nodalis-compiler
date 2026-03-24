@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { CPPCompiler } from '../../src/compilers/CPPCompiler.js';
 
-var inputPath = path.resolve('test/st/fixtures', `plc1.iec`);
+var inputPath = '/Users/nathanskipper/Projects/MTISDK/docs/IEC61131/Testing/RLTest';//path.resolve('test/st/fixtures', `plc1.iec`);
 var outputPath = path.resolve('test/st/output');
 
 function normalize(text) {
@@ -12,8 +12,8 @@ function normalize(text) {
 function runTest() {
 
 
-  const targets = ["windows-x64", "windows-arm64", "linux-x64", "linux-arm", "linux-arm64", "macos-x64", "macos-arm64"];
-  inputPath = path.resolve('test/st/fixtures', `plc1.iec`);
+  const targets = ["windows-x64"];//, "windows-arm64", "linux-x64", "linux-arm", "linux-arm64", "macos-x64", "macos-arm64"];
+  //inputPath = path.resolve('test/st/fixtures', `plc1.iec`);
 
   targets.forEach(async t => {
     outputPath = path.resolve('test/st/output') + "/" + t;
@@ -24,7 +24,8 @@ function runTest() {
       outputPath,
       target: t,
       outputType: "executable",
-      resourceName: "PLC1"
+      resourceName: "T_MAIN",
+      language: "st"
     }).compile();
   });
 

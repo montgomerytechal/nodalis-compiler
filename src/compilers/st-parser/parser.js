@@ -264,6 +264,11 @@ function parseStatement() {
   if (token.value.toUpperCase() === 'FOR') return parseFor();
   if (token.value.toUpperCase() === 'REPEAT') return parseRepeat();
   if (token.value.toUpperCase() === 'CASE') return parseCase();
+  if (token.value.toUpperCase() === 'EXIT') {
+    consume();
+    if (peek()?.value === ';') consume();
+    return withLoc({ type: 'EXIT' }, token);
+  }
 
   // Call statement like: Foo(...);
   if (token.type === 'IDENTIFIER' && peek(1)?.value === '(') {

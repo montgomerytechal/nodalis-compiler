@@ -91,6 +91,115 @@ export class Compiler {
       .map((entry) => entry.name);
   }
 
+  loadStructuredTextBundle(sourcePath, resourceName) {
+    const stFiles = this.listStructuredTextBundleFiles(sourcePath);
+
+    if (stFiles.length === 0) {
+      throw new Error(`No .st files found in source directory "${sourcePath}".`);
+    }
+
+    const normalizedResource = String(resourceName || '').trim();
+    const candidateNames = new Set([
+      normalizedResource,
+      normalizedResource.toLowerCase(),
+      normalizedResource.toLowerCase().endsWith('.st') ? normalizedResource.toLowerCase() : `${normalizedResource.toLowerCase()}.st`
+    ]);
+
+    const entryFile = stFiles.find((file) => {
+      const lower = file.toLowerCase();
+      return candidateNames.has(file) || candidateNames.has(lower);
+    });
+
+    if (!entryFile) {
+      throw new Error(`resourceName "${resourceName}" is not an .st file in "${sourcePath}".`);
+    }
+
+    const orderedFiles = [
+      ...stFiles.filter((file) => file !== entryFile).sort((a, b) => a.localeCompare(b)),
+      entryFile
+    ];
+
+    let combinedSource = '';
+    let currentLine = 1;
+    const fileLineMappings = [];
+
+    for (const file of orderedFiles) {
+      const fileSource = fs.readFileSync(path.join(sourcePath, file), 'utf-8').trim();
+      if (fileSource.length === 0) continue;
+
+      if (combinedSource.length > 0) {
+        combinedSource += '\n\n';
+        currentLine += 1;
+      }
+
+      const lineCount = fileSource.split('\n').length;
+      fileLineMappings.push({
+        file,
+        startLine: currentLine,
+        endLine: currentLine + lineCount - 1
+      });
+      combinedSource += fileSource;
+      currentLine += lineCount;
+    }
+
+    const entrySource = fs.readFileSync(path.join(sourcePath, entryFile), 'utf-8');
+    const entryProgramName = this.extractFirstProgramName(entrySource) || path.basename(entryFile, path.extname(entryFile));
+
+    return { combinedSource, entryProgramName, fileLineMappings };
+  }
+
+  extractFirstProgramName(sourceCode) {
+    const match = String(sourceCode || '').match(/^\s*PROGRAM\s+([A-Za-z_]\w*)/im);
+    return match ? match[1] : null;
+  }
+
+  annotateStructuredTextBundleError(error, fileLineMappings = []) {
+    if (!error?.line || !Array.isArray(fileLineMappings) || fileLineMappings.length === 0) {
+      return error;
+    }
+
+    const mapping = fileLineMappings.find(({ startLine, endLine }) => error.line >= startLine && error.line <= endLine);
+    if (!mapping) {
+      return error;
+    }
+
+    const localLine = error.line - mapping.startLine + 1;
+    const column = error.column ?? error.sourceLocation?.column ?? 1;
+    const baseMessage = String(error.message || 'Structured Text error').replace(
+      /\s+at line \d+, column \d+$/,
+      ''
+    );
+
+    error.bundleLine = error.line;
+    error.file = mapping.file;
+    error.line = localLine;
+    error.column = column;
+    error.sourceLocation = {
+      file: mapping.file,
+      line: localLine,
+      column,
+      bundleLine: error.bundleLine
+    };
+    error.message = `${baseMessage} in ${mapping.file} at line ${localLine}, column ${column} (bundle line ${error.bundleLine})`;
+    return error;
+  }
+
+  parseStructuredTextWithBundleContext(parseFn, sourceCode, fileLineMappings) {
+    try {
+      return parseFn(sourceCode);
+    } catch (error) {
+      throw this.annotateStructuredTextBundleError(error, fileLineMappings);
+    }
+  }
+
+  transpileStructuredTextWithBundleContext(transpileFn, parsed, fileLineMappings) {
+    try {
+      return transpileFn(parsed);
+    } catch (error) {
+      throw this.annotateStructuredTextBundleError(error, fileLineMappings);
+    }
+  }
+
   /** @returns {string[]} */
   get supportedLanguages() {
     throw new Error('supportedLanguages must be implemented by subclass.');

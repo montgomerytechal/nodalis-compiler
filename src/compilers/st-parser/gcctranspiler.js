@@ -144,6 +144,41 @@ function mapStatement(stmt){
             ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
             `}`
           ];
+        case 'EXIT':
+          return ['break;'];
+        case 'REPEAT': {
+          const cond = convertExpression(Array.isArray(stmt.condition) ? stmt.condition.join(' ') : stmt.condition);
+          return [
+            'do {',
+            ...transpileStatements(stmt.body)?.map(s => `  ${s}`),
+            `} while (!(${cond}));`
+          ];
+        }
+        case 'CASE': {
+          const expr = convertExpression(Array.isArray(stmt.expression) ? stmt.expression.join(' ') : stmt.expression);
+          const lines = [];
+
+          stmt.branches.forEach((branch, index) => {
+            const labels = String(branch.label || '')
+              .split(',')
+              .map((label) => label.trim())
+              .filter(Boolean);
+            const branchCondition = labels
+              .map((label) => `${expr} == ${convertExpression(label)}`)
+              .join(' || ');
+            lines.push(`${index === 0 ? 'if' : 'else if'} (${branchCondition}) {`);
+            lines.push(...transpileStatements(branch.body)?.map((s) => `  ${s}`));
+            lines.push('}');
+          });
+
+          if (stmt.elseBlock?.length) {
+            lines.push('else {');
+            lines.push(...transpileStatements(stmt.elseBlock)?.map((s) => `  ${s}`));
+            lines.push('}');
+          }
+
+          return lines;
+        }
       case "CALL": {
         const isFunctionBlockCall = isFunctionBlockInstance(stmt.name);
         const argParts = parseCallArguments(stmt.args || []);

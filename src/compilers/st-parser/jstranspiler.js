@@ -151,6 +151,9 @@ function mapStatement(stmt, infb = false) {
           `}`
         ];
 
+      case 'EXIT':
+        return ['break;'];
+
       case 'REPEAT': {
         const cond = convertExpression(stmt.condition, infb, fbVars,true);
         return [
@@ -158,6 +161,32 @@ function mapStatement(stmt, infb = false) {
           ...transpileStatements(stmt.body, infb).map(s => `  ${s}`),
           `} while (!(${cond}));`
         ];
+      }
+
+      case 'CASE': {
+        const expr = convertExpression(stmt.expression, infb, fbVars, true);
+        const lines = [];
+
+        stmt.branches.forEach((branch, index) => {
+          const labels = String(branch.label || '')
+            .split(',')
+            .map((label) => label.trim())
+            .filter(Boolean);
+          const branchCondition = labels
+            .map((label) => `${expr} == ${convertExpression(label, infb, fbVars, true)}`)
+            .join(' || ');
+          lines.push(`${index === 0 ? 'if' : 'else if'} (${branchCondition}) {`);
+          lines.push(...transpileStatements(branch.body, infb).map(s => `  ${s}`));
+          lines.push('}');
+        });
+
+        if (stmt.elseBlock?.length) {
+          lines.push('else {');
+          lines.push(...transpileStatements(stmt.elseBlock, infb).map(s => `  ${s}`));
+          lines.push('}');
+        }
+
+        return lines;
       }
 
       case 'CALL': {

@@ -71,6 +71,7 @@ export class CPPCompiler extends Compiler {
         const sourceIsDirectory = sourcePathStat.isDirectory();
         const isStructuredTextLanguage = String(language || '').toUpperCase() === IECLanguage.STRUCTURED_TEXT;
         const directoryBundleMode = sourceIsDirectory && isStructuredTextLanguage && typeof resourceName === 'string' && resourceName.trim().length > 0;
+        let bundleFileLineMappings = [];
 
         ToolChain = { ...getDefaultToolchain() };
         const sourceDir = sourceIsDirectory ? sourcePath : path.dirname(sourcePath);
@@ -97,15 +98,20 @@ export class CPPCompiler extends Compiler {
 
         if (directoryBundleMode) {
             this.cleanupStructuredTextBundleArtifacts(sourcePath);
-            const { combinedSource, entryProgramName } = this.loadStructuredTextBundle(sourcePath, resourceName);
+            const { combinedSource, entryProgramName, fileLineMappings } = this.loadStructuredTextBundle(sourcePath, resourceName);
             sourceCode = combinedSource;
             bundleEntryProgram = entryProgramName;
+            bundleFileLineMappings = fileLineMappings;
         } else {
             sourceCode = fs.readFileSync(sourcePath, 'utf-8');
         }
 
         const cppFile = path.join(outputPath, `${filename}.cpp`);
         const stFile = path.join(outputPath, directoryBundleMode ? 'nodalisplc.st' : `${filename}.st`);
+        if (directoryBundleMode) {
+            fs.mkdirSync(outputPath, { recursive: true });
+            fs.writeFileSync(stFile, sourceCode);
+        }
         if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             if(typeof resourceName === "undefined" || resourceName === null || resourceName.length === 0){
                 throw new Error("You must provide the resourceName option for an IEC project file.");
@@ -134,8 +140,8 @@ export class CPPCompiler extends Compiler {
                 throw new Error("No resource was found by the name " + resourceName + " or the resource could not be parsed.");
             }
         }
-        const parsed = parseStructuredText(sourceCode);
-        const transpiledCode = transpile(parsed);
+        const parsed = this.parseStructuredTextWithBundleContext(parseStructuredText, sourceCode, bundleFileLineMappings);
+        const transpiledCode = this.transpileStructuredTextWithBundleContext(transpile, parsed, bundleFileLineMappings);
 
         let tasks = [];
         let programs = [];
@@ -247,7 +253,7 @@ int main() {
 
         fs.mkdirSync(outputPath, { recursive: true });
         fs.writeFileSync(cppFile, cppCode);
-        if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml") || directoryBundleMode){
+        if(sourcePath.toLowerCase().endsWith(".iec") || sourcePath.toLowerCase().endsWith(".xml")){
             fs.writeFileSync(stFile, sourceCode);
         }
         const coreDir = path.resolve(__dirname + '/support/generic');
@@ -398,50 +404,6 @@ int main() {
         }
 
         return null;
-    }
-
-    loadStructuredTextBundle(sourcePath, resourceName) {
-        const stFiles = this.listStructuredTextBundleFiles(sourcePath);
-
-        if (stFiles.length === 0) {
-            throw new Error(`No .st files found in source directory "${sourcePath}".`);
-        }
-
-        const normalizedResource = String(resourceName || '').trim();
-        const candidateNames = new Set([
-            normalizedResource,
-            normalizedResource.toLowerCase(),
-            normalizedResource.toLowerCase().endsWith('.st') ? normalizedResource.toLowerCase() : `${normalizedResource.toLowerCase()}.st`
-        ]);
-
-        const entryFile = stFiles.find((file) => {
-            const lower = file.toLowerCase();
-            return candidateNames.has(file) || candidateNames.has(lower);
-        });
-
-        if (!entryFile) {
-            throw new Error(`resourceName "${resourceName}" is not an .st file in "${sourcePath}".`);
-        }
-
-        const orderedFiles = [
-            ...stFiles.filter((file) => file !== entryFile).sort((a, b) => a.localeCompare(b)),
-            entryFile
-        ];
-
-        const combinedSource = orderedFiles
-            .map((file) => fs.readFileSync(path.join(sourcePath, file), 'utf-8').trim())
-            .filter((text) => text.length > 0)
-            .join('\n\n');
-
-        const entrySource = fs.readFileSync(path.join(sourcePath, entryFile), 'utf-8');
-        const entryProgramName = this.extractFirstProgramName(entrySource) || path.basename(entryFile, path.extname(entryFile));
-
-        return { combinedSource, entryProgramName };
-    }
-
-    extractFirstProgramName(sourceCode) {
-        const match = String(sourceCode || '').match(/^\s*PROGRAM\s+([A-Za-z_]\w*)/im);
-        return match ? match[1] : null;
     }
 
     resolveTarget(target) {

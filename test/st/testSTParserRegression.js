@@ -33,6 +33,64 @@ assert.match(output, /bTmpVar1 = 2 <= 2;/);
 assert.doesNotMatch(output, /resolve\(<=\)|resolve\(>=\)/);
 assert.match(output, /\} while \(!\(resolve\(iI\) == 10\)\);/);
 assert.doesNotMatch(output, /END_REPEAT/);
+assert.match(
+  transpile(parseStructuredText(`
+PROGRAM ExitJs
+VAR
+  i : INT;
+END_VAR
+FOR i := 0 TO 10 DO
+  EXIT;
+END_FOR;
+END_PROGRAM
+`)),
+  /break;/
+);
+
+assert.match(
+  transpileCpp(parseStructuredText(`
+PROGRAM ExitCpp
+VAR
+  i : INT;
+END_VAR
+FOR i := 0 TO 10 DO
+  EXIT;
+END_FOR;
+END_PROGRAM
+`)),
+  /break;/
+);
+
+assert.match(
+  transpile(parseStructuredText(`
+PROGRAM CaseJs
+VAR
+  i : INT;
+END_VAR
+CASE i OF
+  1, 2: i := 3;
+  ELSE
+    i := 4;
+END_CASE;
+END_PROGRAM
+`)),
+  /else if|if \(resolve\(i\) == 1 \|\| resolve\(i\) == 2\)/
+);
+
+assert.match(
+  transpileCpp(parseStructuredText(`
+PROGRAM RepeatCpp
+VAR
+  i : INT;
+END_VAR
+REPEAT
+  i := i + 1;
+UNTIL i = 10
+END_REPEAT;
+END_PROGRAM
+`)),
+  /do \{[\s\S]*\} while \(!\(i == 10\)\);/
+);
 
 console.log('ST parser/transpiler regression checks passed.');
 
@@ -47,25 +105,6 @@ END_PROGRAM
   (err) => {
     assert.match(err.message, /line 4, column 9/);
     assert.match(err.message, /Expected ':'/);
-    return true;
-  }
-);
-
-assert.throws(
-  () => transpileCpp(parseStructuredText(`
-PROGRAM BrokenCpp
-VAR
-  i : INT;
-END_VAR
-REPEAT
-  i := i + 1;
-UNTIL i = 10
-END_REPEAT;
-END_PROGRAM
-`)),
-  (err) => {
-    assert.match(err.message, /Unsupported statement type 'REPEAT'/);
-    assert.match(err.message, /line 6, column 1/);
     return true;
   }
 );
