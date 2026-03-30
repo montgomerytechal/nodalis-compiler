@@ -1,6 +1,9 @@
 # Changelog
 
-## [1.0.29] 2026-03-04
+## [1.0.30] 2026-03-30
+- Fixed issue with boolean assignments in C++
+
+## [1.0.29] 2026-03-24
 - Fixed issues with bunding ST folder and reporting errors.
 - Improved support for loop structures.
 

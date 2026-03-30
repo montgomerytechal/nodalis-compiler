@@ -92,6 +92,19 @@ END_PROGRAM
   /do \{[\s\S]*\} while \(!\(i == 10\)\);/
 );
 
+assert.match(
+  transpileCpp(parseStructuredText(`
+PROGRAM DefaultInitCpp
+VAR
+  flag : BOOL;
+  count : INT;
+END_VAR
+flag := NOT flag;
+END_PROGRAM
+`)),
+  /bool flag\{\};[\s\S]*int16_t count\{\};[\s\S]*flag = ! flag;/
+);
+
 console.log('ST parser/transpiler regression checks passed.');
 
 assert.throws(

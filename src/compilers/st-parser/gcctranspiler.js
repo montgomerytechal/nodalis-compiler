@@ -269,6 +269,9 @@ function declareVars(varSections, inFunctionBlock = false) {
     else if (v.initialValue !== undefined && v.initialValue !== null) {
       init = ` = ${normalizeCppLiteral(v.initialValue)}`;
     }
+    else if (!isFunctionBlockType) {
+      init = '{}';
+    }
     if (isFunctionBlockType) {
       const functionBlockType = resolveFunctionBlockTypeName(rawType);
       const storagePrefix = (!inFunctionBlock && v.sectionType === 'VAR') ? 'static ' : '';
