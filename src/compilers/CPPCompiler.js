@@ -45,6 +45,163 @@ export class CPPCompiler extends Compiler {
         this.name = 'CPPCompiler';
     }
 
+    loadStructuredTextBundle(sourcePath, resourceName) {
+        const exports = this.loadStructuredTextBundleExports(sourcePath, resourceName);
+        const stFiles = this.listStructuredTextBundleFiles(sourcePath);
+
+        if (stFiles.length === 0) {
+            throw new Error(`No .st files found in source directory "${sourcePath}".`);
+        }
+
+        const normalizedResource = String(resourceName || '').trim();
+        const candidateNames = new Set([
+            normalizedResource,
+            normalizedResource.toLowerCase(),
+            normalizedResource.toLowerCase().endsWith('.st') ? normalizedResource.toLowerCase() : `${normalizedResource.toLowerCase()}.st`
+        ]);
+
+        const entryFile = stFiles.find((file) => {
+            const lower = file.toLowerCase();
+            return candidateNames.has(file) || candidateNames.has(lower);
+        });
+
+        if (!entryFile) {
+            throw new Error(`resourceName "${resourceName}" is not an .st file in "${sourcePath}".`);
+        }
+
+        const orderedFiles = [
+            ...stFiles.filter((file) => file !== entryFile).sort((a, b) => a.localeCompare(b)),
+            entryFile
+        ];
+
+        let combinedSource = this.buildStructuredTextExportGlobals(exports);
+        let currentLine = combinedSource.length > 0 ? combinedSource.split('\n').length + 2 : 1;
+        const fileLineMappings = [];
+
+        for (const file of orderedFiles) {
+            const originalSource = fs.readFileSync(path.join(sourcePath, file), 'utf-8');
+            const fileSource = (file === entryFile
+                ? this.addStructuredTextExportAssignments(originalSource, exports)
+                : originalSource).trim();
+            if (fileSource.length === 0) continue;
+
+            if (combinedSource.length > 0) {
+                combinedSource += '\n\n';
+            }
+
+            const lineCount = fileSource.split('\n').length;
+            fileLineMappings.push({
+                file,
+                startLine: currentLine,
+                endLine: currentLine + lineCount - 1
+            });
+            combinedSource += fileSource;
+            currentLine += lineCount + 1;
+        }
+
+        const entrySource = fs.readFileSync(path.join(sourcePath, entryFile), 'utf-8');
+        const entryProgramName = this.extractFirstProgramName(entrySource) || path.basename(entryFile, path.extname(entryFile));
+
+        return { combinedSource, entryProgramName, fileLineMappings };
+    }
+
+    loadStructuredTextBundleExports(sourcePath, resourceName) {
+        const exportsPath = path.join(sourcePath, 'exports.json');
+        const resourceKey = this.getStructuredTextExportResourceKey(resourceName);
+        const defaultExports = {
+            T_MAIN: [{ global: 'Result', type: 'BOOL', address: '%MX0.0', variable: 'bResult' }]
+        };
+
+        if (!fs.existsSync(exportsPath)) {
+            fs.writeFileSync(exportsPath, JSON.stringify(defaultExports, null, 4));
+            return resourceKey === this.getStructuredTextExportResourceKey('T_MAIN') ? defaultExports.T_MAIN : [];
+        }
+
+        let exportConfig;
+        try {
+            exportConfig = JSON.parse(fs.readFileSync(exportsPath, 'utf-8'));
+        } catch (err) {
+            throw new Error(`Failed to load exports.json from ${exportsPath}: ${err.message}`);
+        }
+
+        if (typeof exportConfig !== 'object' || exportConfig === null || Array.isArray(exportConfig)) {
+            throw new Error(`exports.json in ${sourcePath} must be an object keyed by resource name.`);
+        }
+
+        const matchedKey = Object.keys(exportConfig).find((key) => this.getStructuredTextExportResourceKey(key) === resourceKey);
+        if (!matchedKey) return [];
+
+        const exports = exportConfig[matchedKey];
+        if (!Array.isArray(exports)) {
+            throw new Error(`exports.json entry for resource "${matchedKey}" must be an array.`);
+        }
+        return exports.map((entry, index) => this.validateStructuredTextBundleExport(entry, index, exportsPath));
+    }
+
+    getStructuredTextExportResourceKey(resourceName) {
+        return this.getStructuredTextExportResourceName(resourceName).toLowerCase();
+    }
+
+    getStructuredTextExportResourceName(resourceName) {
+        const normalized = String(resourceName || '').trim();
+        return path.basename(normalized, path.extname(normalized));
+    }
+
+    validateStructuredTextBundleExport(entry, index, exportsPath) {
+        if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+            throw new Error(`Invalid export at ${exportsPath}[${index}]: expected an object.`);
+        }
+
+        const global = String(entry.global || '').trim();
+        const type = String(entry.type || 'BOOL').trim();
+        const address = String(entry.address || '').trim();
+        const variable = String(entry.variable || '').trim();
+        const identifierPattern = /^[A-Za-z_]\w*$/;
+        const variablePattern = /^[A-Za-z_]\w*(?:\.\w+)?$/;
+        const addressPattern = /^%[IQM][A-Z]*\d+(?:\.\d+)?$/i;
+
+        if (!identifierPattern.test(global)) {
+            throw new Error(`Invalid export global at ${exportsPath}[${index}]: "${entry.global}" is not a valid ST identifier.`);
+        }
+        if (!identifierPattern.test(type)) {
+            throw new Error(`Invalid export type at ${exportsPath}[${index}]: "${entry.type}" is not a valid ST type identifier.`);
+        }
+        if (!addressPattern.test(address)) {
+            throw new Error(`Invalid export address at ${exportsPath}[${index}]: "${entry.address}" is not a valid ST address.`);
+        }
+        if (!variablePattern.test(variable)) {
+            throw new Error(`Invalid export variable at ${exportsPath}[${index}]: "${entry.variable}" is not a valid ST variable reference.`);
+        }
+
+        return { global, type, address, variable };
+    }
+
+    buildStructuredTextExportGlobals(exports) {
+        if (!Array.isArray(exports) || exports.length === 0) return '';
+
+        return [
+            'VAR_GLOBAL',
+            ...exports.flatMap((entry) => [
+                `    ${entry.global} AT ${entry.address} : ${entry.type};`,
+                `//Global=${JSON.stringify({ Name: entry.global, Address: entry.address })}`
+            ]),
+            'END_VAR'
+        ].join('\n');
+    }
+
+    addStructuredTextExportAssignments(entrySource, exports) {
+        if (!Array.isArray(exports) || exports.length === 0) return entrySource;
+
+        const assignmentBlock = exports.map((entry) => `${entry.global} := ${entry.variable};`).join('\n');
+        const endProgramPattern = /^(\s*END_PROGRAM\b[^\r\n]*)/im;
+
+        if (!endProgramPattern.test(entrySource)) {
+            throw new Error('Entry program does not contain END_PROGRAM; cannot add exports.json assignments.');
+        }
+
+        return entrySource.replace(endProgramPattern, `${assignmentBlock}\n$1`);
+    }
+
     get supportedLanguages() {
         return [IECLanguage.STRUCTURED_TEXT, IECLanguage.LADDER_DIAGRAM];
     }
@@ -301,18 +458,22 @@ int main() {
 
             inputs.push(`"${open62541o}"`);
             inputs.push(`"${bacneta}"`);
+            const debugFlags = this.getDebugCompileFlags(compiler);
 
             if (compiler === 'cl.exe') {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
-                cppCompileCmd = `cl.exe /I${bacneti} /I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} ${cppFlagSegment}/EHsc /std:c++17 /Fe:"${exeFile}" ` +
+                cppCompileCmd = `cl.exe /I${bacneti} /I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} ${cppFlagSegment}${debugFlags} /EHsc /std:c++17 /Fe:"${exeFile}" ` +
                     `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('bacnet.cpp')}" "${pathTo('gpio.cpp')}"`; //"${pathTo('open62541.obj')}"`;
             } else {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
-                cppCompileCmd = `${compiler} ${cppFlagSegment}-std=c++17 -I${bacneti} -I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} -o "${exeFile}" ${inputs.join(' ')} ${archFlags.linker}`;
+                cppCompileCmd = `${compiler} ${cppFlagSegment}${debugFlags} -std=c++17 -I${bacneti} -I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} -o "${exeFile}" ${inputs.join(' ')} ${archFlags.linker}`;
             }
 
             try {
                 execSync(cppCompileCmd, { stdio: 'pipe' });
+                if (targetInfo.os === 'macos') {
+                    this.generateMacOSDebugSymbols(exeFile);
+                }
                 if (isWindowsTarget) {
                     this.copyWindowsRuntimeDependencies(compiler, binDir);
                 }
@@ -323,6 +484,19 @@ int main() {
                 const details = compilerOutput || err.message;
                 throw new Error(`C++ compiler failed for target "${target}".\n${details}`);
             }
+        }
+    }
+
+    getDebugCompileFlags(compiler) {
+        if (compiler === 'cl.exe') return '/Zi /Od';
+        return '-g -O0';
+    }
+
+    generateMacOSDebugSymbols(exeFile) {
+        try {
+            execSync(`dsymutil "${exeFile}"`, { stdio: 'pipe' });
+        } catch {
+            // Debug symbols are best-effort; the executable is still usable without a dSYM.
         }
     }
 

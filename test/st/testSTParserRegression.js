@@ -105,6 +105,18 @@ END_PROGRAM
   /bool flag\{\};[\s\S]*int16_t count\{\};[\s\S]*flag = ! flag;/
 );
 
+assert.match(
+  transpileCpp(parseStructuredText(`
+PROGRAM NumericNotCpp
+VAR
+  value : LWORD;
+END_VAR
+value := LWORD#8 AND NOT LWORD#0;
+END_PROGRAM
+`)),
+  /value = 8 & ~0;/
+);
+
 console.log('ST parser/transpiler regression checks passed.');
 
 assert.throws(

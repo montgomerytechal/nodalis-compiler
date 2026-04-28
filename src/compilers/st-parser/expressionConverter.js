@@ -102,6 +102,7 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
     .replace(/\b(?<![><!])=(?!=)/g, '==');  // ✅ fix assignment/comparison
 
   results = rewriteExponentOperator(results, isjs);
+  results = rewriteNumericNotOperator(results);
 
   // JS accepts 0o..., but C++ requires legacy octal form 0...
   if (!isjs) {
@@ -148,6 +149,13 @@ export function convertExpression(expr, isjsfb = false, jsfbVars = [], isjs=fals
   //}
   
   return results;
+}
+
+function rewriteNumericNotOperator(expression) {
+  return String(expression || '').replace(
+    /!\s+([+-]?(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|\d+))/g,
+    '~$1'
+  );
 }
 
 function rewriteExponentOperator(expression, isjs) {
