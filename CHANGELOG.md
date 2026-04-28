@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.31] 2026-04-28
+- Added an "exports.json" file that can be used to designate exported local variables in
+programs when compiling a folder of ST files.
+
 ## [1.0.30] 2026-03-30
 - Fixed issue with boolean assignments in C++
 
