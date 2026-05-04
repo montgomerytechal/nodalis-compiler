@@ -12,7 +12,7 @@
     <PackageReference Include="BACnet" Version="3.0.2" />
     <PackageReference Include="Jint" Version="4.4.2" />
     <PackageReference Include="System.Text.Json" Version="*" />
-    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.5.374.118" />
+    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.5.378.134" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
@@ -24,7 +24,7 @@
   <PropertyGroup>
   <TargetFrameworks>net8.0</TargetFrameworks> 
   <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <!-- optional -->
-  <Version>1.0.10</Version>
+  <Version>1.0.12</Version>
   <Authors>Nathan Skipper</Authors>
   <Company>Montgomery Technology, Inc.</Company>
   <PackageId>NodalisEngine</PackageId>

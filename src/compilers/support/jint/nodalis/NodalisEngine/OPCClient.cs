@@ -21,6 +21,7 @@ using Opc.Ua.Client;
 using Opc.Ua.Configuration;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Nodalis
@@ -30,7 +31,7 @@ namespace Nodalis
     /// </summary>
     public class OPCClient : IOClient
     {
-        private Session? _session;
+        private ISession? _session;
         private ApplicationConfiguration? _config;
         /// <summary>
         /// Instantiates a new OPCClient.
@@ -52,23 +53,35 @@ namespace Nodalis
                     {
                         ApplicationName = "NodalisOPCUAClient",
                         ApplicationType = ApplicationType.Client,
-                        SecurityConfiguration = new SecurityConfiguration
-                        {
-                            ApplicationCertificate = new CertificateIdentifier(),
-                            AutoAcceptUntrustedCertificates = true,
-                        },
+                        SecurityConfiguration = CreateSecurityConfiguration(),
                         TransportConfigurations = new TransportConfigurationCollection(),
                         TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
                         ClientConfiguration = new ClientConfiguration { DefaultSessionTimeout = 60000 }
                     };
                     await _config.Validate(ApplicationType.Client);
+                    await _config.CertificateValidator.UpdateAsync(_config, default);
 
                     var app = new ApplicationInstance { ApplicationName = "NodalisOPCUAClient", ApplicationType = ApplicationType.Client, ApplicationConfiguration = _config };
-                    var endpoint = CoreClientUtils.SelectEndpoint(endpointUrl, false, 15000);
-                    var endpointConfig = EndpointConfiguration.Create(_config);
-                    var endpointDesc = new ConfiguredEndpoint(null, endpoint, endpointConfig);
+                    await app.CheckApplicationInstanceCertificatesAsync(false, 0);
 
-                    _session = await Session.Create(_config, endpointDesc, false, "", 60000, null, null);
+                    var endpoint = CoreClientUtils.SelectEndpoint(_config, endpointUrl, false, 15000);
+                    var endpointConfig = EndpointConfiguration.Create(_config);
+                    var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfig);
+
+                    var sessionFactory = new DefaultSessionFactory();
+
+                    _session = await sessionFactory.CreateAsync(
+                        _config,
+                        (ITransportWaitingConnection?)null,
+                        configuredEndpoint,
+                        true,
+                        false,
+                        _config.ApplicationName,
+                        60000,
+                        new UserIdentity(),
+                        null,
+                        default
+                    );
                     connected = true;
                     Console.WriteLine("OPC UA connected.");
                 }
@@ -78,6 +91,46 @@ namespace Nodalis
                     connected = false;
                 }
             });
+        }
+
+        private static SecurityConfiguration CreateSecurityConfiguration()
+        {
+            string pkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
+            string ownStore = Path.Combine(pkiRoot, "own");
+            string trustedPeerStore = Path.Combine(pkiRoot, "trusted");
+            string trustedIssuerStore = Path.Combine(pkiRoot, "issuer");
+            string rejectedStore = Path.Combine(pkiRoot, "rejected");
+
+            Directory.CreateDirectory(ownStore);
+            Directory.CreateDirectory(trustedPeerStore);
+            Directory.CreateDirectory(trustedIssuerStore);
+            Directory.CreateDirectory(rejectedStore);
+
+            return new SecurityConfiguration
+            {
+                ApplicationCertificate = new CertificateIdentifier
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = ownStore,
+                    SubjectName = "CN=NodalisOPCUAClient"
+                },
+                TrustedPeerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = trustedPeerStore
+                },
+                TrustedIssuerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = trustedIssuerStore
+                },
+                RejectedCertificateStore = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = rejectedStore
+                },
+                AutoAcceptUntrustedCertificates = true
+            };
         }
 
         private NodeId GetNodeId(string remote) => new NodeId($"s={remote}", 1);

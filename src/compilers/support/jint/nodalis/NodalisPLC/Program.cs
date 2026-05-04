@@ -183,6 +183,9 @@ class Program
         }
 
         var engine = new ProgramEngine();
+        var opcServer = new OPCServer(engine);
+        // {opcServerMappings}
+        opcServer.StartAsync("0.0.0.0").GetAwaiter().GetResult();
         long lastExec = engine.ElapsedMilliseconds;
         string jsCode = File.ReadAllText(file);
         try
@@ -207,4 +210,3 @@ class Program
         
     }
 }
-

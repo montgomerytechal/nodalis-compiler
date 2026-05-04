@@ -114,6 +114,7 @@ export class JSCompiler extends Compiler {
         let tasks = [];
         let programs = [];
         let globals = [];
+        let csharpGlobals = [];
         let taskCode = "";
         let mapCode = "";
         let plcname = "NodalisPLC";
@@ -143,6 +144,7 @@ export class JSCompiler extends Compiler {
             else if(line.indexOf("//Global=") > -1){
                 let global = JSON.parse(line.substring(line.indexOf("=") + 1).trim());
                 globals.push(`opcServer.mapVariable("${global.Name}", "${global.Address}");`)
+                csharpGlobals.push(`opcServer.MapVariable(${toCSharpStringLiteral(global.Name)}, ${toCSharpStringLiteral(global.Address)});`)
 
             }
             else if(line.trim().startsWith("PROGRAM")){
@@ -273,6 +275,7 @@ export function run(){
 
             // Keep the Jint project sources in the main output directory.
             fs.cpSync(supportDir, projectOutputDir, { recursive: true, force: true });
+            patchJintProgramOpcMappings(projectOutputDir, csharpGlobals);
 
             // Build from the main output directory, then move publish artifacts under bin.
             const buildPath = path.resolve(path.join(projectOutputDir, buildScript));
@@ -346,4 +349,16 @@ function installDependencies(outputDir) {
     stdio: 'inherit',
     shell: true
   });
+}
+
+function patchJintProgramOpcMappings(projectOutputDir, csharpGlobals) {
+  const programPath = path.join(projectOutputDir, "NodalisPLC", "Program.cs");
+  let programSource = fs.readFileSync(programPath, "utf-8");
+  const mappingCode = csharpGlobals.map((line) => `        ${line}`).join("\n");
+  programSource = programSource.replace("        // {opcServerMappings}", mappingCode);
+  fs.writeFileSync(programPath, programSource, "utf-8");
+}
+
+function toCSharpStringLiteral(value) {
+  return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, "\\\"")}"`;
 }

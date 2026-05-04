@@ -21,6 +21,7 @@ using Opc.Ua.Configuration;
 using Opc.Ua.Server;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Nodalis
@@ -57,8 +58,9 @@ namespace Nodalis
         /// <summary>
         /// Starts the server.
         /// </summary>
+        /// <param name="hostname">The hostname or IP address for the server.</param>
         /// <returns></returns>
-        public async Task StartAsync()
+        public async Task StartAsync(string hostname = "localhost")
         {
             _application = new ApplicationInstance
             {
@@ -71,30 +73,83 @@ namespace Nodalis
             {
                 ApplicationName = "NodalisServer",
                 ApplicationType = ApplicationType.Server,
-                ApplicationUri = "urn:localhost:NodalisServer",
+                ApplicationUri = $"urn:{hostname}:NodalisServer",
                 ServerConfiguration = new ServerConfiguration
                 {
-                    BaseAddresses = { "opc.tcp://localhost:4840/UA/Nodalis" }
+                    BaseAddresses = { $"opc.tcp://{hostname}:4840/UA/Nodalis" },
+                    SecurityPolicies =
+                    {
+                        new ServerSecurityPolicy
+                        {
+                            SecurityMode = MessageSecurityMode.None,
+                            SecurityPolicyUri = SecurityPolicies.None
+                        }
+                    },
+                    UserTokenPolicies =
+                    {
+                        new UserTokenPolicy
+                        {
+                            TokenType = UserTokenType.Anonymous
+                        }
+                    }
                 },
                 TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
-                SecurityConfiguration = new SecurityConfiguration
-                {
-                    ApplicationCertificate = new CertificateIdentifier(),
-                    AutoAcceptUntrustedCertificates = true
-                },
+                SecurityConfiguration = CreateSecurityConfiguration(),
                 CertificateValidator = new CertificateValidator(),
                 //DiagnosticsConfiguration = new DiagnosticsConfiguration { Enabled = true },
                 Extensions = new XmlElementCollection()
             };
 
             await config.Validate(ApplicationType.Server);
+            await config.CertificateValidator.UpdateAsync(config, default);
 
             _application.ApplicationConfiguration = config;
+            await _application.CheckApplicationInstanceCertificatesAsync(false, 0);
 
             _server = new NodalisServer(_engine, _addressMap);
             _application.Start(_server);
 
-            Console.WriteLine("OPC UA Server started at: opc.tcp://localhost:4840/UA/Nodalis");
+            Console.WriteLine($"OPC UA Server started at: opc.tcp://{hostname}:4840/UA/Nodalis");
+        }
+
+        private static SecurityConfiguration CreateSecurityConfiguration()
+        {
+            string pkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
+            string ownStore = Path.Combine(pkiRoot, "own");
+            string trustedPeerStore = Path.Combine(pkiRoot, "trusted");
+            string trustedIssuerStore = Path.Combine(pkiRoot, "issuer");
+            string rejectedStore = Path.Combine(pkiRoot, "rejected");
+
+            Directory.CreateDirectory(ownStore);
+            Directory.CreateDirectory(trustedPeerStore);
+            Directory.CreateDirectory(trustedIssuerStore);
+            Directory.CreateDirectory(rejectedStore);
+
+            return new SecurityConfiguration
+            {
+                ApplicationCertificate = new CertificateIdentifier
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = ownStore,
+                    SubjectName = "CN=NodalisServer"
+                },
+                TrustedPeerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = trustedPeerStore
+                },
+                TrustedIssuerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = trustedIssuerStore
+                },
+                RejectedCertificateStore = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = rejectedStore
+                },
+                AutoAcceptUntrustedCertificates = true
+            };
         }
         /// <summary>
         /// Stops the server.
@@ -222,6 +277,7 @@ namespace Nodalis
                     var variable = new BaseDataVariableState(folder)
                     {
                         SymbolicName = name,
+                        ReferenceTypeId = ReferenceTypeIds.Organizes,
                         NodeId = new NodeId(name, NamespaceIndex),
                         BrowseName = new QualifiedName(name, NamespaceIndex),
                         DisplayName = name,
@@ -251,6 +307,7 @@ namespace Nodalis
                         }
                     };
 
+                    folder.AddChild(variable);
                     AddPredefinedNode(SystemContext, variable);
                 }
             }
@@ -261,6 +318,7 @@ namespace Nodalis
                 else if (address.Contains("X")) return _engine.ReadByte(address);
                 else if (address.Contains("W")) return _engine.ReadWord(address);
                 else if (address.Contains("D")) return _engine.ReadDWord(address);
+                else if (address.Contains("L")) return _engine.ReadLWord(address);
                 return false;
             }
 
@@ -272,6 +330,7 @@ namespace Nodalis
                     case byte bt: _engine.WriteByte(address, bt); break;
                     case ushort us: _engine.WriteWord(address, us); break;
                     case uint ui: _engine.WriteDWord(address, ui); break;
+                    case ulong ui64: _engine.WriteLWord(address, ui64); break;
                     default: throw new InvalidCastException($"Unsupported value type: {value?.GetType()?.Name}");
                 }
             }
@@ -283,6 +342,7 @@ namespace Nodalis
                 else if (address.Contains("X")) return DataTypeIds.Byte;
                 else if (address.Contains("W")) return DataTypeIds.UInt16;
                 else if (address.Contains("D")) return DataTypeIds.UInt32;
+                else if (address.Contains("L")) return DataTypeIds.UInt64;
                 return DataTypeIds.Boolean;
             }
 
