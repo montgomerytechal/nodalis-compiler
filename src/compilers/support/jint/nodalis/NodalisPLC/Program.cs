@@ -39,24 +39,28 @@ class ProgramEngine : NodalisEngine
     public override byte ReadByte(string address)
     {
         var mem = ParseAddress(address);
+        if (mem[3] == -1) mem[3] = 0;
         return (byte)((GetMemoryCell(mem[0], mem[2]) >> (mem[3] % 64)) & 0xFF);
     }
 
     public override ushort ReadWord(string address)
     {
         var mem = ParseAddress(address);
+        if (mem[3] == -1) mem[3] = 0;
         return (ushort)((GetMemoryCell(mem[0], mem[2]) >> (mem[3] % 64)) & 0xFFFF);
     }
 
     public override uint ReadDWord(string address)
     {
         var mem = ParseAddress(address);
+        if (mem[3] == -1) mem[3] = 0;
         return (uint)((GetMemoryCell(mem[0], mem[2]) >> (mem[3] % 64)) & 0xFFFFFFFF);
     }
 
     public override ulong ReadLWord(string address)
     {
         var mem = ParseAddress(address);
+        if (mem[3] == -1) mem[3] = 0;
         return (ulong)((GetMemoryCell(mem[0], mem[2]) >> (mem[3] % 64)) & ulong.MaxValue);
     }
 
@@ -164,11 +168,16 @@ class ProgramEngine : NodalisEngine
     private void WriteGeneric(string address, ulong value, int width)
     {
         var mem = ParseAddress(address);
-        ulong mask = (1UL << width) - 1;
-        ulong shiftedMask = mask << (mem[3] % 64);
-        ulong location = GetMemoryCell(mem[0], mem[2]);
+
+        int shift = mem[3] >= 0 ? mem[3] : 0;
+
+        ulong mask = width == 64 ? ulong.MaxValue : ((1UL << width) - 1UL);
+        ulong shiftedMask = mask << shift;
+
+        ref ulong location = ref GetMemoryCell(mem[0], mem[2]);
+
         location &= ~shiftedMask;
-        location |= (value & mask) << (mem[3] % 64);
+        location |= (value & mask) << shift;
     }
 }
 
@@ -176,16 +185,13 @@ class Program
 {
     static void Main(string[] args)
     {
-        var file = Path.Combine(Path.GetDirectoryName(Environment.ProcessPath), "nodalisplc.js");
+        var file = "../../../../nodalisplc.js";//Path.Combine(Path.GetDirectoryName(Environment.ProcessPath), "nodalisplc.js");
         if (args.Length >= 1)
         {
             file = args[0];
         }
 
         var engine = new ProgramEngine();
-        var opcServer = new OPCServer(engine);
-        // {opcServerMappings}
-        opcServer.StartAsync("0.0.0.0").GetAwaiter().GetResult();
         long lastExec = engine.ElapsedMilliseconds;
         string jsCode = File.ReadAllText(file);
         try
@@ -210,3 +216,4 @@ class Program
         
     }
 }
+

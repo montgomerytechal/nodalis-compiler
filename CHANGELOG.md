@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.32] 2026-06-05
+- Fixed problems with writing registers to Modbus.
+
 ## [1.0.31] 2026-04-28
 - Added an "exports.json" file that can be used to designate exported local variables in
 programs when compiling a folder of ST files.

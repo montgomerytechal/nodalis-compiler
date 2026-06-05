@@ -197,47 +197,86 @@ ModbusRequest ModbusClient::createWriteSingleRegister(uint16_t address, uint16_t
     return { deviceAddress, WRITE_SINGLE_REGISTER, address, 1, data };
 }
 
-bool ModbusClient::sendRequest(const ModbusRequest& req, ModbusResponse& resp) {
+bool ModbusClient::sendRequest(const ModbusRequest &req, ModbusResponse &resp)
+{
     std::vector<uint8_t> pdu;
 
-    // Handle function-specific encoding
-    if (req.function == WRITE_SINGLE_COIL) {
-        // Function 0x05: Write Single Coil
+    if (req.function == WRITE_SINGLE_COIL)
+    {
         pdu = {
             req.function,
             static_cast<uint8_t>(req.startAddress >> 8),
-            static_cast<uint8_t>(req.startAddress & 0xFF)
-        };
-        if (req.data.size() == 2) {
-            pdu.push_back(req.data[0]);  // Hi byte (0xFF or 0x00)
-            pdu.push_back(req.data[1]);  // Lo byte (always 0x00)
-        } else {
-            std::cerr << "Invalid data size for Write Single Coil (expected 2 bytes).\n";
+            static_cast<uint8_t>(req.startAddress & 0xFF)};
+
+        if (req.data.size() != 2)
+        {
+            std::cerr << "Invalid data size for Write Single Coil.\n";
             return false;
         }
-    } else {
-        // Default encoding for most function codes
+
+        pdu.push_back(req.data[0]);
+        pdu.push_back(req.data[1]);
+    }
+    else if (req.function == WRITE_SINGLE_REGISTER)
+    {
+        pdu = {
+            req.function,
+            static_cast<uint8_t>(req.startAddress >> 8),
+            static_cast<uint8_t>(req.startAddress & 0xFF)};
+
+        if (req.data.size() != 2)
+        {
+            std::cerr << "Invalid data size for Write Single Register.\n";
+            return false;
+        }
+
+        pdu.push_back(req.data[0]); // value high byte
+        pdu.push_back(req.data[1]); // value low byte
+    }
+    else if (req.function == READ_HOLDING_REGISTERS ||
+             req.function == READ_INPUT_REGISTERS ||
+             req.function == READ_COILS ||
+             req.function == READ_DISCRETE_INPUTS)
+    {
         pdu = {
             req.function,
             static_cast<uint8_t>(req.startAddress >> 8),
             static_cast<uint8_t>(req.startAddress & 0xFF),
             static_cast<uint8_t>(req.quantity >> 8),
-            static_cast<uint8_t>(req.quantity & 0xFF)
-        };
+            static_cast<uint8_t>(req.quantity & 0xFF)};
+    }
+    else if (req.function == WRITE_MULTIPLE_REGISTERS)
+    {
+        pdu = {
+            req.function,
+            static_cast<uint8_t>(req.startAddress >> 8),
+            static_cast<uint8_t>(req.startAddress & 0xFF),
+            static_cast<uint8_t>(req.quantity >> 8),
+            static_cast<uint8_t>(req.quantity & 0xFF),
+            static_cast<uint8_t>(req.data.size())};
+
         pdu.insert(pdu.end(), req.data.begin(), req.data.end());
+    }
+    else
+    {
+        std::cerr << "Unsupported Modbus function: " << static_cast<int>(req.function) << "\n";
+        return false;
     }
 
     std::vector<uint8_t> response;
-    if (!sendRaw(pdu, response)) return false;
+    if (!sendRaw(pdu, response))
+        return false;
 
-    if (response.size() < 2) return false;
+    if (response.size() < 2)
+        return false;
 
     resp.address = req.address;
     resp.function = response[0];
     resp.data.assign(response.begin() + 1, response.end());
     resp.exceptionCode = (resp.function & 0x80) ? resp.data[0] : 0;
 
-    if (resp.exceptionCode > 0) {
+    if (resp.exceptionCode > 0)
+    {
         std::cerr << "MODBUS exception code: " << static_cast<int>(resp.exceptionCode) << "\n";
         return false;
     }
