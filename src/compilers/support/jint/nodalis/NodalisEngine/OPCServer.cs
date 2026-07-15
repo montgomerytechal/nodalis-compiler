@@ -31,10 +31,10 @@ namespace Nodalis
     /// </summary>
     public class OPCServer
     {
+        private readonly ITelemetryContext _telemetry = DefaultTelemetry.Create(null);
         private ApplicationInstance _application;
-        private NodalisEngine _engine;
-        private Dictionary<string, string> _addressMap = new();
-        private NodalisNodeManager? _nodeManager;
+        private readonly NodalisEngine _engine;
+        private readonly Dictionary<string, string> _addressMap = new();
         private StandardServer? _server;
         /// <summary>
         /// Instantiates a new OPCServer with the given engine.
@@ -62,14 +62,14 @@ namespace Nodalis
         /// <returns></returns>
         public async Task StartAsync(string hostname = "localhost")
         {
-            _application = new ApplicationInstance
+            _application = new ApplicationInstance(_telemetry)
             {
                 ApplicationName = "NodalisServer",
                 ApplicationType = ApplicationType.Server,
                 ConfigSectionName = "NodalisServer"
             };
 
-            var config = new ApplicationConfiguration
+            var config = new ApplicationConfiguration(_telemetry)
             {
                 ApplicationName = "NodalisServer",
                 ApplicationType = ApplicationType.Server,
@@ -95,19 +95,19 @@ namespace Nodalis
                 },
                 TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
                 SecurityConfiguration = CreateSecurityConfiguration(),
-                CertificateValidator = new CertificateValidator(),
+                CertificateValidator = new CertificateValidator(_telemetry),
                 //DiagnosticsConfiguration = new DiagnosticsConfiguration { Enabled = true },
                 Extensions = new XmlElementCollection()
             };
 
-            await config.Validate(ApplicationType.Server);
+            await config.ValidateAsync(ApplicationType.Server);
             await config.CertificateValidator.UpdateAsync(config, default);
 
             _application.ApplicationConfiguration = config;
             await _application.CheckApplicationInstanceCertificatesAsync(false, 0);
 
             _server = new NodalisServer(_engine, _addressMap);
-            _application.Start(_server);
+            await _application.StartAsync(_server);
 
             Console.WriteLine($"OPC UA Server started at: opc.tcp://{hostname}:4840/UA/Nodalis");
         }
@@ -159,7 +159,7 @@ namespace Nodalis
         {
             if (_server != null)
             {
-                 _server.Stop();
+                await _server.StopAsync(default);
                 Console.WriteLine("OPC UA Server stopped.");
             }
         }

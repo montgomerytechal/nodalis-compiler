@@ -31,6 +31,7 @@ namespace Nodalis
     /// </summary>
     public class OPCClient : IOClient
     {
+        private readonly ITelemetryContext _telemetry = DefaultTelemetry.Create(null);
         private ISession? _session;
         private ApplicationConfiguration? _config;
         /// <summary>
@@ -49,7 +50,7 @@ namespace Nodalis
                     var map = mappings[0];
                     string endpointUrl = map.moduleID;
 
-                    _config = new ApplicationConfiguration
+                    _config = new ApplicationConfiguration(_telemetry)
                     {
                         ApplicationName = "NodalisOPCUAClient",
                         ApplicationType = ApplicationType.Client,
@@ -58,17 +59,22 @@ namespace Nodalis
                         TransportQuotas = new TransportQuotas { OperationTimeout = 15000 },
                         ClientConfiguration = new ClientConfiguration { DefaultSessionTimeout = 60000 }
                     };
-                    await _config.Validate(ApplicationType.Client);
+                    await _config.ValidateAsync(ApplicationType.Client);
                     await _config.CertificateValidator.UpdateAsync(_config, default);
 
-                    var app = new ApplicationInstance { ApplicationName = "NodalisOPCUAClient", ApplicationType = ApplicationType.Client, ApplicationConfiguration = _config };
+                    var app = new ApplicationInstance(_telemetry)
+                    {
+                        ApplicationName = "NodalisOPCUAClient",
+                        ApplicationType = ApplicationType.Client,
+                        ApplicationConfiguration = _config
+                    };
                     await app.CheckApplicationInstanceCertificatesAsync(false, 0);
 
-                    var endpoint = CoreClientUtils.SelectEndpoint(_config, endpointUrl, false, 15000);
+                    var endpoint = await CoreClientUtils.SelectEndpointAsync(_config, endpointUrl, false, 15000, _telemetry, default);
                     var endpointConfig = EndpointConfiguration.Create(_config);
                     var configuredEndpoint = new ConfiguredEndpoint(null, endpoint, endpointConfig);
 
-                    var sessionFactory = new DefaultSessionFactory();
+                    var sessionFactory = new DefaultSessionFactory(_telemetry);
 
                     _session = await sessionFactory.CreateAsync(
                         _config,
@@ -193,7 +199,7 @@ namespace Nodalis
             try
             {
                 var nodeId = GetNodeId(address);
-                var value = _session.ReadValue(nodeId);
+                var value = _session.ReadValueAsync(nodeId, default).GetAwaiter().GetResult();
                 if (value.Value is T cast)
                 {
                     result = cast;
@@ -209,7 +215,7 @@ namespace Nodalis
 
         private bool WriteVal<T>(string address, T value, BuiltInType type)
         {
-            if (!connected || this._session == null) return false;
+            if (!connected || _session == null) return false;
 
             try
             {
@@ -224,7 +230,10 @@ namespace Nodalis
                 writeValue.Value.ServerTimestamp = DateTime.MinValue;
                 writeValue.Value.SourceTimestamp = DateTime.MinValue;
 
-                var writeResults = _session.Write(null, new WriteValueCollection { writeValue }, out StatusCodeCollection statusCodes, out DiagnosticInfoCollection diag);
+                var writeResponse = _session.WriteAsync(null, new WriteValueCollection { writeValue }, default)
+                    .GetAwaiter()
+                    .GetResult();
+                var statusCodes = writeResponse.Results;
                 if (StatusCode.IsBad(statusCodes[0]))
                 {
                     Console.WriteLine($"Write failed for {address}: {statusCodes[0]}");

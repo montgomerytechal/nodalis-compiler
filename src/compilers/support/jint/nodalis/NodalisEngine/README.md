@@ -88,6 +88,9 @@ NodalisEngine is distributed under the Apache 2.0 license. See the headers insid
 
 # Changelog
 
+## [1.0.13] - 2026-07-15
+- Replaced obsolete references in OPC Server and Client.
+
 ## [1.0.12] - 2026-05-04
 - Added ability to set hostname for OPCServer.
 - Added support for LWord types to OPCServer.
