@@ -8,11 +8,11 @@
      <LangVersion>latest</LangVersion>
     </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="System.Runtime.InteropServices" Version="4.3.0" />
     <PackageReference Include="BACnet" Version="3.0.2" />
     <PackageReference Include="Jint" Version="4.4.2" />
-    <PackageReference Include="System.Text.Json" Version="*" />
-    <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.5.378.134" />
+     <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua" Version="1.5.378.156" />
+ <PackageReference Include="Microsoft.Extensions.Logging.Console"
+                  Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
@@ -24,7 +24,7 @@
   <PropertyGroup>
   <TargetFrameworks>net8.0</TargetFrameworks> 
   <GeneratePackageOnBuild>true</GeneratePackageOnBuild> <!-- optional -->
-  <Version>1.0.13</Version>
+  <Version>1.0.14</Version>
   <Authors>Nathan Skipper</Authors>
   <Company>Montgomery Technology, Inc.</Company>
   <PackageId>NodalisEngine</PackageId>

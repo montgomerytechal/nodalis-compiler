@@ -712,6 +712,21 @@ namespace Nodalis
             JsEngine.SetValue(name, variable);
         }
 
+        public virtual void LogError(string error)
+        {
+            Console.Error.WriteLine(error);
+        }
+
+        public virtual void LogDebug(string msg)
+        {
+            Console.WriteLine(msg);
+        }
+
+        public virtual void LogMessage(string msg)
+        {
+            Console.WriteLine(msg);
+        }
+
         private void InjectBindings()
         {
             JsEngine.SetValue("readBit", new Func<string, bool>(ReadBit));

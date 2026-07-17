@@ -87,6 +87,8 @@ This spins up an OPC UA endpoint at `opc.tcp://localhost:4840/UA/Nodalis` using 
 NodalisEngine is distributed under the Apache 2.0 license. See the headers inside the source files for details.
 
 # Changelog
+## [1.0.14] - 2026-07-17
+- Fixed issues with OPC Server on embedded linux.
 
 ## [1.0.13] - 2026-07-15
 - Replaced obsolete references in OPC Server and Client.
