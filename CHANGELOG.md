@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.33] 2026-07-21
+- Modified modbus client implementations to allow for read/write register functions on a single bit assignment.
+This is done by specifying "InFunction" or "OutFunction" as an additional property in the mapping table. The value
+of these properties should be the hex string for the modbus function that you wish to use.
+
 ## [1.0.32] 2026-06-05
 - Fixed problems with writing registers to Modbus.
 

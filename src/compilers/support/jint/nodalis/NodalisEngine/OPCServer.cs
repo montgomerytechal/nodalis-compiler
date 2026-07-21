@@ -204,7 +204,7 @@ namespace Nodalis
         public async Task StartAsync(string hostname = "localhost")
         {
             await Task.Yield();
-            _engine.LogDebug("OPC: Creating telemetry.");
+            //_engine.LogDebug("OPC: Creating telemetry.");
             _telemetry = _telemetry = DefaultTelemetry.Create(builder =>
             {
                 builder.ClearProviders();
@@ -214,7 +214,7 @@ namespace Nodalis
                 builder.AddProvider(
                     new NodalisLoggerProvider(_engine));
             });
-            _engine.LogDebug("OPC: Creating ApplicationInstance.");
+           // _engine.LogDebug("OPC: Creating ApplicationInstance.");
             _application = new ApplicationInstance(_telemetry)
             {
                 ApplicationName = "NodalisServer",
@@ -222,7 +222,7 @@ namespace Nodalis
                 ConfigSectionName = "NodalisServer"
             };
 
-            _engine.LogDebug("OPC: Creating configuration.");
+            //_engine.LogDebug("OPC: Creating configuration.");
             var config = new ApplicationConfiguration(_telemetry)
             {
                 ApplicationName = "NodalisServer",
@@ -271,10 +271,10 @@ namespace Nodalis
                 Extensions = new XmlElementCollection()
             };
 
-            _engine.LogDebug("OPC: Validating configuration.");
+            //_engine.LogDebug("OPC: Validating configuration.");
             await config.ValidateAsync(ApplicationType.Server);
 
-            _engine.LogDebug("OPC: Updating certificate validator.");
+            //_engine.LogDebug("OPC: Updating certificate validator.");
             await config.CertificateValidator.UpdateAsync(config, default);
 
             _application.ApplicationConfiguration = config;
@@ -387,7 +387,7 @@ namespace Nodalis
             {
                 try
                 {
-                    _engine.LogDebug("OPC: CreateMasterNodeManager entered.");
+                    //_engine.LogDebug("OPC: CreateMasterNodeManager entered.");
 
                     var nodeManagers = new List<INodeManager>
                 {
@@ -398,7 +398,7 @@ namespace Nodalis
                         _map)
                 };
 
-                    _engine.LogDebug("OPC: NodalisNodeManager created.");
+                    //_engine.LogDebug("OPC: NodalisNodeManager created.");
 
                     var manager = new MasterNodeManager(
                         server,
@@ -406,7 +406,7 @@ namespace Nodalis
                         null,
                         nodeManagers.ToArray());
 
-                    _engine.LogDebug("OPC: MasterNodeManager created.");
+                    //_engine.LogDebug("OPC: MasterNodeManager created.");
 
                     return manager;
                 }
@@ -431,13 +431,13 @@ namespace Nodalis
                 {
                     try
                     {
-                        engine.LogDebug(
-                            "OPC: NodalisNodeManager constructor entered.");
+                        //engine.LogDebug(
+                        //    "OPC: NodalisNodeManager constructor entered.");
                         _engine = engine;
                         _addressMap = map;
                         SystemContext.NodeIdFactory = this;
-                        engine.LogDebug(
-                            "OPC: NodalisNodeManager constructor completed.");
+                        //engine.LogDebug(
+                        //    "OPC: NodalisNodeManager constructor completed.");
                     }
                     catch (Exception ex)
                     {
@@ -512,8 +512,8 @@ namespace Nodalis
                 {
                     try
                     {
-                        _engine.LogDebug(
-                            $"OPC: CreateAddressSpace entered with {_addressMap.Count} mappings.");
+                        //_engine.LogDebug(
+                        //    $"OPC: CreateAddressSpace entered with {_addressMap.Count} mappings.");
 
                         var folder = CreateFolder(
                             null,
@@ -522,13 +522,13 @@ namespace Nodalis
                             externalReferences,
                             NamespaceIndex);
 
-                        _engine.LogDebug("OPC: Root folder created.");
-                        var nodelog = "";
+                        //_engine.LogDebug("OPC: Root folder created.");
+                        //var nodelog = "";
                         foreach (var entry in _addressMap)
                         {
                             string name = entry.Key;
                             string addr = entry.Value;
-                            nodelog += $"OPC: Creating node '{name}' for '{addr}'.\n";
+                            //nodelog += $"OPC: Creating node '{name}' for '{addr}'.\n";
                             var dataType = GetDataType(addr);
 
                             var variable = new BaseDataVariableState(folder)
@@ -567,8 +567,8 @@ namespace Nodalis
                             folder.AddChild(variable);
                             AddPredefinedNode(SystemContext, variable);
                         }
-                        _engine.LogDebug(nodelog);
-                        _engine.LogDebug("OPC: CreateAddressSpace completed.");
+                        //_engine.LogDebug(nodelog);
+                        //_engine.LogDebug("OPC: CreateAddressSpace completed.");
                     }
                     catch (Exception ex)
                     {

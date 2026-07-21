@@ -340,17 +340,51 @@ bool ModbusClient::sendRaw(const std::vector<uint8_t>& pdu, std::vector<uint8_t>
 
 bool ModbusClient::readBit(const std::string& remote, int& result) {
     uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
-    ModbusRequest req = createReadRequest(READ_DISCRETE_INPUTS, addr, 1);
+    uint8_t function = READ_DISCRETE_INPUTS;
+    for (const auto& map : mappings) {
+        if (map.remoteAddress != remote) continue;
+        json props = map.additionalProperties;
+        if (props.is_string()) { try { props = json::parse(props.get<std::string>()); } catch (...) { continue; } }
+        if (props.contains("InFunction")) {
+            try {
+                function = props["InFunction"].is_number_integer()
+                    ? static_cast<uint8_t>(props["InFunction"].get<int>())
+                    : static_cast<uint8_t>(std::stoul(props["InFunction"].get<std::string>(), nullptr, 16));
+            } catch (...) { function = READ_DISCRETE_INPUTS; }
+        }
+        if (props.contains("InFunction")) break;
+    }
+    if (function < READ_COILS || function > READ_INPUT_REGISTERS) function = READ_DISCRETE_INPUTS;
+    ModbusRequest req = createReadRequest(function, addr, 1);
     ModbusResponse res;
     if (!sendRequest(req, res)) return false;
 
-    result = (res.data[1] & 0x01) ? 1 : 0;
+    if (res.data.size() < 2) return false;
+    result = (function == READ_HOLDING_REGISTERS || function == READ_INPUT_REGISTERS)
+        ? (res.data.size() >= 3 && ((res.data[1] << 8) | res.data[2]) > 0 ? 1 : 0)
+        : ((res.data[1] & 0x01) ? 1 : 0);
     return true;
 }
 
 bool ModbusClient::writeBit(const std::string& remote, int value) {
     uint16_t addr = static_cast<uint16_t>(std::stoi(remote));
-    ModbusRequest req = createWriteSingleCoil(addr, value != 0);
+    uint8_t function = WRITE_SINGLE_COIL;
+    for (const auto& map : mappings) {
+        if (map.remoteAddress != remote) continue;
+        json props = map.additionalProperties;
+        if (props.is_string()) { try { props = json::parse(props.get<std::string>()); } catch (...) { continue; } }
+        if (props.contains("OutFunction")) {
+            try {
+                function = props["OutFunction"].is_number_integer()
+                    ? static_cast<uint8_t>(props["OutFunction"].get<int>())
+                    : static_cast<uint8_t>(std::stoul(props["OutFunction"].get<std::string>(), nullptr, 16));
+            } catch (...) { function = WRITE_SINGLE_COIL; }
+        }
+        if (props.contains("OutFunction")) break;
+    }
+    ModbusRequest req = function == WRITE_SINGLE_REGISTER
+        ? createWriteSingleRegister(addr, value != 0 ? 1 : 0)
+        : createWriteSingleCoil(addr, value != 0);
     ModbusResponse res;
     return sendRequest(req, res);
 }

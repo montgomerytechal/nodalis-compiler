@@ -43,7 +43,7 @@ namespace Nodalis
         private int _udpPort = 47808;
         private string _deviceIp = "";
 
-        public BacnetIpClient() : base("BACNET-IP")
+        public BacnetIpClient(NodalisEngine parent) : base("BACNET-IP", parent)
         {
             // parent abstract requires a parameterless constructor usage in NodalisEngine.CreateClient
         }

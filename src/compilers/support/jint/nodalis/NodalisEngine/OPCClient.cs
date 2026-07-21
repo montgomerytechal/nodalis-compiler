@@ -37,7 +37,7 @@ namespace Nodalis
         /// <summary>
         /// Instantiates a new OPCClient.
         /// </summary>
-        public OPCClient() : base("OPCUA") { }
+        public OPCClient(NodalisEngine parent) : base("OPCUA", parent) { }
         /// <summary>
         /// Connects to the OPC device based on the mappings supplied.
         /// </summary>

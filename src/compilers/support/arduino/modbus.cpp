@@ -222,7 +222,29 @@ bool NodalisModbusClient::readBit(const std::string &remote, int &result)
         logErrorThrottled("Invalid remote bit address \"" + remote + "\"");
         return false;
     }
-    const long val = modbusTcpClient.discreteInputRead(deviceAddress, addr);
+    uint8_t function = READ_DISCRETE_INPUTS;
+    for (const auto &map : mappings)
+    {
+        if (map.remoteAddress != remote) continue;
+        json props = map.additionalProperties;
+        if (props.is_string()) { try { props = json::parse(props.get<std::string>()); } catch (...) { continue; } }
+        if (props.contains("InFunction"))
+        {
+            try
+            {
+                function = props["InFunction"].is_number_integer()
+                    ? static_cast<uint8_t>(props["InFunction"].get<int>())
+                    : static_cast<uint8_t>(std::strtoul(props["InFunction"].get<std::string>().c_str(), nullptr, 16));
+            }
+            catch (...) { function = READ_DISCRETE_INPUTS; }
+        }
+        if (props.contains("InFunction")) break;
+    }
+    if (function < READ_COILS || function > READ_INPUT_REGISTERS) function = READ_DISCRETE_INPUTS;
+    const long val = function == READ_COILS ? modbusTcpClient.coilRead(deviceAddress, addr)
+        : function == READ_HOLDING_REGISTERS ? modbusTcpClient.holdingRegisterRead(deviceAddress, addr)
+        : function == READ_INPUT_REGISTERS ? modbusTcpClient.inputRegisterRead(deviceAddress, addr)
+        : modbusTcpClient.discreteInputRead(deviceAddress, addr);
     if (val < 0)
     {
         logErrorThrottled("Discrete input read failed remote=\"" + remote + "\" parsed=" + std::to_string(addr) +
@@ -245,7 +267,27 @@ bool NodalisModbusClient::writeBit(const std::string &remote, int value)
         logErrorThrottled("Invalid remote bit address \"" + remote + "\"");
         return false;
     }
-    const int rc = modbusTcpClient.coilWrite(deviceAddress, addr, value != 0);
+    uint8_t function = WRITE_SINGLE_COIL;
+    for (const auto &map : mappings)
+    {
+        if (map.remoteAddress != remote) continue;
+        json props = map.additionalProperties;
+        if (props.is_string()) { try { props = json::parse(props.get<std::string>()); } catch (...) { continue; } }
+        if (props.contains("OutFunction"))
+        {
+            try
+            {
+                function = props["OutFunction"].is_number_integer()
+                    ? static_cast<uint8_t>(props["OutFunction"].get<int>())
+                    : static_cast<uint8_t>(std::strtoul(props["OutFunction"].get<std::string>().c_str(), nullptr, 16));
+            }
+            catch (...) { function = WRITE_SINGLE_COIL; }
+        }
+        if (props.contains("OutFunction")) break;
+    }
+    const int rc = function == WRITE_SINGLE_REGISTER
+        ? modbusTcpClient.holdingRegisterWrite(deviceAddress, addr, value != 0 ? 1 : 0)
+        : modbusTcpClient.coilWrite(deviceAddress, addr, value != 0);
     if (rc != 1)
     {
         logErrorThrottled("Coil write failed remote=\"" + remote + "\" parsed=" + std::to_string(addr) +

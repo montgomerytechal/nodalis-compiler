@@ -30,6 +30,23 @@ export class ModbusClient extends IOClient {
     this.client = null;
   }
 
+  functionFor(address, property, fallback) {
+    for (const map of this.mappings) {
+      if (map.remoteAddress !== address) continue;
+      let properties = map.additionalProperties;
+      if (typeof properties === 'string') {
+        try { properties = JSON.parse(properties); } catch { continue; }
+      }
+      const configured = properties?.[property];
+      if (configured === undefined || configured === null || configured === '') continue;
+      const parsed = typeof configured === 'number'
+        ? configured
+        : parseInt(String(configured).replace(/^0x/i, ''), 16);
+      if (Number.isInteger(parsed)) return parsed;
+    }
+    return fallback;
+  }
+
   connect() {
     try {
       this.socket = new net.Socket();
@@ -55,15 +72,26 @@ export class ModbusClient extends IOClient {
 
   readBit(address, cb) {
     const reg = parseInt(address);
-    this.client.readDiscreteInputs(reg, 1)
+    const fn = this.functionFor(address, 'InFunction', 0x02);
+    const request = fn === 0x01 ? this.client.readCoils(reg, 1)
+      : fn === 0x03 ? this.client.readHoldingRegisters(reg, 1)
+      : fn === 0x04 ? this.client.readInputRegisters(reg, 1)
+      : this.client.readDiscreteInputs(reg, 1);
+    request
       .then(res => 
-        cb(res.response._body.valuesAsArray[0]))
+        cb(fn === 0x03 || fn === 0x04
+          ? res.response._body.valuesAsBuffer.readUInt16BE(0) > 0
+          : !!res.response._body.valuesAsArray[0]))
       .catch(err => console.error('readBit error', err.message));
   }
 
   writeBit(address, value) {
     const reg = parseInt(address);
-    this.client.writeSingleCoil(reg, value)
+    const fn = this.functionFor(address, 'OutFunction', 0x05);
+    const request = fn === 0x06
+      ? this.client.writeSingleRegister(reg, value ? 1 : 0)
+      : this.client.writeSingleCoil(reg, !!value);
+    request
       .catch(err => console.error('writeBit error', err.message));
   }
 
@@ -112,4 +140,3 @@ export class ModbusClient extends IOClient {
       .catch(err => console.error('writeDWord error', err.message));
   }
 }
-

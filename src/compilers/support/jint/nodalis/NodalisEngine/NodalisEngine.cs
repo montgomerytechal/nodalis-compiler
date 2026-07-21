@@ -121,7 +121,12 @@ namespace Nodalis
             direction = localAddress.StartsWith("%Q") ? IOType.Output : IOType.Input;
             width = int.Parse(dict["RemoteSize"]);
             interval = int.Parse(dict["PollTime"]);
-            if (dict.TryGetValue("ProtocolProperties", out var nestedJson))
+            var propkey = "ProtocolProperties";
+            if (dict.ContainsKey("Properties"))
+            {
+                propkey = "Properties";
+            }
+            if (dict.TryGetValue(propkey, out var nestedJson))
             {
                 try
                 {
@@ -159,13 +164,16 @@ namespace Nodalis
         /// The last attempt to poll the module.
         /// </summary>
         protected long lastAttempt = 0;
+
+        protected NodalisEngine engine;
         /// <summary>
         /// Constructs a new client with the given protocol.
         /// </summary>
         /// <param name="protocol">The name of the protocol</param>
-        protected IOClient(string protocol)
+        protected IOClient(string protocol, NodalisEngine parent)
         {
             this.protocol = protocol;
+            engine = parent;
         }
 
         /// <summary>
@@ -182,7 +190,11 @@ namespace Nodalis
                     
                 }
                 mappings.Add(map);
-                Console.WriteLine(@$"Added map for {map.localAddress} to {map.protocol}:{map.moduleID}/{map.remoteAddress}");
+                engine.LogDebug(@$"Added map for {map.localAddress} to {map.protocol}:{map.moduleID}/{map.remoteAddress}");
+            }
+            else
+            {
+                engine.LogDebug($"Tried to add a duplicate map for {map.localAddress}");
             }
         }
         /// <summary>
@@ -209,11 +221,34 @@ namespace Nodalis
                         {
                             switch (map.width)
                             {
-                                case 1: WriteBit(map.remoteAddress, engine.ReadBit(map.localAddress) ? 1 : 0); break;
-                                case 8: WriteByte(map.remoteAddress, engine.ReadByte(map.localAddress)); break;
-                                case 16: WriteWord(map.remoteAddress, engine.ReadWord(map.localAddress)); break;
-                                case 32: WriteDWord(map.remoteAddress, engine.ReadDWord(map.localAddress)); break;
-                                case 64: WriteLWord(map.remoteAddress, engine.ReadLWord(map.localAddress)); break;
+                                case 1:
+                                    if (!WriteBit(map.remoteAddress, engine.ReadBit(map.localAddress) ? 1 : 0))
+                                    {
+                                        engine.LogError($"Failed to write bit on mapping {moduleID}/{protocol}.");
+                                    }
+                                    break;
+                                case 8:
+                                    if (!WriteByte(map.remoteAddress, engine.ReadByte(map.localAddress))){
+                                        engine.LogError($"Failed to write byte on mapping {moduleID}/{protocol}.");
+                                    }
+                                    break;
+                                case 16: if (!WriteWord(map.remoteAddress, engine.ReadWord(map.localAddress)))
+                                    {
+                                        engine.LogError($"Failed to write word on mapping {moduleID}/{protocol}.");
+                                    }
+                                    break;
+                                case 32: 
+                                    if (!WriteDWord(map.remoteAddress, engine.ReadDWord(map.localAddress)))
+                                    {
+                                        engine.LogError($"Failed to write dword on mapping {moduleID}/{protocol}.");
+                                    }
+                                    break;
+                                case 64: 
+                                    if (!WriteLWord(map.remoteAddress, engine.ReadLWord(map.localAddress)))
+                                    {
+                                        engine.LogError($"Failed to write LWord on mapping {moduleID}/{protocol}.");
+                                    }
+                                    break;
                             }
                         }
                         else
@@ -228,7 +263,9 @@ namespace Nodalis
                             }
                         }
                     }
-                    catch { }
+                    catch (Exception e) {
+                        engine.LogError(e.ToString());
+                    }
                 }
             }
         }
@@ -421,19 +458,27 @@ namespace Nodalis
             try
             {
                 var map = new IOMap(json);
+                LogDebug($"Adding map for {map.moduleID}/{map.remoteAddress}/{map.localAddress}");
                 var client = Clients.Find(c => c.HasMapping(map.localAddress) || c.moduleID == map.moduleID);
                 if (client == null)
-                { 
+                {
+                    LogDebug($"Creating client for map {map.moduleID}/{map.remoteAddress}/{map.localAddress}");
                     client = CreateClient(map);
                     if (client != null)
                     {
+                        LogDebug($"Connecting client for map {map.moduleID}/{map.remoteAddress}/{map.localAddress}");
                         client.Connect();
                         Clients.Add(client);
                     }
                 }
-                else client.AddMapping(map);
+                else
+                {
+                    LogDebug($"Adding map for {map.moduleID}/{map.remoteAddress}/{map.localAddress} to existing client.");
+                    client.AddMapping(map);
+                }
+                LogDebug($"Finished mapping for {map.moduleID}/{map.remoteAddress}/{map.localAddress}");
             }
-            catch (Exception ex) { Console.WriteLine($"mapIO error: {ex.Message}"); }
+            catch (Exception ex) { LogError($"mapIO error: {ex.Message}"); }
         }
         /// <summary>
         /// Supervises the IOClients that have been added based on mappings.
@@ -454,16 +499,20 @@ namespace Nodalis
         {
             IOClient client = null;
             if (map.protocol.StartsWith("MODBUS"))
-                client = new ModbusClient();
+                client = new ModbusClient(this);
             else if (map.protocol.Equals("BACNET", StringComparison.InvariantCultureIgnoreCase)
                   || map.protocol.Equals("BACNET-IP", StringComparison.InvariantCultureIgnoreCase))
-                client = new BacnetIpClient();
+                client = new BacnetIpClient(this);
             else if (map.protocol == "OPCUA")
-                client = new OPCClient();
+                client = new OPCClient(this);
+            else
+            {
+                LogError($"Could not create IO Client for mapping {map.moduleID}/{map.localAddress}");
+            }
             if (client != null)
-                {
-                    client.AddMapping(map);
-                }
+            {
+                client.AddMapping(map);
+            }
             return client;
         }
         /// <summary>
