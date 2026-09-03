@@ -81,6 +81,14 @@ export interface CompileOptions {
 
     /** Optional POU name to create/update in generated CODESYS project. */
     codesysPouName?: string;
+
+    /** Optional native .export template. Defaults to the bundled CODESYS template. */
+    codesysExportTemplateFile?: string;
+
+    /** Names used for objects in the generated CODESYS export. */
+    codesysApplicationName?: string;
+    codesysDeviceName?: string;
+    codesysGlobalVariableListName?: string;
 }
 
 /** Options for Nodalis.program(...) */

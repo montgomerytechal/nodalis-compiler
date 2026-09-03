@@ -120,6 +120,24 @@ await app.compile({
 
 ## 🧠 Compiler Specifics
 
+### CodeSysCompiler
+
+`CodeSysCompiler` converts a Nodalis IEC project into a CodeSys export file. The compiler only accepts `.iec` source files.
+
+```bash
+nodalis --action compile \
+  --target codesys \
+  --outputType code \
+  --outputPath ./out \
+  --resourceName MyPLC \
+  --sourcePath ./examples/pump.iec \
+  --language st
+```
+
+The command creates `./out/MyPLC.export`. Import this `.export` file into the desired CodeSys project using the import command in the CodeSys environment.
+
+> **Important:** The export does not transfer I/O Mapping. After importing the file, configure and verify all I/O mappings in the CodeSys environment before building or deploying the project.
+
 ### CPPCompiler
 
 `CPPCompiler` translates IEC Ladder Diagram (`.iec`) and Structured Text (`.st`, `.iec`) sources into ANSI C++ output. Depending on the requested output type it either produces compilable sources or invokes the toolchain to emit an executable.

@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.34] 2026-09-03
+- Added Codesys Compiler.
+
 ## [1.0.33] 2026-07-21
 - Modified modbus client implementations to allow for read/write register functions on a single bit assignment.
 This is done by specifying "InFunction" or "OutFunction" as an additional property in the mapping table. The value
