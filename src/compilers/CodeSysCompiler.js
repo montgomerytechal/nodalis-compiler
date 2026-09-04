@@ -24,6 +24,25 @@ import { transpile } from './st-parser/codesystranspiler.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+export const CODESYS_TARGETS = Object.freeze({
+  'codesys-advantech-adam-wince-x86': 'Advantech_ADAM_5560_WinCE_V3',
+  'codesys-advantech-x86': 'Advantech_Control_x86_RTE_V3',
+  'codesys-advantech-x64': 'Advantech_Control_x86_RTE_V3_x64',
+  'codesys-advantech-softmotion-x86': 'Advantech_SoftMotion_x86_RTE_V3',
+  'codesys-advantech-softmotion-x64': 'Advantech_SoftMotion_x86_RTE_V3_x64',
+  'codesys-phoenix-plcnext': 'CODESYS_Control_for_PLCnext_SL',
+  'codesys-rte-x86': 'CODESYS_Control_RTE_V3',
+  'codesys-rte-x64': 'CODESYS_Control_RTE_V3_x64',
+  'codesys-win-x86': 'CODESYS_Control_Win_V3',
+  'codesys-win-x64': 'Device'
+});
+
+const CODESYS_TARGET_ALIASES = Object.freeze({
+  codesys: 'codesys-win-x64',
+  'codesys-rte64': 'codesys-rte-x64',
+  'codesys-win64': 'codesys-win-x64'
+});
+
 export class CodeSysCompiler extends Compiler {
   constructor(options) {
     super(options);
@@ -39,7 +58,7 @@ export class CodeSysCompiler extends Compiler {
   }
 
   get supportedTargetDevices() {
-      return ["codesys", "codesys-rte64", "codesys-win64"];
+      return [...Object.keys(CODESYS_TARGETS), ...Object.keys(CODESYS_TARGET_ALIASES)];
   }
 
   get supportedProtocols() {
@@ -57,7 +76,12 @@ export class CodeSysCompiler extends Compiler {
   }
 
   async compile() {
-      const { sourcePath, outputPath, resourceName } = this.options;
+      const { sourcePath, outputPath, resourceName, target = 'codesys' } = this.options;
+      const canonicalTarget = CODESYS_TARGET_ALIASES[target] || target;
+      const templateDeviceName = CODESYS_TARGETS[canonicalTarget];
+      if (!templateDeviceName) {
+        throw new Error(`Unsupported CODESYS target "${target}". Expected one of: ${this.supportedTargetDevices.join(', ')}.`);
+      }
       const extension = path.extname(sourcePath).toLowerCase();
       if (extension !== '.iec' && extension !== '.xml') {
         throw new Error('CodeSysCompiler requires an IEC project file (.iec or .xml).');
@@ -72,6 +96,7 @@ export class CodeSysCompiler extends Compiler {
       const project = iec.Project.fromXML(sourceXML);
       const exportModel = transpile(project, {
         templateXML,
+        templateDeviceName,
         resourceName,
         applicationName: this.options.codesysApplicationName,
         deviceName: this.options.codesysDeviceName,

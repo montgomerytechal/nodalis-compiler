@@ -30,7 +30,7 @@ function addressOf(variable) {
 /**
  * Converts an IEC parser Project into a native CODESYS export model.
  * @param {import('../iec-parser/parser.js').Project} project
- * @param {{templateXML: string, resourceName?: string, applicationName?: string, deviceName?: string}} options
+ * @param {{templateXML: string, templateDeviceName?: string, resourceName?: string, applicationName?: string, deviceName?: string}} options
  * @returns {CodeSysExport}
  */
 export function transpile(project, options = {}) {

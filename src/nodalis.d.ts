@@ -45,7 +45,7 @@ export interface ProgrammerInfo {
 
 /** Options for Nodalis.compile(...) */
 export interface CompileOptions {
-    /** Target platform, e.g. 'nodejs', 'generic-cpp', 'iec', 'st', 'xml', 'jint' */
+    /** Target platform, e.g. 'nodejs', 'generic-cpp', 'codesys-win-x64', or 'codesys-phoenix-plcnext'. */
     target: string;
 
     /** Output type, e.g. 'code' | 'executable' */

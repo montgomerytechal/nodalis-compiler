@@ -136,6 +136,17 @@ nodalis --action compile \
 
 The command creates `./out/MyPLC.export`. Import this `.export` file into the desired CodeSys project using the import command in the CodeSys environment.
 
+The bundled CODESYS targets are:
+
+- `codesys-win-x86`, `codesys-win-x64`
+- `codesys-rte-x86`, `codesys-rte-x64`
+- `codesys-phoenix-plcnext`
+- `codesys-advantech-x86`, `codesys-advantech-x64`
+- `codesys-advantech-softmotion-x86`, `codesys-advantech-softmotion-x64`
+- `codesys-advantech-adam-wince-x86`
+
+The legacy `codesys`, `codesys-win64`, and `codesys-rte64` names remain available as aliases. The selected target determines which device tree is written to the `.export` artifact.
+
 > **Important:** The export does not transfer I/O Mapping. After importing the file, configure and verify all I/O mappings in the CodeSys environment before building or deploying the project.
 
 ### CPPCompiler

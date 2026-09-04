@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.0.35] 2026-09-04
+- Added support for Advantech and Phoenix PLCnext codesys compilation, as well as support for all available
+CodeSys softPLCs.
+
 ## [1.0.34] 2026-09-03
 - Added Codesys Compiler.
 

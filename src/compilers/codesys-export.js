@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import { DOMParser, XMLSerializer } from 'xmldom';
 
 const TYPES = Object.freeze({
+  DEVICE: '225bfe47-7336-4dbc-9419-4105a7c831fa',
   APPLICATION: '639b491f-5557-464c-af91-1471bac9f549',
   GVL: 'ffbfa93a-b94d-45fc-a329-229860183b1d',
   POU: '6f9dac99-8de1-4efc-8465-68ac443b7d08',
@@ -87,7 +88,8 @@ export class CodeSysExport {
   constructor(templateXML, options = {}) {
     if (!templateXML) throw new Error('A CODESYS export template is required.');
     this.templateXML = templateXML;
-    this.deviceName = options.deviceName || 'Device';
+    this.templateDeviceName = options.templateDeviceName || 'Device';
+    this.deviceName = options.deviceName || this.templateDeviceName;
     this.applicationName = options.applicationName || 'Application';
     this.globalVariableListName = options.globalVariableListName || 'GVL';
     this.programs = [];
@@ -134,25 +136,43 @@ export class CodeSysExport {
     if (!entryList) throw new Error('Invalid CODESYS template: EntryList was not found.');
     const entries = Array.from(entryList.childNodes).filter(node => node.nodeType === 1 && node.tagName === 'Single');
     const typeOf = entry => value(child(entry, 'Single', 'MetaObject'), 'Single', 'TypeGuid').replace(/[{}]/g, '').toLowerCase();
+    const nameOf = entry => value(child(entry, 'Single', 'MetaObject'), 'Single', 'Name');
+    const parentOf = entry => value(child(entry, 'Single', 'MetaObject'), 'Single', 'ParentGuid');
+    const pathOf = entry => Array.from(child(entry, 'Array', 'Path')?.childNodes || [])
+      .filter(node => node.nodeType === 1)
+      .map(node => node.textContent);
     const exemplar = type => entries.find(entry => typeOf(entry) === type);
-    const application = exemplar(TYPES.APPLICATION);
+    const device = entries.find(entry => typeOf(entry) === TYPES.DEVICE
+      && parentOf(entry) === '00000000-0000-0000-0000-000000000000'
+      && nameOf(entry) === this.templateDeviceName);
+    if (!device) throw new Error(`Invalid CODESYS template: target device "${this.templateDeviceName}" was not found.`);
+    const application = entries.find(entry => typeOf(entry) === TYPES.APPLICATION && pathOf(entry)[0] === this.templateDeviceName);
     const gvl = exemplar(TYPES.GVL);
     const pou = exemplar(TYPES.POU);
     const taskConfig = exemplar(TYPES.TASK_CONFIGURATION);
     const task = exemplar(TYPES.TASK);
     if (![application, gvl, pou, taskConfig, task].every(Boolean)) throw new Error('The CODESYS template does not contain all required application object exemplars.');
 
+    // The bundled archive contains one device tree per supported target, while
+    // the generic GVL/POU/task exemplars live under the default device. Keep the
+    // selected tree and move those reusable application objects beneath it.
+    for (const entry of entries) {
+      const belongsToTarget = entry === device || pathOf(entry)[0] === this.templateDeviceName;
+      const reusableApplicationObject = [TYPES.GVL, TYPES.POU, TYPES.TASK_CONFIGURATION, TYPES.TASK].includes(typeOf(entry));
+      if (!belongsToTarget && !reusableApplicationObject) entryList.removeChild(entry);
+    }
+
     const applicationGuid = value(child(application, 'Single', 'MetaObject'), 'Single', 'Guid');
     const taskConfigGuid = value(child(taskConfig, 'Single', 'MetaObject'), 'Single', 'Guid');
     setValue(child(application, 'Single', 'MetaObject'), 'Single', 'Name', this.applicationName);
+    setValue(child(device, 'Single', 'MetaObject'), 'Single', 'Name', this.deviceName);
 
     for (const entry of entries) {
       const meta = child(entry, 'Single', 'MetaObject');
-      if (value(meta, 'Single', 'Name') === 'Device') setValue(meta, 'Single', 'Name', this.deviceName);
       const pathNode = child(entry, 'Array', 'Path');
       for (const part of Array.from(pathNode?.childNodes || [])) {
         if (part.nodeType !== 1) continue;
-        if (part.textContent === 'Device') part.textContent = this.deviceName;
+        if (part.textContent === this.templateDeviceName) part.textContent = this.deviceName;
         if (part.textContent === 'Application') part.textContent = this.applicationName;
       }
     }
@@ -162,6 +182,23 @@ export class CodeSysExport {
     }
 
     setValue(child(gvl, 'Single', 'MetaObject'), 'Single', 'Name', this.globalVariableListName);
+    setValue(child(gvl, 'Single', 'MetaObject'), 'Single', 'ParentGuid', applicationGuid);
+    setValue(gvl, 'Single', 'ParentSVNodeGuid', applicationGuid);
+    const applicationPath = [this.deviceName, ...pathOf(application).slice(1)];
+    const setPath = (entry, parts) => {
+      const pathNode = child(entry, 'Array', 'Path');
+      while (pathNode.firstChild) pathNode.removeChild(pathNode.firstChild);
+      for (const part of parts) {
+        const partNode = document.createElement('Single');
+        partNode.setAttribute('Type', 'string');
+        partNode.appendChild(document.createTextNode(part));
+        pathNode.appendChild(partNode);
+      }
+    };
+    setPath(gvl, [...applicationPath, this.applicationName]);
+    setValue(child(taskConfig, 'Single', 'MetaObject'), 'Single', 'ParentGuid', applicationGuid);
+    setValue(taskConfig, 'Single', 'ParentSVNodeGuid', applicationGuid);
+    setPath(taskConfig, [...applicationPath, this.applicationName]);
     const gvlBlob = descendants(gvl, 'Single', 'TextBlobForSerialisation')[0];
     gvlBlob.textContent = `VAR_GLOBAL\n${this.globalVariables.map(item => item.toST()).join('\n')}\nEND_VAR`;
 
@@ -171,19 +208,12 @@ export class CodeSysExport {
       setValue(meta, 'Single', 'ParentGuid', parentGuid);
       setValue(meta, 'Single', 'Name', item.name);
       setValue(entry, 'Single', 'ParentSVNodeGuid', parentGuid);
-      const pathNode = child(entry, 'Array', 'Path');
-      while (pathNode.firstChild) pathNode.removeChild(pathNode.firstChild);
-      for (const part of parentPath) {
-        const partNode = document.createElement('Single');
-        partNode.setAttribute('Type', 'string');
-        partNode.appendChild(document.createTextNode(part));
-        pathNode.appendChild(partNode);
-      }
+      setPath(entry, parentPath);
     };
 
     for (const item of [...this.programs, ...this.functionBlocks]) {
       const entry = pou.cloneNode(true);
-      configureEntry(entry, item, applicationGuid, [this.deviceName, 'PLC Logic', this.applicationName]);
+      configureEntry(entry, item, applicationGuid, [...applicationPath, this.applicationName]);
       const blobs = descendants(entry, 'Single', 'TextBlobForSerialisation');
       blobs[0].textContent = item.implementation;
       blobs[1].textContent = item.declaration;
@@ -195,7 +225,7 @@ export class CodeSysExport {
 
     for (const item of this.tasks) {
       const entry = task.cloneNode(true);
-      configureEntry(entry, item, taskConfigGuid, [this.deviceName, 'PLC Logic', this.applicationName, 'Task Configuration']);
+      configureEntry(entry, item, taskConfigGuid, [...applicationPath, this.applicationName, 'Task Configuration']);
       const object = child(entry, 'Single', 'Object');
       setValue(object, 'Single', 'Priority', item.priority);
       const interval = child(object, 'Single', 'Interval');

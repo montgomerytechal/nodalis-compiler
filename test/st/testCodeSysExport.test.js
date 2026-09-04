@@ -4,7 +4,7 @@ import { DOMParser } from 'xmldom';
 import { Project } from '../../src/compilers/iec-parser/parser.js';
 import { transpile } from '../../src/compilers/st-parser/codesystranspiler.js';
 import { CodeSysExport } from '../../src/compilers/codesys-export.js';
-import { CodeSysCompiler } from '../../src/compilers/CodeSysCompiler.js';
+import { CODESYS_TARGETS, CodeSysCompiler } from '../../src/compilers/CodeSysCompiler.js';
 
 const root = process.cwd();
 const templateXML = fs.readFileSync(path.join(root, 'src/compilers/templates/codesys-default.export'), 'utf8');
@@ -58,5 +58,40 @@ describe('CODESYS export', () => {
     }).compile();
     expect(path.basename(outputFile)).toBe('PLC1.export');
     expect(fs.readFileSync(outputFile, 'utf8')).toContain('<ExportFile>');
+  });
+
+  test.each(Object.entries(CODESYS_TARGETS))('selects only the device tree for %s', async (target, deviceName) => {
+    const outputPath = path.join(root, 'test/st/output/codesys-targets', target);
+    const outputFile = await new CodeSysCompiler({
+      sourcePath: path.join(root, 'test/st/fixtures/plc1.iec'),
+      outputPath,
+      target,
+      outputType: 'code',
+      resourceName: 'PLC1'
+    }).compile();
+    const xml = fs.readFileSync(outputFile, 'utf8');
+    const document = new DOMParser().parseFromString(xml, 'text/xml');
+    const rootDeviceNames = Array.from(document.getElementsByTagName('Single'))
+      .filter(node => node.getAttribute('Name') === 'MetaObject')
+      .filter(node => Array.from(node.childNodes).some(child => child.nodeType === 1
+        && child.getAttribute('Name') === 'ParentGuid'
+        && child.textContent === '00000000-0000-0000-0000-000000000000'))
+      .map(node => Array.from(node.childNodes).find(child => child.nodeType === 1 && child.getAttribute('Name') === 'Name')?.textContent);
+
+    expect(rootDeviceNames).toEqual([deviceName]);
+    expect(xml).toContain('PROGRAM PLC_LD');
+    expect(xml).toContain('Task Configuration');
+    expect(xml).toContain('VAR_GLOBAL');
+  });
+
+  test('rejects an unknown CODESYS target', async () => {
+    const compiler = new CodeSysCompiler({
+      sourcePath: path.join(root, 'test/st/fixtures/plc1.iec'),
+      outputPath: path.join(root, 'test/st/output/codesys-invalid'),
+      target: 'codesys-unknown',
+      outputType: 'code',
+      resourceName: 'PLC1'
+    });
+    await expect(compiler.compile()).rejects.toThrow('Unsupported CODESYS target');
   });
 });
