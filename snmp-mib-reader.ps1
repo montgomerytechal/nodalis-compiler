@@ -1,20 +1,4 @@
 <#
-Copyright [2026] Nathan Skipper
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-#>
-
-<#
 .SYNOPSIS
 Reads SNMP MIB files and produces a grouped text report of their objects.
 
@@ -33,18 +17,22 @@ executable.
 .PARAMETER SnmpBinPath
 Directory containing the Net-SNMP command-line binaries. The script looks for
 snmptranslate.exe and then snmptranslate in this directory. You may also supply
-the complete path to the snmptranslate executable itself.
+the complete path to the snmptranslate executable itself. When omitted, this
+defaults to the bin directory beneath the directory containing this script.
 
 .PARAMETER MibDirectory
 Directory containing the MIB files. Files whose contents contain a valid
 "<module> DEFINITIONS ::= BEGIN" declaration are treated as MIB files. Keep
 imported/dependency MIBs in this directory so snmptranslate can resolve them.
+When omitted, this defaults to share\snmp\mibs beneath the directory containing
+this script.
 
 .PARAMETER Filter
-Optional case-insensitive literal filter. A MIB is included when the filter
-occurs in either its filename or its contents. For example, use "EATON" to
-restrict the report to MIB files that identify Eaton in their name or content.
-When omitted, every recognized MIB in MibDirectory is included.
+Optional comma-delimited list of case-insensitive literal filters. A MIB is
+included when any filter occurs in either its filename or its contents. For
+example, use "ARUBA,FAN,ENTITY" to include MIB files matching any of those
+terms. Empty entries and surrounding whitespace are ignored. When omitted or
+empty, every recognized MIB in MibDirectory is included.
 
 .PARAMETER OutputFile
 Path of the text report to create. Existing files are overwritten. When this
@@ -63,6 +51,11 @@ Reads only MIB files whose filename or contents contain EATON and writes the
 result to C:\Reports\eaton-objects.txt.
 
 .EXAMPLE
+.\snmp-mib-reader.ps1 -SnmpBinPath "C:\Net-SNMP\bin" -MibDirectory "C:\MIBs" -Filter "ARUBA,FAN,ENTITY"
+
+Reads MIB files whose filename or contents contain ARUBA, FAN, or ENTITY.
+
+.EXAMPLE
 pwsh ./snmp-mib-reader.ps1 -SnmpBinPath "/opt/net-snmp/bin/snmptranslate" -MibDirectory "/opt/mibs" -OutputFile "./all-mibs.txt"
 
 Uses a complete executable path when running the script with PowerShell on
@@ -70,17 +63,26 @@ Linux or macOS.
 
 .NOTES
 Run Get-Help .\snmp-mib-reader.ps1 -Full to display this help.
+
+Copyright [2026] Nathan Skipper
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy at
+http://www.apache.org/licenses/LICENSE-2.0.
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+License for the specific language governing permissions and limitations.
 #>
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string]$SnmpBinPath,
+    [string]$SnmpBinPath = (Join-Path $PSScriptRoot 'bin'),
 
-    [Parameter(Mandatory = $true)]
     [ValidateNotNullOrEmpty()]
-    [string]$MibDirectory,
+    [string]$MibDirectory = (Join-Path (Join-Path (Join-Path $PSScriptRoot 'share') 'snmp') 'mibs'),
 
     [Parameter()]
     [string]$Filter,
@@ -187,6 +189,10 @@ if (-not (Test-Path -LiteralPath $MibDirectory -PathType Container)) {
 }
 $resolvedMibDirectory = (Resolve-Path -LiteralPath $MibDirectory).Path
 
+$filters = @($Filter -split ',' |
+    ForEach-Object { $_.Trim() } |
+    Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+
 $outputParent = Split-Path -Parent ([System.IO.Path]::GetFullPath($OutputFile))
 if (-not (Test-Path -LiteralPath $outputParent -PathType Container)) {
     throw "The parent directory for OutputFile does not exist: $outputParent"
@@ -208,10 +214,17 @@ foreach ($file in @(Get-ChildItem -LiteralPath $resolvedMibDirectory -File | Sor
     }
     $moduleName = $Matches[1]
 
-    if (-not [string]::IsNullOrWhiteSpace($Filter)) {
-        $matchesName = $file.Name.IndexOf($Filter, [StringComparison]::OrdinalIgnoreCase) -ge 0
-        $matchesContent = $content.IndexOf($Filter, [StringComparison]::OrdinalIgnoreCase) -ge 0
-        if (-not ($matchesName -or $matchesContent)) { continue }
+    if ($filters.Count -gt 0) {
+        $matchesFilter = $false
+        foreach ($filterTerm in $filters) {
+            $matchesName = $file.Name.IndexOf($filterTerm, [StringComparison]::OrdinalIgnoreCase) -ge 0
+            $matchesContent = $content.IndexOf($filterTerm, [StringComparison]::OrdinalIgnoreCase) -ge 0
+            if ($matchesName -or $matchesContent) {
+                $matchesFilter = $true
+                break
+            }
+        }
+        if (-not $matchesFilter) { continue }
     }
 
     $objectNames = @([regex]::Matches($content, '(?im)^\s*([A-Za-z][A-Za-z0-9-]*)\s+OBJECT-TYPE\b') |
@@ -231,7 +244,9 @@ foreach ($mib in $mibs) {
         try {
             $details = @(Invoke-SnmpTranslate -Executable $snmpTranslate -MibPath $resolvedMibDirectory -ModuleName $mib.ModuleName -ObjectName $objectName)
             $oidLine = $details | Where-Object { $_ -match '^\s*\.\d+(?:\.\d+)*\s*$' } | Select-Object -First 1
-            $oid = if ($null -eq $oidLine) { 'Unknown' } else { $oidLine.Trim() }
+            # Net-SNMP's -On format prefixes absolute numeric OIDs with a dot.
+            # RemoteAddress uses the portable numeric form without that prefix.
+            $oid = if ($null -eq $oidLine) { 'Unknown' } else { $oidLine.Trim().TrimStart('.') }
             $syntax = Get-SyntaxDetails -Details $details
 
             $report.Add("`t$objectName")

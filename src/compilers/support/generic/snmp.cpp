@@ -78,8 +78,11 @@ void SNMPClient::onMappingAdded(const IOMap& map) {
     }
     if (const json* value = property(properties, "version")) {
         const std::string version = lower(value->is_string() ? value->get<std::string>() : value->dump());
-        config.version = (version == "1" || version == "v1" || version == "snmpv1")
-            ? SNMP_VERSION_1 : SNMP_VERSION_2c;
+        config.ping = version == "ping";
+        if (!config.ping) {
+            config.version = (version == "1" || version == "v1" || version == "snmpv1")
+                ? SNMP_VERSION_1 : SNMP_VERSION_2c;
+        }
     }
     if (const json* value = property(properties, "onconditions")) {
         const std::string conditions = value->is_string() ? value->get<std::string>() : value->dump();
@@ -98,6 +101,7 @@ SNMPClient::PointConfig& SNMPClient::configFor(const std::string& remote) {
 }
 
 bool SNMPClient::openSession(PointConfig& config) {
+    if (config.ping) return true;
     if (config.session) return true;
     netsnmp_session session{};
     snmp_sess_init(&session);
@@ -122,6 +126,30 @@ bool SNMPClient::openSession(PointConfig& config) {
 void SNMPClient::connect() {
     connected = !points.empty();
     for (auto& entry : points) connected = openSession(entry.second) && connected;
+}
+
+bool SNMPClient::readPing(const std::string& remote, uint64_t& result) {
+    PointConfig& config = configFor(remote);
+    if (!config.ping) return false;
+
+    // Only address characters are accepted before invoking the platform ping
+    // utility. This keeps the command safe and deliberately excludes options.
+    if (moduleID.empty() || !std::all_of(moduleID.begin(), moduleID.end(), [](unsigned char c) {
+        return std::isalnum(c) || c == '.' || c == ':' || c == '-' || c == '_';
+    })) {
+        result = 0;
+        return true;
+    }
+
+#if defined(_WIN32)
+    const std::string command = "ping -n 1 -w 500 " + moduleID + " >NUL 2>&1";
+#elif defined(__APPLE__)
+    const std::string command = "ping -c 1 -W 500 " + moduleID + " >/dev/null 2>&1";
+#else
+    const std::string command = "ping -c 1 -W 1 " + moduleID + " >/dev/null 2>&1";
+#endif
+    result = std::system(command.c_str()) == 0 ? 1 : 0;
+    return true;
 }
 
 bool SNMPClient::parseOid(const std::string& text, std::vector<oid>& result) const {
@@ -212,6 +240,7 @@ std::string SNMPClient::valueAsString(const Value& value) const {
 
 bool SNMPClient::setValue(const std::string& remote, uint64_t value) {
     PointConfig& config = configFor(remote);
+    if (config.ping) return false;
     Value current;
     if (!getValue(remote, current)) return false;
     std::vector<oid> objectId;
@@ -242,6 +271,12 @@ bool SNMPClient::setValue(const std::string& remote, uint64_t value) {
 }
 
 bool SNMPClient::readBit(const std::string& remote, int& result) {
+    uint64_t pingResult = 0;
+    if (configFor(remote).ping) {
+        const bool success = readPing(remote, pingResult);
+        result = pingResult != 0 ? 1 : 0;
+        return success;
+    }
     Value value;
     if (!getValue(remote, value)) return false;
     const auto& conditions = configFor(remote).onConditions;
@@ -264,5 +299,9 @@ bool SNMPClient::readWord(const std::string& remote, uint16_t& result) { uint64_
 bool SNMPClient::writeWord(const std::string& remote, uint16_t value) { return setValue(remote, value); }
 bool SNMPClient::readDWord(const std::string& remote, uint32_t& result) { uint64_t v; if (!readLWord(remote, v) || v > UINT32_MAX) return false; result = static_cast<uint32_t>(v); return true; }
 bool SNMPClient::writeDWord(const std::string& remote, uint32_t value) { return setValue(remote, value); }
-bool SNMPClient::readLWord(const std::string& remote, uint64_t& result) { Value value; return getValue(remote, value) && valueAsUnsigned(value, result); }
+bool SNMPClient::readLWord(const std::string& remote, uint64_t& result) {
+    if (configFor(remote).ping) return readPing(remote, result);
+    Value value;
+    return getValue(remote, value) && valueAsUnsigned(value, result);
+}
 bool SNMPClient::writeLWord(const std::string& remote, uint64_t value) { return setValue(remote, value); }

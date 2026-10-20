@@ -13,10 +13,12 @@
 // limitations under the License.
 
 import { IOClient } from "./IOClient.js";
+import { execFile } from "node:child_process";
 
 const DEFAULT_PORT = 161;
 const DEFAULT_COMMUNITY = "public";
 const DEFAULT_TIMEOUT = 3000;
+const PING_TIMEOUT = 500;
 
 function parseConfig(raw) {
   if (!raw) return {};
@@ -94,6 +96,10 @@ export class SNMPClient extends IOClient {
 
   connect() {
     if (this.connected || this._connecting) return;
+    if (this.mappings.every(map => this.#isPing(map))) {
+      this.connected = this.mappings.length > 0;
+      return;
+    }
     this._connecting = true;
     import("net-snmp")
       .then(module => {
@@ -116,8 +122,12 @@ export class SNMPClient extends IOClient {
   }
 
   readBit(remote, callback) {
+    const map = this.#findMapping(remote);
+    if (this.#isPing(map)) {
+      this.#ping(callback);
+      return;
+    }
     this.#get(remote, varbind => {
-      const map = this.#findMapping(remote);
       const config = parseConfig(map?.additionalProperties);
       const configured = property(config, "onConditions", "");
       if (String(configured).trim()) {
@@ -166,6 +176,11 @@ export class SNMPClient extends IOClient {
   }
 
   #readNumeric(remote, mask, callback) {
+    const map = this.#findMapping(remote);
+    if (this.#isPing(map)) {
+      this.#ping(callback);
+      return;
+    }
     this.#get(remote, varbind => {
       const value = varbindToBigInt(varbind, this.snmp);
       if (value !== null) callback(Number(value & mask));
@@ -193,6 +208,7 @@ export class SNMPClient extends IOClient {
   }
 
   #setNumeric(remote, value) {
+    if (this.#isPing(this.#findMapping(remote))) return;
     this.#get(remote, current => {
       const map = this.#findMapping(remote);
       const session = this.#sessionFor(map);
@@ -234,8 +250,24 @@ export class SNMPClient extends IOClient {
     return this.mappings.find(map => String(map.remoteAddress) === String(remote));
   }
 
+  #isPing(map) {
+    if (!map) return false;
+    const config = parseConfig(map.additionalProperties);
+    return String(property(config, "version", "v2c")).trim().toLowerCase() === "ping";
+  }
+
+  #ping(callback) {
+    const host = String(this.moduleID);
+    const args = process.platform === "win32"
+      ? ["-n", "1", "-w", String(PING_TIMEOUT), host]
+      : process.platform === "darwin"
+        ? ["-c", "1", "-W", String(PING_TIMEOUT), host]
+        : ["-c", "1", "-W", "1", host];
+    execFile("ping", args, { timeout: PING_TIMEOUT + 250 }, error => callback(error ? 0 : 1));
+  }
+
   #sessionFor(map) {
-    if (!this.connected || !this.snmp || !map) return null;
+    if (!this.connected || !this.snmp || !map || this.#isPing(map)) return null;
     const config = parseConfig(map.additionalProperties);
     const community = String(property(config, "community", DEFAULT_COMMUNITY));
     const requestedVersion = String(property(config, "version", "v2c")).trim().toLowerCase();

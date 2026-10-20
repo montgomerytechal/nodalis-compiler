@@ -150,8 +150,27 @@ Set `Protocol` to `SNMP`, `ModuleID` to the agent hostname or IP address, `Modul
 `ProtocolProperties` accepts:
 
 - `community`: community name; defaults to `public`.
-- `version`: `v1`/`1` or `v2c`/`2`; defaults to `v2c`.
+- `version`: `v1`/`1`, `v2c`/`2`, or `ping`; defaults to `v2c`.
 - `onConditions`: comma-delimited object values that make a one-bit input true. Matching ignores case and surrounding whitespace. Without this option, numeric zero is false and nonzero is true.
+
+Set `version` to `ping` to use the SNMP mapping as a reachability check instead of making an SNMP request. The client sends a short-timeout ICMP echo to `ModuleID`; successful reads produce `1` and unsuccessful reads produce `0` for both bit and wider input mappings. No SNMP session or request is used for a ping-only client. `ModulePort`, `community`, and `onConditions` do not apply. `RemoteAddress` is only a unique mapping identifier in this mode, and output writes are ignored.
+
+For example, this one-bit input becomes true while `192.0.2.10` answers ICMP echo requests:
+
+```json
+{
+  "ModuleID": "192.0.2.10",
+  "ModulePort": "",
+  "Protocol": "SNMP",
+  "RemoteAddress": "reachability",
+  "RemoteSize": "1",
+  "InternalAddress": "%IX0.0",
+  "PollTime": "1000",
+  "ProtocolProperties": "{\"version\":\"ping\"}"
+}
+```
+
+Ping mode is intended for input mappings. A failed, timed-out, unavailable, or locally blocked ICMP probe is reported as `0`; therefore, ensure ICMP echo is allowed between the runtime host and the monitored device. The Node.js implementation performs the probe asynchronously. The synchronous C++ and .NET clients use a short bounded timeout to limit scan-cycle blocking.
 
 The C++ runtime links platform-specific Net-SNMP static libraries, Node.js uses `net-snmp`, and .NET uses `Lextm.SharpSnmpLib`. SNMP is not currently implemented by the Arduino runtime.
 
@@ -165,7 +184,23 @@ The project-root [`snmp-mib-reader.ps1`](snmp-mib-reader.ps1) utility can turn v
     -OutputFile "C:\Reports\eaton-objects.txt"
 ```
 
-`SnmpBinPath` and `MibDirectory` are required. `Filter` is an optional case-insensitive match against MIB filenames and contents. `OutputFile` is optional and defaults to `snmp-mib-report.txt` in the current directory. Run `Get-Help .\snmp-mib-reader.ps1 -Full` for complete documentation and more examples.
+When omitted, `SnmpBinPath` defaults to `bin` beside the script and `MibDirectory` defaults to `share\snmp\mibs` beside the script. `Filter` is an optional comma-delimited list of case-insensitive matches against MIB filenames and contents; a file is included when any term matches. `OutputFile` defaults to `snmp-mib-report.txt` in the current directory.
+
+The project-root [`snmp-client-walker.ps1`](snmp-client-walker.ps1) utility checks a single IPv4 address, inclusive `start-end` range, or CIDR network and walks every SNMP-responsive target. It writes symbolic object instances grouped and indented by IP address. It uses the same default `bin` and `share\snmp\mibs` directories, the `public` community, SNMP v2c, a one-second timeout, and no retries unless overridden. For example:
+
+```powershell
+.\snmp-client-walker.ps1 `
+    -Target "192.0.2.10-192.0.2.20" `
+    -Community "monitor" `
+    -Filter "upsOutputSource,hrDeviceStatus" `
+    -OutputFile ".\switch-walks.txt"
+```
+
+`Filter` is an optional comma-delimited list of case-insensitive object names. It matches the base object name, so `hrDeviceStatus` includes every indexed instance such as `hrDeviceStatus.1` and `hrDeviceStatus.2`. Hosts without a matching instance are omitted from the report. During a scan, the walker displays progress for every IP, whether SNMP responded, and how many instances were walked and matched.
+
+Run `Get-Help .\snmp-mib-reader.ps1 -Full` or `Get-Help .\snmp-client-walker.ps1 -Full` for complete parameter documentation.
+
+See [`snmp-readme.txt`](snmp-readme.txt) for Net-SNMP installation, vendor MIB discovery, device configuration, and recommended health-object names for Windows/Avigilon servers, UPS devices, switches, and generators.
 
 ### OPC UA
 

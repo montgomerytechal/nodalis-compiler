@@ -50,6 +50,7 @@ private:
     struct PointConfig {
         std::string community = "public";
         long version = SNMP_VERSION_2c;
+        bool ping = false;
         std::unordered_set<std::string> onConditions;
         void* session = nullptr;
     };
@@ -68,6 +69,7 @@ private:
     bool parseOid(const std::string& text, std::vector<oid>& result) const;
     bool getValue(const std::string& remote, Value& result);
     bool setValue(const std::string& remote, uint64_t value);
+    bool readPing(const std::string& remote, uint64_t& result);
     bool valueAsUnsigned(const Value& value, uint64_t& result) const;
     std::string valueAsString(const Value& value) const;
 };

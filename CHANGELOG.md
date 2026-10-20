@@ -2,6 +2,9 @@
 
 ## [1.0.36] 2026-10-20
 - Added support for SNMP.
+- Added ICMP reachability mappings by setting the SNMP `version` property to `ping`.
+- Added default Net-SNMP paths to the MIB reader and an SNMP client walker for individual IPv4 addresses and ranges.
+- Added comma-delimited object-name filtering to the SNMP client walker.
 
 ## [1.0.35] 2026-09-04
 - Added support for Advantech and Phoenix PLCnext codesys compilation, as well as support for all available

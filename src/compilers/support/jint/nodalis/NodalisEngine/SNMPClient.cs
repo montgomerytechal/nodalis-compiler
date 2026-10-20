@@ -19,6 +19,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using Lextm.SharpSnmpLib;
 using Lextm.SharpSnmpLib.Messaging;
 
@@ -32,6 +33,7 @@ namespace Nodalis
     {
         private const int DefaultPort = 161;
         private const int TimeoutMilliseconds = 3000;
+        private const int PingTimeoutMilliseconds = 500;
         private IPEndPoint? endpoint;
 
         /// <summary>Creates an SNMP client for an engine.</summary>
@@ -47,12 +49,18 @@ namespace Nodalis
 
             try
             {
+                moduleID = mappings[0].moduleID;
+                if (mappings.All(IsPing))
+                {
+                    connected = true;
+                    engine.LogDebug($"Ping client {moduleID} is ready.");
+                    return;
+                }
                 var address = ResolveAddress(mappings[0].moduleID);
                 var port = int.TryParse(mappings[0].modulePort, NumberStyles.Integer,
                     CultureInfo.InvariantCulture, out var configuredPort) && configuredPort > 0
                     ? configuredPort : DefaultPort;
                 endpoint = new IPEndPoint(address, port);
-                moduleID = mappings[0].moduleID;
                 connected = true; // SNMP is connectionless; requests validate reachability.
                 engine.LogDebug($"SNMP Client {moduleID}:{port} is ready.");
             }
@@ -73,6 +81,13 @@ namespace Nodalis
         public override bool ReadBit(string address, out int result)
         {
             result = 0;
+            var pingMap = FindMap(address);
+            if (pingMap != null && IsPing(pingMap))
+            {
+                TryPing(out var reachable);
+                result = reachable ? 1 : 0;
+                return true;
+            }
             if (!TryGet(address, out var data, out var map)) return false;
 
             var configuredConditions = GetProperty(map, "onConditions");
@@ -143,6 +158,13 @@ namespace Nodalis
         private bool TryReadNumeric(string address, out ulong value)
         {
             value = 0;
+            var map = FindMap(address);
+            if (map != null && IsPing(map))
+            {
+                TryPing(out var reachable);
+                value = reachable ? 1UL : 0UL;
+                return true;
+            }
             return TryGet(address, out var data, out _) && TryConvertToUInt64(data, out value);
         }
 
@@ -170,6 +192,8 @@ namespace Nodalis
 
         private bool TrySetNumeric(string address, ulong value)
         {
+            var configuredMap = FindMap(address);
+            if (configuredMap != null && IsPing(configuredMap)) return false;
             if (!TryGet(address, out var current, out var map) || endpoint == null) return false;
 
             try
@@ -203,6 +227,25 @@ namespace Nodalis
         {
             var version = (GetProperty(map, "version") ?? "v2c").Trim().ToLowerInvariant();
             return version is "1" or "v1" or "snmpv1" ? VersionCode.V1 : VersionCode.V2;
+        }
+
+        private static bool IsPing(IOMap map) =>
+            string.Equals(GetProperty(map, "version")?.Trim(), "ping", StringComparison.OrdinalIgnoreCase);
+
+        private bool TryPing(out bool reachable)
+        {
+            reachable = false;
+            if (!connected || string.IsNullOrWhiteSpace(moduleID)) return false;
+            try
+            {
+                using var ping = new Ping();
+                reachable = ping.Send(moduleID, PingTimeoutMilliseconds)?.Status == IPStatus.Success;
+            }
+            catch (Exception)
+            {
+                reachable = false;
+            }
+            return true;
         }
 
         private static bool TryConvertToUInt64(ISnmpData data, out ulong value)
