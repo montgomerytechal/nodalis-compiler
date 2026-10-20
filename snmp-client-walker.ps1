@@ -8,7 +8,9 @@ SNMP walk beginning at the ISO root. Targets can be a single IPv4 address, an
 inclusive start-end range, or an IPv4 CIDR network. Results are grouped by IP
 address and indented for readability. During the scan, the console reports
 progress, whether each address responds to SNMP, and the number of walked and
-matching object instances.
+matching object instances. Major OID branches are walked independently, so a
+failure in one branch does not discard successful rows or prevent the remaining
+branches from being attempted.
 
 The script uses the Net-SNMP snmpget and snmpwalk executables. By default it
 expects the Net-SNMP directory layout to exist beside this script: executables
@@ -280,20 +282,31 @@ foreach ($ip in $targets) {
 
     Write-Progress -Activity 'Walking SNMP targets' -Status "Walking $ip ($targetIndex of $($targets.Count))" -PercentComplete $percentComplete
     Write-Verbose "Walking $ip"
-    $savedErrorActionPreference = $ErrorActionPreference
-    try {
-        $ErrorActionPreference = 'Continue'
-        $walkOutput = @(& $tools.snmpwalk @commonArguments '-Os' $ip '.1' 2>$null |
-            ForEach-Object { $_.ToString() })
-        $walkExitCode = $LASTEXITCODE
-    }
-    finally {
-        $ErrorActionPreference = $savedErrorActionPreference
-    }
-    if ($walkExitCode -ne 0) {
-        Write-Host "[$targetIndex/$($targets.Count)] $ip - SNMP found, but the walk did not complete."
-        Write-Verbose "SNMP walk did not complete for $ip; skipping."
-        continue
+
+    # Walk the major, disjoint Internet branches separately. A failure in one
+    # branch must not discard rows already returned or prevent later branches
+    # from being attempted. These cover MIB-II, private/vendor MIBs, and the
+    # SNMP framework/notification MIBs respectively.
+    $walkRoots = @('.1.3.6.1.2', '.1.3.6.1.4', '.1.3.6.1.6')
+    $walkOutput = [System.Collections.Generic.List[string]]::new()
+    $failedWalkRoots = [System.Collections.Generic.List[string]]::new()
+    foreach ($walkRoot in $walkRoots) {
+        $savedErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $rootOutput = @(& $tools.snmpwalk @commonArguments '-Os' $ip $walkRoot 2>$null |
+                ForEach-Object { $_.ToString() })
+            $walkExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $savedErrorActionPreference
+        }
+
+        foreach ($line in $rootOutput) { $walkOutput.Add($line) }
+        if ($walkExitCode -ne 0) {
+            $failedWalkRoots.Add($walkRoot)
+            Write-Verbose "SNMP walk of $walkRoot did not complete for $ip; continuing with the next branch."
+        }
     }
 
     $responsiveCount++
@@ -323,11 +336,16 @@ foreach ($ip in $targets) {
         $reportedHostCount++
     }
 
+    $partialWalkText = if ($failedWalkRoots.Count -gt 0) {
+        " Partial walk; failed branch(es): $($failedWalkRoots -join ',')."
+    }
+    else { '' }
+
     if ($filters.Count -gt 0) {
-        Write-Host "[$targetIndex/$($targets.Count)] $ip - SNMP found; $($hostLines.Count) matching instance(s) reported ($walkedInstanceCount total walked)."
+        Write-Host "[$targetIndex/$($targets.Count)] $ip - SNMP found; $($hostLines.Count) matching instance(s) reported ($walkedInstanceCount total walked).$partialWalkText"
     }
     else {
-        Write-Host "[$targetIndex/$($targets.Count)] $ip - SNMP found; $walkedInstanceCount instance(s) reported."
+        Write-Host "[$targetIndex/$($targets.Count)] $ip - SNMP found; $walkedInstanceCount instance(s) reported.$partialWalkText"
     }
 }
 Write-Progress -Activity 'Walking SNMP targets' -Completed
