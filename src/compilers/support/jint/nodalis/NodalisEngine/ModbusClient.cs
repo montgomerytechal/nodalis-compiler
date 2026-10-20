@@ -346,5 +346,17 @@ namespace Nodalis
             };
             return SendRequest(0x10, addr, 4, payload, out _);
         }
+
+        public override void Close()
+        {
+            try
+            {
+                Disconnect();
+            }
+            catch (Exception e)
+            {
+
+            }
+        }
     }
 }

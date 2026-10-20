@@ -438,6 +438,8 @@ int main() {
             const open62541o = pathTo(path.join("open62541", "lib", target, isWindowsTarget ? "open62541.lib" : 'open62541.o'));
             const bacneta = pathTo(path.join("bacnet-stack", target, "libbacnet.a"));
             const bacneti = pathTo(path.join("bacnet-stack", target, "include"));
+            const snmpa = pathTo(path.join("net-snmp", target, "lib", "libnetsnmp.a"));
+            const snmpi = pathTo(path.join("net-snmp", target, "include"));
 
 
             // Step 3: Compile C++ files with C++ compiler and link object
@@ -453,20 +455,22 @@ int main() {
                 `"${pathTo('modbus.cpp')}"`,
                 `"${pathTo('opcua.cpp')}"`,
                 `"${pathTo('bacnet.cpp')}"`,
+                `"${pathTo('snmp.cpp')}"`,
                 `"${pathTo('gpio.cpp')}"`
             ];
 
             inputs.push(`"${open62541o}"`);
             inputs.push(`"${bacneta}"`);
+            inputs.push(`"${snmpa}"`);
             const debugFlags = this.getDebugCompileFlags(compiler);
 
             if (compiler === 'cl.exe') {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
-                cppCompileCmd = `cl.exe /I${bacneti} /I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} ${cppFlagSegment}${debugFlags} /EHsc /std:c++17 /Fe:"${exeFile}" ` +
-                    `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('bacnet.cpp')}" "${pathTo('gpio.cpp')}"`; //"${pathTo('open62541.obj')}"`;
+                cppCompileCmd = `cl.exe /I${bacneti} /I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} /I${snmpi} ${cppFlagSegment}${debugFlags} /EHsc /std:c++17 /Fe:"${exeFile}" ` +
+                    `"${cppFile}" "${pathTo('nodalis.cpp')}" "${pathTo('modbus.cpp')}" "${pathTo('opcua.cpp')}" "${pathTo('bacnet.cpp')}" "${pathTo('snmp.cpp')}" "${pathTo('gpio.cpp')}"`;
             } else {
                 const cppFlagSegment = formatFlags(archFlags.cpp);
-                cppCompileCmd = `${compiler} ${cppFlagSegment}${debugFlags} -std=c++17 -I${bacneti} -I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} -o "${exeFile}" ${inputs.join(' ')} ${archFlags.linker}`;
+                cppCompileCmd = `${compiler} ${cppFlagSegment}${debugFlags} -std=c++17 -I${bacneti} -I${bacneti}/ports/${isWindowsTarget ? "win32" : "linux"} -I${snmpi} -o "${exeFile}" ${inputs.join(' ')} ${archFlags.linker}`;
             }
 
             try {

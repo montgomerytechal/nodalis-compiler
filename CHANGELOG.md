@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.36] 2026-10-20
+- Added support for SNMP.
+
 ## [1.0.35] 2026-09-04
 - Added support for Advantech and Phoenix PLCnext codesys compilation, as well as support for all available
 CodeSys softPLCs.

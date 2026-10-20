@@ -24,6 +24,7 @@ import {ModbusClient} from "./modbus.js";
 import { OPCClient } from "./opcua.js";
 import { GPIOClient } from "./gpio.js";
 import { BacnetClient } from "./bacnet.js";
+import { SNMPClient } from "./snmp.js";
 
 const MEMORY = Array.from({ length: 64 }, () =>
   Array.from({ length: 16 }, () => new Uint8Array(8))
@@ -681,9 +682,16 @@ export const DWORD_TO_UDINT = (v) => toUint32(toUint32(v));
 const Clients = [];
 
 function findClient(map) {
+  const protocol = String(map.protocol || "").toUpperCase();
   for (const client of Clients) {
-    if (client.hasMapping(map.localAddress)) return client;
-    if (client.moduleID === map.moduleID) {
+    const clientProtocol = String(client.protocol || "").toUpperCase();
+    const protocolMatches = protocol.startsWith("MODBUS")
+      ? clientProtocol.startsWith("MODBUS")
+      : protocol.startsWith("BACNET")
+        ? clientProtocol.startsWith("BACNET")
+        : clientProtocol === protocol;
+    if (protocolMatches && client.hasMapping(map.localAddress)) return client;
+    if (protocolMatches && client.moduleID === map.moduleID) {
       client.addMapping(map);
       return client;
     }
@@ -710,6 +718,12 @@ function createClient(map) {
     bacnetClient.addMapping(map);
     bacnetClient.connect();
     return bacnetClient;
+  }
+  else if (protocol === "SNMP") {
+    const snmpClient = new SNMPClient();
+    snmpClient.addMapping(map);
+    snmpClient.connect();
+    return snmpClient;
   }
   else if (protocol === "GPIO") {
     if (process.platform !== "linux") {

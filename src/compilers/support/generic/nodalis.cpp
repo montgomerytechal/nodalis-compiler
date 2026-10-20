@@ -25,6 +25,7 @@
 #include "opcua.h"
 #include "bacnet.h"
 #include "gpio.h"
+#include "snmp.h"
 
 uint64_t PROGRAM_COUNT = 0;
 uint64_t MEMORY[64][16] = { 0 };
@@ -298,7 +299,9 @@ IOMap::IOMap(std::string mapJson){
     width = std::atoi(j["RemoteSize"].get<std::string>().c_str());
     interval = std::atoi(j["PollTime"].get<std::string>().c_str());
     protocol = j["Protocol"];
-    additionalProperties = j["ProtocolProperties"];
+    if (j.contains("ProtocolProperties")) additionalProperties = j["ProtocolProperties"];
+    else if (j.contains("Properties")) additionalProperties = j["Properties"];
+    else additionalProperties = json::object();
     if(localAddress.find("%Q") != std::string::npos){
         direction = IOType::Output;
     }
@@ -449,7 +452,7 @@ IOClient* findClient(IOMap map){
         if(Clients[x]->hasMapping(map.localAddress)){
             return Clients[x].get();
         }
-        else if(Clients[x]->getModuleID() == map.moduleID){
+        else if(Clients[x]->getModuleID() == map.moduleID && Clients[x]->getProtocol() == map.protocol){
             Clients[x]->addMapping(map);
             return Clients[x].get();
         }
@@ -471,6 +474,11 @@ std::unique_ptr<IOClient> createClient(IOMap& map){
     }
     else if(map.protocol == "BACNET" || map.protocol == "BACNET-IP"){
         auto ret = std::make_unique<BACNETClient>();
+        ret->addMapping(map);
+        return ret;
+    }
+    else if(map.protocol == "SNMP"){
+        auto ret = std::make_unique<SNMPClient>();
         ret->addMapping(map);
         return ret;
     }

@@ -247,5 +247,20 @@ namespace Nodalis
             }
             return false;
         }
+
+        public override async void Close()
+        {
+            try
+            {
+                if (_session != null)
+                {
+                    await _session.CloseAsync();
+                }
+            }
+            catch (Exception e)
+            {
+
+            }
+        }
     }
 }

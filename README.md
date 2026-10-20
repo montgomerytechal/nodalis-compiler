@@ -18,7 +18,7 @@ Nodalis is part of the broader goal of making PLC programming **portable, modern
 - ✔ **Integrated CLI (`nodalis`)**
 - ✔ **Strict extension validation** for ST/LD inputs
 - ✔ **Extensible compiler architecture**
-- ✔ **Modbus** and **OPC UA** protocol support
+- ✔ **Modbus**, **BACnet/IP**, **SNMP**, and **OPC UA** protocol support
 - ✔ **ES Module based structure**
 
 ---
@@ -118,6 +118,63 @@ await app.compile({
 
 ---
 
+## 🔌 Protocol Support
+
+Nodalis maps external I/O through a common `IOMap` model. `Protocol` selects the client, `ModuleID` identifies the remote device or endpoint, `ModulePort` selects its network port, `RemoteAddress` identifies the remote point, and `ProtocolProperties` (also accepted as `Properties`) carries protocol-specific options.
+
+The generic C++, Node.js, and .NET runtimes support all four network protocols. The Arduino runtime currently supports Modbus TCP, but not BACnet/IP, SNMP, or OPC UA. Arduino also provides a separate GPIO client for local pins.
+
+| Protocol | Generic C++ | Node.js | .NET (`NodalisEngine`) | Arduino |
+|---|---|---|---|---|
+| Modbus TCP | Yes — native socket client | Yes — `jsmodbus` | Yes — `TcpClient`/`NetworkStream` implementation | Yes — `ArduinoModbus` and `Ethernet` |
+| BACnet/IP | Yes — statically linked `bacnet-stack` | Yes — `bacstack` | Yes — `System.IO.BACnet` | No |
+| SNMP v1/v2c | Yes — statically linked Net-SNMP | Yes — `net-snmp` | Yes — `Lextm.SharpSnmpLib` | No |
+| OPC UA | Yes — bundled `open62541` | Yes — `node-opcua` | Yes — OPC Foundation .NET Standard libraries | No |
+
+### Modbus TCP
+
+Set `Protocol` to `MODBUS-TCP`. `ModuleID` is the device hostname or IP address, `ModulePort` is normally `502`, and `RemoteAddress` is the coil or register address. The mapping width and direction determine the normal read/write behavior. `ProtocolProperties` can override the input and output function codes with `InFunction` and `OutFunction` where the runtime supports those options.
+
+The C++ and .NET implementations perform Modbus TCP requests directly, Node.js uses `jsmodbus`, and Arduino uses the `ArduinoModbus` and `Ethernet` libraries. Arduino supports both the Modbus TCP mapping client and its runtime-specific Modbus server helpers.
+
+### BACnet/IP
+
+Set `Protocol` to `BACNET` or `BACNET-IP`. `ModuleID` is the device IP address and `ModulePort` normally uses the BACnet/IP default of `47808` (`0xBAC0`). Point configuration identifies the BACnet object type, object instance, property identifier, optional array index, value type, and optional write priority.
+
+The C++ runtime links the bundled `bacnet-stack` static library, Node.js uses `bacstack`, and .NET uses `System.IO.BACnet`. BACnet/IP is not currently implemented by the Arduino runtime.
+
+### SNMP
+
+Set `Protocol` to `SNMP`, `ModuleID` to the agent hostname or IP address, `ModulePort` to the agent's UDP port (normally `161`), and `RemoteAddress` to a numeric OID such as `1.3.6.1.2.1.1.3.0`. Numeric OIDs allow the runtime clients to operate without installing MIB files on the target.
+
+`ProtocolProperties` accepts:
+
+- `community`: community name; defaults to `public`.
+- `version`: `v1`/`1` or `v2c`/`2`; defaults to `v2c`.
+- `onConditions`: comma-delimited object values that make a one-bit input true. Matching ignores case and surrounding whitespace. Without this option, numeric zero is false and nonzero is true.
+
+The C++ runtime links platform-specific Net-SNMP static libraries, Node.js uses `net-snmp`, and .NET uses `Lextm.SharpSnmpLib`. SNMP is not currently implemented by the Arduino runtime.
+
+The project-root [`snmp-mib-reader.ps1`](snmp-mib-reader.ps1) utility can turn vendor MIBs into a grouped text reference containing object names, numeric OIDs, value types, and enumerated values. It requires the Net-SNMP command-line binaries, including `snmptranslate`, available from [Net-SNMP](https://www.net-snmp.org/download.html). For example:
+
+```powershell
+.\snmp-mib-reader.ps1 `
+    -SnmpBinPath "C:\Net-SNMP\bin" `
+    -MibDirectory "C:\MIBs" `
+    -Filter "EATON" `
+    -OutputFile "C:\Reports\eaton-objects.txt"
+```
+
+`SnmpBinPath` and `MibDirectory` are required. `Filter` is an optional case-insensitive match against MIB filenames and contents. `OutputFile` is optional and defaults to `snmp-mib-report.txt` in the current directory. Run `Get-Help .\snmp-mib-reader.ps1 -Full` for complete documentation and more examples.
+
+### OPC UA
+
+Set `Protocol` to `OPCUA`. `ModuleID` identifies the OPC UA endpoint, and `RemoteAddress` identifies the remote node used by the mapping. The clients read and write values using the mapping's IEC width and direction.
+
+The C++ runtime uses the bundled `open62541` implementation, Node.js uses `node-opcua`, and .NET uses the OPC Foundation .NET Standard libraries. OPC UA is not currently implemented by the Arduino runtime.
+
+---
+
 ## 🧠 Compiler Specifics
 
 ### CodeSysCompiler
@@ -184,12 +241,6 @@ Nodalis uses a managed `arduino-cli` by default when present under `~/.nodalis/t
 Running `nodalis --action get-toolchains` also installs the default board cores required by the built-in Arduino FQBN targets, currently including `arduino:mbed_opta:opta`.
 It also installs the default Arduino libraries required by the shipped support code, currently including `ArduinoModbus`.
 
-#### Variations
-
-- Windows builds exclude the OPC/UA client and server components to keep dependencies minimal.
-
----
-
 ## 🟦 JSCompiler
 
 `JSCompiler` transpiles LD (`.iec`) and ST (`.st`, `.iec`) programs into JavaScript for either **Node.js** or **jint** targets.
@@ -243,4 +294,4 @@ This project is licensed under the **Apache 2.0 License**.
 
 ## 🏷 Keywords
 
-PLC • IEC-61131 • Ladder Logic • Structured Text • Compiler • C++ • Node.js • Modbus • OPC UA
+PLC • IEC-61131 • Ladder Logic • Structured Text • Compiler • C++ • Node.js • Modbus • BACnet • SNMP • OPC UA

@@ -589,6 +589,22 @@ namespace Nodalis
             return false;
         }
 
+        public override void Close()
+        {
+            try
+            {
+                if (_client != null)
+                {
+                    _client.Dispose();
+                    _client = null;
+                }
+            }
+            catch (Exception e)
+            {
+
+            }
+        }
+
         // ---------------------- internal types ----------------------
 
         private struct BacnetPoint

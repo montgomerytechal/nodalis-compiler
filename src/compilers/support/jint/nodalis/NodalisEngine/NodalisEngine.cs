@@ -274,6 +274,10 @@ namespace Nodalis
         /// </summary>
         public abstract void Connect();
         /// <summary>
+        /// Closes the connection to the module.
+        /// </summary>
+        public abstract void Close();
+        /// <summary>
         /// Reads a bit from the remote module.
         /// </summary>
         /// <param name="address">The address to read</param>
@@ -459,7 +463,8 @@ namespace Nodalis
             {
                 var map = new IOMap(json);
                 LogDebug($"Adding map for {map.moduleID}/{map.remoteAddress}/{map.localAddress}");
-                var client = Clients.Find(c => c.HasMapping(map.localAddress) || c.moduleID == map.moduleID);
+                var client = Clients.Find(c => ClientSupportsProtocol(c, map.protocol) &&
+                    (c.HasMapping(map.localAddress) || c.moduleID == map.moduleID));
                 if (client == null)
                 {
                     LogDebug($"Creating client for map {map.moduleID}/{map.remoteAddress}/{map.localAddress}");
@@ -503,6 +508,8 @@ namespace Nodalis
             else if (map.protocol.Equals("BACNET", StringComparison.InvariantCultureIgnoreCase)
                   || map.protocol.Equals("BACNET-IP", StringComparison.InvariantCultureIgnoreCase))
                 client = new BacnetIpClient(this);
+            else if (map.protocol.Equals("SNMP", StringComparison.InvariantCultureIgnoreCase))
+                client = new SNMPClient(this);
             else if (map.protocol == "OPCUA")
                 client = new OPCClient(this);
             else
@@ -514,6 +521,15 @@ namespace Nodalis
                 client.AddMapping(map);
             }
             return client;
+        }
+
+        private static bool ClientSupportsProtocol(IOClient client, string protocol)
+        {
+            if (protocol.StartsWith("MODBUS", StringComparison.InvariantCultureIgnoreCase))
+                return client.protocol.StartsWith("MODBUS", StringComparison.InvariantCultureIgnoreCase);
+            if (protocol.StartsWith("BACNET", StringComparison.InvariantCultureIgnoreCase))
+                return client.protocol.StartsWith("BACNET", StringComparison.InvariantCultureIgnoreCase);
+            return client.protocol.Equals(protocol, StringComparison.InvariantCultureIgnoreCase);
         }
         /// <summary>
         /// Gets a bit from a value
