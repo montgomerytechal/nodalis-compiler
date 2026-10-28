@@ -1,14 +1,43 @@
 const { OPCUAServer, Variant, DataType, StatusCodes } = require("node-opcua");
 const readline = require("readline");
+const fs = require("fs");
+const path = require("path");
+const { OPCUACertificateManager } =
+    require("node-opcua-certificate-manager");
 
+// Dedicated certificate directory for this test server
+const pkiPath = path.join(__dirname, "opc-test-pki");
+
+// Delete old certificates before initializing the server
+if (fs.existsSync(pkiPath)) {
+    fs.rmSync(pkiPath, { recursive: true, force: true });
+    console.log("Deleted previous OPC UA certificates.");
+}
+
+// Create a new certificate manager
+const certificateManager = new OPCUACertificateManager({
+    rootFolder: pkiPath,
+    automaticallyAcceptUnknownCertificate: true
+});
 let input1 = false;
 let output1 = false;
 let lastOutput1 = output1;
+const APPLICATION_URI = "urn:192.168.9.151:NodeOPCUA-Server";
 
 (async () => {
     const server = new OPCUAServer({
+        hostname: "192.168.9.151",
         port: 4334,
         resourcePath: "/UA/nodalis",
+        serverCertificateManager: certificateManager,
+        serverInfo: {
+            applicationUri: APPLICATION_URI,
+            productUri: "urn:MTI:NodalisOPC",
+            applicationName: {
+                text: "Nodalis OPC UA Test Server"
+            }
+        },
+
         buildInfo: {
             productName: "NodalisOPC",
             buildNumber: "1",

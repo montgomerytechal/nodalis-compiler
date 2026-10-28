@@ -149,7 +149,24 @@ namespace Nodalis
             };
         }
 
-        private NodeId GetNodeId(string remote) => new NodeId($"s={remote}", 1);
+        private NodeId GetNodeId(string remote)
+        {
+            if (string.IsNullOrWhiteSpace(remote))
+                throw new ArgumentException("OPC UA NodeId cannot be empty.");
+
+            remote = remote.Trim();
+
+            if (remote.StartsWith("ns=", StringComparison.OrdinalIgnoreCase) ||
+                remote.StartsWith("i=", StringComparison.OrdinalIgnoreCase) ||
+                remote.StartsWith("s=", StringComparison.OrdinalIgnoreCase) ||
+                remote.StartsWith("g=", StringComparison.OrdinalIgnoreCase) ||
+                remote.StartsWith("b=", StringComparison.OrdinalIgnoreCase))
+            {
+                return NodeId.Parse(remote);
+            }
+
+            return new NodeId(remote, 1);
+        }
 
         public override bool ReadBit(string address, out int result)
         {
@@ -201,26 +218,43 @@ namespace Nodalis
             return WriteVal(address, value, BuiltInType.UInt64);
         }
 
-        private bool ReadValue<T>(string address, out T result, BuiltInType type)
+        private bool ReadValue<T>(
+    string address,
+    out T result,
+    BuiltInType type)
         {
             result = default!;
-            if (!connected || _session == null) return false;
+
+            if (!connected || _session == null)
+                return false;
 
             try
             {
                 var nodeId = GetNodeId(address);
-                var value = _session.ReadValueAsync(nodeId, default).GetAwaiter().GetResult();
-                if (value.Value is T cast)
+
+                var value = _session.ReadValueAsync(nodeId, default)
+                    .GetAwaiter()
+                    .GetResult();
+
+                if (StatusCode.IsBad(value.StatusCode))
                 {
-                    result = cast;
-                    return true;
+                    Console.WriteLine(
+                        $"OPC UA read failed [{address}]: {value.StatusCode}");
+                    return false;
                 }
+
+                if (value.Value == null)
+                    return false;
+
+                result = (T)Convert.ChangeType(value.Value, typeof(T));
+
+                return true;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Read error [{address}]: {ex.Message}");
+                return false;
             }
-            return false;
         }
 
         private bool WriteVal<T>(string address, T value, BuiltInType type)
