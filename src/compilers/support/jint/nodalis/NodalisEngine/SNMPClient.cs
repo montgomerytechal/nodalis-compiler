@@ -53,7 +53,7 @@ namespace Nodalis
                 if (mappings.All(IsPing))
                 {
                     connected = true;
-                    engine.LogDebug($"Ping client {moduleID} is ready.");
+                    engine?.LogDebug($"Ping client {moduleID} is ready.");
                     return;
                 }
                 var address = ResolveAddress(mappings[0].moduleID);
@@ -62,7 +62,7 @@ namespace Nodalis
                     ? configuredPort : DefaultPort;
                 endpoint = new IPEndPoint(address, port);
                 connected = true; // SNMP is connectionless; requests validate reachability.
-                engine.LogDebug($"SNMP Client {moduleID}:{port} is ready.");
+                engine?.LogDebug($"SNMP Client {moduleID}:{port} is ready.");
             }
             catch (Exception ex)
             {
@@ -185,7 +185,7 @@ namespace Nodalis
             }
             catch (Exception ex)
             {
-                engine.LogError($"SNMP GET failed for {moduleID}/{address}: {ex.Message}");
+                engine?.LogError($"SNMP GET failed for {moduleID}/{address}: {ex.Message}");
                 return false;
             }
         }
@@ -206,7 +206,7 @@ namespace Nodalis
             }
             catch (Exception ex)
             {
-                engine.LogError($"SNMP SET failed for {moduleID}/{address}: {ex.Message}");
+                engine?.LogError($"SNMP SET failed for {moduleID}/{address}: {ex.Message}");
                 return false;
             }
         }

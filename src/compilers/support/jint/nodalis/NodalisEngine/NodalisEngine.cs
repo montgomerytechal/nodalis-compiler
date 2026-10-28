@@ -190,11 +190,11 @@ namespace Nodalis
                     
                 }
                 mappings.Add(map);
-                engine.LogDebug(@$"Added map for {map.localAddress} to {map.protocol}:{map.moduleID}/{map.remoteAddress}");
+                engine?.LogDebug(@$"Added map for {map.localAddress} to {map.protocol}:{map.moduleID}/{map.remoteAddress}");
             }
             else
             {
-                engine.LogDebug($"Tried to add a duplicate map for {map.localAddress}");
+                engine?.LogDebug($"Tried to add a duplicate map for {map.localAddress}");
             }
         }
         /// <summary>

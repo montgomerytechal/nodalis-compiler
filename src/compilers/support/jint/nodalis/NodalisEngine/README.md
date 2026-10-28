@@ -174,6 +174,9 @@ NodalisEngine is distributed under the Apache 2.0 license. See the headers insid
 
 # Changelog
 
+## [1.0.19] - 2026-10-28
+- Fixed issue with OPC instantiation
+
 ## [1.0.18] - 2026-10-20
 - Added Close method to IOClients so that connections could be managed better.
 - Added SNMP Client.

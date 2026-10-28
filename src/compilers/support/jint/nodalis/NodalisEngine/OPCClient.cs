@@ -16,6 +16,8 @@
 /// OPC client implementation for .NET
 /// </summary>
 
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Client;
 using Opc.Ua.Configuration;
@@ -31,13 +33,21 @@ namespace Nodalis
     /// </summary>
     public class OPCClient : IOClient
     {
-        private readonly ITelemetryContext _telemetry = DefaultTelemetry.Create(null);
+        private readonly ITelemetryContext _telemetry;
         private ISession? _session;
         private ApplicationConfiguration? _config;
         /// <summary>
         /// Instantiates a new OPCClient.
         /// </summary>
-        public OPCClient(NodalisEngine parent) : base("OPCUA", parent) { }
+        public OPCClient(NodalisEngine parent) : base("OPCUA", parent)
+        {
+            _telemetry = DefaultTelemetry.Create(builder =>
+            {
+                builder.ClearProviders();
+                builder.SetMinimumLevel(LogLevel.None);
+            });
+
+        }
         /// <summary>
         /// Connects to the OPC device based on the mappings supplied.
         /// </summary>
